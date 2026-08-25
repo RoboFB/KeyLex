@@ -1,0 +1,45 @@
+# Output-Seite: pro Zielprogramm, welche Aktionen es unterstützt
+# (Whitelist) und wie der Adapter erreichbar ist.
+
+[[target]]
+program = "vscode"
+match_process = ["Code.exe", "code"]
+adapter = "socket"
+address = "127.0.0.1:7777"
+
+  [target.supports]
+  "close.tab" = "workbench.action.closeActiveEditor"
+  "close.window" = "workbench.action.closeWindow"
+  "close.sidebar" = "workbench.action.closeSidebar"
+  "close.pane" = "workbench.action.closePanel"
+  "close.terminal" = "workbench.action.terminal.kill"
+  "duplicate.line" = "editor.action.copyLinesDownAction"
+  "go_to.definition" = "editor.action.revealDefinition"
+  "comment.line" = "editor.action.commentLine"
+  "save" = "workbench.action.files.save"
+
+[[target]]
+program = "chrome"
+match_process = ["chrome.exe", "chrome"]
+adapter = "native_messaging"
+host_name = "io.keylex.chrome_host"
+
+  [target.supports]
+  "close.tab" = "chrome.tabs.remove"
+
+[[target]]
+program = "neovim"
+match_process = ["nvim"]
+adapter = "rpc"
+socket_env = "NVIM_LISTEN_ADDRESS"
+
+  [target.supports]
+  "close.tab" = "bd"
+  "save" = "w"
+  "duplicate.line" = "normal yyp"
+
+# Systemweite Aktionen, unabhängig vom fokussierten Programm
+[[system_action]]
+id = "system.reset_graphics_driver"
+os = "windows"
+keycode = "win+ctrl+shift+b"

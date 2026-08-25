@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: keylex
+Version: 0.1.0
+Summary: Dispatch abstract verb+object actions to per-app native commands, with keycode fallback.
+Requires-Python: >=3.11
+Provides-Extra: linux
+Requires-Dist: evdev>=1.6; extra == "linux"
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"

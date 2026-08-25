@@ -1,0 +1,9 @@
+{
+  "name": "keylex-vscode-adapter",
+  "displayName": "Keylex VS Code Adapter",
+  "description": "Reference target adapter for Keylex (keylex/v0 protocol): listens on a local socket and executes the received command via vscode.commands.executeCommand.",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.80.0" },
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js"
+}

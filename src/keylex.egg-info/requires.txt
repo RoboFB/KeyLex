@@ -1,0 +1,6 @@
+
+[dev]
+pytest>=8
+
+[linux]
+evdev>=1.6
