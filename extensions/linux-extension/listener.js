@@ -49,10 +49,10 @@ function moveActiveWindow(half) {
 }
 
 const COMMANDS = {
-  shutdown: () => run("systemctl", ["poweroff"]),
-  show_desktop: () => run("wmctrl", ["-k", "on"]),
-  move_left: () => moveActiveWindow("left"),
-  move_right: () => moveActiveWindow("right"),
+  "os.system.shutdown": () => run("systemctl", ["poweroff"]),
+  "os.desktop.show": () => run("wmctrl", ["-k", "on"]),
+  "os.window.move_left": () => moveActiveWindow("left"),
+  "os.window.move_right": () => moveActiveWindow("right"),
 };
 
 const server = net.createServer((socket) => {

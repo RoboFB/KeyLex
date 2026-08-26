@@ -58,10 +58,10 @@ function moveActiveWindow(half) {
 }
 
 const COMMANDS = {
-  shutdown: () => runPowerShell("shutdown /s /t 0"),
-  show_desktop: () => runPowerShell("(New-Object -ComObject Shell.Application).ToggleDesktop()"),
-  move_left: () => moveActiveWindow("left"),
-  move_right: () => moveActiveWindow("right"),
+  "os.system.shutdown": () => runPowerShell("shutdown /s /t 0"),
+  "os.desktop.show": () => runPowerShell("(New-Object -ComObject Shell.Application).ToggleDesktop()"),
+  "os.window.move_left": () => moveActiveWindow("left"),
+  "os.window.move_right": () => moveActiveWindow("right"),
 };
 
 const server = net.createServer((socket) => {

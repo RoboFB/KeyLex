@@ -135,21 +135,54 @@ loopback-only certificate wouldn't stop either.
   entirely in `targets.toml` and is the target adapter's contract to
   fulfil (e.g. the VS Code extension calling
   `vscode.commands.executeCommand(command)`).
-- Action IDs themselves (the `close.tab` on the Keylex side) are plain
-  strings — the dot-separated naming (`close.tab`) is a convention, not a
-  grammar enforced at load time. See [../CLAUDE.md](../CLAUDE.md) for that
-  vocabulary.
-- Recommended (not enforced) convention for the `command` string itself:
-  give every target's `supports` values the same
-  `<target>.<category>.<verb>` dot-namespaced shape, e.g. `chrome.tab.close`,
-  `chrome.window.close`, `chrome.sidepanel.toggle`. This isn't new for VS
-  Code -- its real command IDs (`workbench.action.closeActiveEditor`)
-  already naturally fit this shape -- but it's worth calling out
-  explicitly so new targets (Chrome now, Neovim/terminal later) follow the
-  same structural pattern instead of each inventing its own ad hoc naming,
-  even though the literal strings stay target-specific (they still map to
-  each platform's real API surface client-side, and remain opaque to
-  Keylex either way).
+### Action IDs
+
+Action IDs are **not** free-form strings — they're built from two
+validated word lists in [config/vocabulary.toml](../config/vocabulary.toml),
+a `modifiers` list (verbs, e.g. `close`, `save`, `move`) and a `locations`
+list (objects, e.g. `tab`, `sidebar`, `left`). Every `[[action]]` in
+[config/actions.toml](../config/actions.toml) declares a `modifier` and an
+optional `location`; `Registry::load` (`src/config.rs`) rejects the whole
+config at startup if either word isn't in `vocabulary.toml`, and derives
+the actual id from them:
+
+- `modifier` alone, e.g. `save`, `shutdown` — for actions with no natural
+  object.
+- `modifier.location`, e.g. `close.tab`, `move.left` — everything else.
+
+This id is app-agnostic by design: the same `close.tab` is what a
+`ctrl+w` key binding resolves to regardless of which app ends up
+focused. Per-app translation only happens downstream, in each target's
+`supports` map (see "Native command strings" below) — this is what lets
+one physical key mean the same abstract thing everywhere, with the
+native-adapter indirection doing the actual app-specific work.
+
+### Native command strings
+
+Each target's `supports` map (the values sent as `command` on the wire)
+now lives in that target's own `capabilities.toml`, next to its adapter
+code — `extensions/<name>/capabilities.toml` — rather than centrally in
+`targets.toml`, which points at it via a `capabilities` path. This is
+what lets an extension own the declaration of what it understands and
+accepts, instead of that living as a second, easily-drifting copy of the
+allowlist it already hardcodes on the receiving end (`ALLOWED_COMMANDS`
+in `vscode-extension/extension.js`, the `switch` in
+`chrome-extension/background.js`, the `COMMANDS` maps in the two
+system-listener `listener.js` files).
+
+For a command string Keylex invented itself — where it controls both the
+daemon side and the target's handler — the shape is **enforced**, not
+just recommended: `<application>.<location>.<action>`, three
+lowercase/underscore dot-separated tokens, e.g. `chrome.tab.close`,
+`os.window.move_left`. `Registry::load` rejects any non-conforming value.
+
+The one thing this can't apply to is a command string that's actually
+someone else's namespace: VS Code's real command IDs
+(`workbench.action.closeActiveEditor`) are fixed by Microsoft, and
+Neovim's ex-commands (`bd`, `w`) are fixed by Neovim — Keylex only
+forwards them, it doesn't get to rename them. A target can opt out of the
+grammar check with `exempt_command_grammar = true` in `targets.toml` for
+exactly this reason; `vscode` and `neovim` are the only two that set it.
 
 ## Versioning
 

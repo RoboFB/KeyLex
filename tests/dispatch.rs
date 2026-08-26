@@ -14,9 +14,16 @@ fn temp_config_dir(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("keylex-test-{name}-{}-{:?}", std::process::id(), std::thread::current().id()))
 }
 
+/// Covers every modifier/location these fixture tests bind an action to.
+const TEST_VOCABULARY: &str = r#"
+modifiers = ["close", "save", "duplicate", "go_to", "move"]
+locations = ["tab", "line", "definition", "left"]
+"#;
+
 fn write_config(actions_toml: &str, targets_toml: &str, name: &str) -> PathBuf {
     let dir = temp_config_dir(name);
     std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
     std::fs::write(dir.join("actions.toml"), actions_toml).unwrap();
     std::fs::write(dir.join("targets.toml"), targets_toml).unwrap();
     dir
@@ -70,11 +77,12 @@ fn router_with<'a>(
 #[test]
 fn dispatch_uses_native_adapter_when_target_supports_action() {
     let dir = write_config(
-        "[[action]]\nid = \"close.tab\"\n",
+        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
         r#"[[target]]
 program = "vscode"
 match_process = ["Code.exe"]
 adapter = "socket"
+exempt_command_grammar = true
 
   [target.supports]
   "close.tab" = "workbench.action.closeActiveEditor"
@@ -104,7 +112,7 @@ adapter = "socket"
 fn dispatch_falls_back_when_target_does_not_support_action() {
     let dir = write_config(
         r#"[[action]]
-id = "save"
+modifier = "save"
 fallback_tier = "silent"
 fallback_keycode = "ctrl+s"
 "#,
@@ -132,7 +140,8 @@ adapter = "socket"
 fn dispatch_notifies_on_fallback_attempt_tier() {
     let dir = write_config(
         r#"[[action]]
-id = "duplicate.line"
+modifier = "duplicate"
+location = "line"
 fallback_tier = "notify_attempt"
 fallback_keycode = "ctrl+shift+d"
 "#,
@@ -155,7 +164,8 @@ fallback_keycode = "ctrl+shift+d"
 fn dispatch_reports_unsupported_when_notify_only_and_no_target() {
     let dir = write_config(
         r#"[[action]]
-id = "go_to.definition"
+modifier = "go_to"
+location = "definition"
 fallback_tier = "notify_only"
 "#,
         "",
@@ -175,11 +185,12 @@ fallback_tier = "notify_only"
 #[test]
 fn dispatch_reports_unsupported_when_native_adapter_missing() {
     let dir = write_config(
-        "[[action]]\nid = \"close.tab\"\n",
+        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
         r#"[[target]]
 program = "vscode"
 match_process = ["Code.exe"]
 adapter = "socket"
+exempt_command_grammar = true
 
   [target.supports]
   "close.tab" = "workbench.action.closeActiveEditor"
@@ -199,7 +210,7 @@ adapter = "socket"
 #[test]
 fn dispatch_uses_system_target_when_no_focused_target_supports_action() {
     let dir = write_config(
-        "[[action]]\nid = \"window.move_left\"\n",
+        "[[action]]\nmodifier = \"move\"\nlocation = \"left\"\n",
         &format!(
             r#"[[target]]
 program = "system-{os}"
@@ -207,7 +218,7 @@ os = "{os}"
 adapter = "socket"
 
   [target.supports]
-  "window.move_left" = "move_left"
+  "move.left" = "os.window.move_left"
 "#,
             os = std::env::consts::OS
         ),
@@ -222,13 +233,13 @@ adapter = "socket"
 
     // No app is focused with a matching target at all -- "unknown.exe" -- so
     // this should only succeed via the OS-wide system target.
-    let result = router.dispatch("window.move_left", "unknown.exe");
+    let result = router.dispatch("move.left", "unknown.exe");
 
     assert_eq!(result.status, DispatchStatus::Native);
-    assert_eq!(result.detail, "move_left");
+    assert_eq!(result.detail, "os.window.move_left");
     assert_eq!(
         calls.borrow().as_slice(),
-        [(format!("system-{}", std::env::consts::OS), "move_left".to_string())]
+        [(format!("system-{}", std::env::consts::OS), "os.window.move_left".to_string())]
     );
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -237,12 +248,13 @@ adapter = "socket"
 #[test]
 fn dispatch_prefers_focused_app_target_over_system_target() {
     let dir = write_config(
-        "[[action]]\nid = \"close.tab\"\n",
+        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
         &format!(
             r#"[[target]]
 program = "vscode"
 match_process = ["Code.exe"]
 adapter = "socket"
+exempt_command_grammar = true
 
   [target.supports]
   "close.tab" = "workbench.action.closeActiveEditor"
@@ -253,7 +265,7 @@ os = "{os}"
 adapter = "socket"
 
   [target.supports]
-  "close.tab" = "should-not-be-used"
+  "close.tab" = "os.window.unused"
 "#,
             os = std::env::consts::OS
         ),
@@ -279,7 +291,7 @@ fn websocket_adapter_delivers_command_to_connected_client() {
     const PORT: u16 = 47778;
 
     let dir = write_config(
-        "[[action]]\nid = \"close.tab\"\n",
+        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
         r#"[[target]]
 program = "chrome"
 match_process = ["chrome.exe"]

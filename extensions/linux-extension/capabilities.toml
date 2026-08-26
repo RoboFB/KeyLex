@@ -1,0 +1,12 @@
+# This extension's declared capabilities: which Keylex action ids it can
+# carry out, and the native command string each maps to (see listener.js's
+# COMMANDS map, which independently allowlists the same commands on the
+# receiving end). Keylex controls both ends of this command string, so
+# it's held to the enforced application.location.action shape -- see
+# docs/protocol.md#native-command-strings.
+
+[supports]
+"shutdown" = "os.system.shutdown"
+"show.desktop" = "os.desktop.show"
+"move.left" = "os.window.move_left"
+"move.right" = "os.window.move_right"

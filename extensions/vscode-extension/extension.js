@@ -17,7 +17,7 @@ const fs = require("fs");
 const HOST = "127.0.0.1";
 const PORT = 7777;
 
-// Mirrors config/targets.toml's vscode target `supports` map. Kept as an
+// Mirrors this folder's capabilities.toml `[supports]` map. Kept as an
 // explicit allowlist here (rather than trusting the token alone) so a
 // compromised/rogue local client holding the token still can't invoke a
 // command this extension wasn't built to expect.

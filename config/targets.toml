@@ -1,34 +1,38 @@
-# Output side: per target program, which actions it supports (whitelist)
-# and how the adapter reaches it.
+# Output side: per target program, how the adapter reaches it and where
+# to find its declared capabilities (which actions it supports and the
+# native command string for each).
 #
 # Both local IPC adapters (socket, websocket) require every message to
 # carry the shared secret the daemon generates on first run at
 # <config-dir>/secret.token (git-ignored, never checked in -- see
 # docs/protocol.md#trust-model--authentication). Nothing here configures
 # the token itself; it's loaded automatically from that fixed path.
+#
+# capabilities: path (relative to this file's directory) to that target's
+#               own capabilities.toml, which owns the actual action ->
+#               native-command mapping -- see docs/protocol.md#action-ids
+#               for why that lives with the extension instead of here.
+# exempt_command_grammar: when true, that target's capability values are
+#               not checked against the enforced application.location.action
+#               shape (see docs/protocol.md#native-command-strings) --
+#               for targets whose command strings are an upstream API's
+#               own naming (VS Code) or a foreign scripting language
+#               (Neovim ex-commands), not ours to rename.
 
 [[target]]
 program = "vscode"
 match_process = ["Code.exe", "code"]
 adapter = "socket"
 address = "127.0.0.1:7777"
-
-  [target.supports]
-  "close.tab" = "workbench.action.closeActiveEditor"
-  "close.window" = "workbench.action.closeWindow"
-  "close.sidebar" = "workbench.action.closeSidebar"
-  "close.pane" = "workbench.action.closePanel"
-  "close.terminal" = "workbench.action.terminal.kill"
-  "duplicate.line" = "editor.action.copyLinesDownAction"
-  "go_to.definition" = "editor.action.revealDefinition"
-  "comment.line" = "editor.action.commentLine"
-  "save" = "workbench.action.files.save"
+capabilities = "../extensions/vscode-extension/capabilities.toml"
+exempt_command_grammar = true
 
 [[target]]
 program = "chrome"
 match_process = ["chrome.exe", "chrome"]
 adapter = "websocket"
 port = 7778
+capabilities = "../extensions/chrome-extension/capabilities.toml"
 # Placeholder -- replace with the real extension ID after loading it
 # unpacked (chrome://extensions/), so the daemon rejects any WebSocket
 # handshake from a browser tab/page other than this extension. See
@@ -37,16 +41,16 @@ port = 7778
 # the Origin check (not recommended -- see docs/protocol.md).
 allowed_origin = "chrome-extension://REPLACE_WITH_REAL_EXTENSION_ID"
 
-  [target.supports]
-  "close.tab" = "chrome.tab.close"
-  "close.window" = "chrome.window.close"
-  "close.sidebar" = "chrome.sidepanel.toggle"
-
+# Neovim has no extensions/ folder yet (unimplemented stub, see CLAUDE.md)
+# -- its capabilities stay inline here until a real neovim extension
+# exists to own them. Ex-commands ("bd", "w") are Neovim's own namespace,
+# so this target is exempt from the command-string grammar too.
 [[target]]
 program = "neovim"
 match_process = ["nvim"]
 adapter = "rpc"
 socket_env = "NVIM_LISTEN_ADDRESS"
+exempt_command_grammar = true
 
   [target.supports]
   "close.tab" = "bd"
@@ -64,27 +68,17 @@ program = "system-linux"
 os = "linux"
 adapter = "socket"
 address = "127.0.0.1:7779"
-
-  [target.supports]
-  "system.shutdown" = "shutdown"
-  "system.show_desktop" = "show_desktop"
-  "window.move_left" = "move_left"
-  "window.move_right" = "move_right"
+capabilities = "../extensions/linux-extension/capabilities.toml"
 
 [[target]]
 program = "system-windows"
 os = "windows"
 adapter = "socket"
 address = "127.0.0.1:7780"
-
-  [target.supports]
-  "system.shutdown" = "shutdown"
-  "system.show_desktop" = "show_desktop"
-  "window.move_left" = "move_left"
-  "window.move_right" = "move_right"
+capabilities = "../extensions/windows-extension/capabilities.toml"
 
 # System-wide actions, independent of the focused program.
 [[system_action]]
-id = "system.reset_graphics_driver"
+id = "reset.graphics_driver"
 os = "windows"
 keycode = "win+ctrl+shift+b"

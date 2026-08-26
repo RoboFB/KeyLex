@@ -1,6 +1,8 @@
 //! Decides how an abstract action is carried out for the currently
 //! focused program: native adapter -> keycode fallback -> notify.
 
+use std::fmt;
+
 use crate::config::{Registry, Target};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,10 +12,30 @@ pub enum DispatchStatus {
     Unsupported,
 }
 
+impl fmt::Display for DispatchStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DispatchStatus::Native => write!(f, "native"),
+            DispatchStatus::Fallback => write!(f, "fallback"),
+            DispatchStatus::Unsupported => write!(f, "unsupported"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DispatchResult {
     pub status: DispatchStatus,
     pub detail: String,
+}
+
+impl fmt::Display for DispatchResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.detail.is_empty() {
+            write!(f, "{}", self.status)
+        } else {
+            write!(f, "{}: {}", self.status, self.detail)
+        }
+    }
 }
 
 pub trait Adapter {

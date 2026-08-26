@@ -31,7 +31,7 @@ extension API), the Chrome extension (`extensions/chrome-extension/`,
 Manifest V3, `chrome.tabs`/`chrome.windows`/`chrome.sidePanel`), and the
 Linux/Windows OS-wide system listeners (`extensions/linux-extension/`,
 `extensions/windows-extension/` — small Node scripts handling
-focus-independent actions like `system.shutdown` and `window.move_left`
+focus-independent actions like `shutdown` and `move.left`
 via `wmctrl`/PowerShell respectively, see "Dispatch flow" below) all
 exist; Neovim/terminal adapters are unimplemented stubs. macOS has no
 capture backend at all yet, not even an untested one (see "Known gaps"
@@ -43,7 +43,7 @@ below) — Linux and Windows are the only supported platforms for now.
 cargo build              # compiles the daemon (Linux backend on this machine)
 cargo run                 # real capture loop, blocks (needs evdev/uinput perms)
 cargo run -- --demo        # two hardcoded dispatches, no capture/hardware needed
-cargo run -- --config-dir <path>  # load actions.toml/targets.toml from elsewhere
+cargo run -- --config-dir <path>  # load actions.toml/targets.toml/vocabulary.toml from elsewhere
 
 cargo test                # unit tests (src/config.rs) + integration tests (tests/dispatch.rs)
 cargo test <name>          # single test by substring
@@ -53,19 +53,25 @@ There is no separate lint step configured beyond `cargo clippy`.
 
 ## Architecture
 
-### Two config layers (`config/*.toml`), loaded by `Registry` (`src/config.rs`)
+### Three config layers (`config/*.toml` + per-extension `capabilities.toml`), loaded by `Registry` (`src/config.rs`)
 
-1. **`actions.toml`** — the action vocabulary itself: one `[[action]]`
-   entry per action, with an optional `key` field (a `"ctrl+w"`-style
-   combo — the same syntax used for `fallback_keycode`) that binds it to
-   a physical key, a `fallback_tier` (`silent` / `notify_attempt` /
+1. **`vocabulary.toml`** — the one authoritative word list: a `modifiers`
+   array (verbs, e.g. `close`, `save`, `move`) and a `locations` array
+   (objects, e.g. `tab`, `sidebar`, `left`). Every action id in
+   `actions.toml` is built only from these words; `Registry::load` refuses
+   to start if it isn't.
+2. **`actions.toml`** — the action vocabulary itself: one `[[action]]`
+   entry per action, declaring a `modifier` and an optional `location`
+   (each checked against `vocabulary.toml`) instead of a hand-typed id —
+   the id itself is derived as `modifier` alone (e.g. `save`) or
+   `modifier.location` (e.g. `close.tab`), a real enforced grammar, not
+   just a naming convention. Also an optional `key` field (a `"ctrl+w"`-
+   style combo — the same syntax used for `fallback_keycode`) that binds
+   it to a physical key, a `fallback_tier` (`silent` / `notify_attempt` /
    `notify_only`), and an optional `fallback_keycode`. An action with no
    `key` simply isn't reachable from the keyboard yet (e.g.
    `go_to.definition` today) but can still be dispatched once something
-   else triggers it. There is no separate device-binding layer and no
-   enforced verb+object grammar — action IDs are plain strings; the
-   dot-separated naming (`close.tab`) is a convention, not validated at
-   load time.
+   else triggers it. There is no separate device-binding layer.
 
    An action may instead (never both) bind a `chord`: an array of two or
    more key tokens (same vocabulary as `key`, including modifiers) that
@@ -74,16 +80,24 @@ There is no separate lint step configured beyond `cargo clippy`.
    [docs/protocol.md](docs/protocol.md#chorded-triggers) for the full
    syntax, validation rules, and the debounce/replay behavior this adds to
    capture.
-2. **`targets.toml`** — output side. Per target program: which process
-   names identify it (`match_process`), which adapter reaches it, and a
-   `supports` whitelist mapping action IDs to that program's native
-   command strings. Also holds `[[system_action]]` entries — OS-level
-   actions that don't depend on the focused app at all — and, as an
-   ordinary `[[target]]` with an `os` field instead of `match_process`
-   (`"system-linux"` / `"system-windows"`), the OS-wide system listeners
-   under `extensions/`. `Registry::system_target` picks whichever one's
-   `os` matches `std::env::consts::OS`, so only one is ever live per
-   platform even though both entries are declared in the same file.
+3. **`targets.toml`** — output side, but transport wiring only: per target
+   program, which process names identify it (`match_process`), which
+   adapter reaches it, and a `capabilities` path pointing at that target's
+   own `extensions/<name>/capabilities.toml`, which owns the actual
+   `supports` whitelist mapping action ids to that program's native
+   command strings — each extension declares what it understands and
+   accepts, instead of that living as a second copy of the allowlist it
+   already hardcodes on the receiving end (see
+   [docs/protocol.md](docs/protocol.md#native-command-strings)). `neovim`
+   is the one exception, still declaring `[target.supports]` inline since
+   it has no `extensions/` folder yet (unimplemented stub). Also holds
+   `[[system_action]]` entries — OS-level actions that don't depend on the
+   focused app at all — and, as an ordinary `[[target]]` with an `os`
+   field instead of `match_process` (`"system-linux"` / `"system-
+   windows"`), the OS-wide system listeners under `extensions/`.
+   `Registry::system_target` picks whichever one's `os` matches
+   `std::env::consts::OS`, so only one is ever live per platform even
+   though both entries are declared in the same file.
 
 ### Capture rule
 
@@ -139,8 +153,8 @@ full wire-level contract and threat model.
    this platform (`extensions/linux-extension` or
    `extensions/windows-extension`, see "Two config layers" above). If it
    `supports` this action → **native** via that target instead, regardless
-   of what's focused (used for actions like `system.shutdown` and
-   `window.move_left`/`window.move_right` that don't belong to any one
+   of what's focused (used for actions like `shutdown` and
+   `move.left`/`move.right` that don't belong to any one
    app).
 3. Otherwise → **fallback**: based on `ActionSpec.fallback_tier`, either
    send `fallback_keycode` via the platform's `FallbackSender` (optionally

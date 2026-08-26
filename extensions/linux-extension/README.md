@@ -4,8 +4,8 @@ Reference client for the `keylex/v0` socket transport (see
 [../../docs/protocol.md](../../docs/protocol.md)), backing the
 `system-linux` target in [../../config/targets.toml](../../config/targets.toml).
 Unlike `../vscode-extension` or `../chrome-extension`, this isn't tied to one
-focused program -- it handles OS-wide actions (`system.shutdown`,
-`system.show_desktop`, `window.move_left`, `window.move_right`) regardless of
+focused program -- it handles OS-wide actions (`shutdown`,
+`show.desktop`, `move.left`, `move.right`) regardless of
 what app currently has focus, via `wmctrl` / `xdotool` (X11 only, same
 constraint as [../../src/focus/linux.rs](../../src/focus/linux.rs)) and
 `systemctl poweroff`.
@@ -17,7 +17,7 @@ constraint as [../../src/focus/linux.rs](../../src/focus/linux.rs)) and
   Debian/Ubuntu)
 - `systemctl poweroff` runnable without a password prompt for your user --
   true by default on most desktop Linux systems via polkit for the active
-  session; if it isn't on yours, `system.shutdown` will just fail silently
+  session; if it isn't on yours, `shutdown` will just fail silently
   (its `keylex/v0` dispatch is fire-and-forget, per the protocol doc).
 
 ## Run
@@ -33,9 +33,9 @@ target's `address` in `config/targets.toml`.
 
 ## Command mapping
 
-| `command` (wire) | Action                        | Implementation                                   |
-|-------------------|-------------------------------|---------------------------------------------------|
-| `shutdown`        | `system.shutdown`             | `systemctl poweroff`                              |
-| `show_desktop`    | `system.show_desktop`         | `wmctrl -k on`                                    |
-| `move_left`       | `window.move_left`            | un-maximize + `wmctrl -r :ACTIVE: -e` to left half |
-| `move_right`      | `window.move_right`           | un-maximize + `wmctrl -r :ACTIVE: -e` to right half|
+| `command` (wire)       | Action          | Implementation                                     |
+|-------------------------|-----------------|-----------------------------------------------------|
+| `os.system.shutdown`    | `shutdown`      | `systemctl poweroff`                                |
+| `os.desktop.show`       | `show.desktop`  | `wmctrl -k on`                                      |
+| `os.window.move_left`   | `move.left`     | un-maximize + `wmctrl -r :ACTIVE: -e` to left half   |
+| `os.window.move_right`  | `move.right`    | un-maximize + `wmctrl -r :ACTIVE: -e` to right half  |

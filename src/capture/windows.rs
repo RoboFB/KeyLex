@@ -298,7 +298,7 @@ fn on_chord_key_down(state: &mut ChordState, token: String, registry: &Registry,
 
         let focused = crate::focus::focused_process_name();
         let result = router.dispatch(&action_id, &focused);
-        println!("{action_id} -> {result:?} (chord)");
+        println!("{action_id} -> {result} (chord)");
         return;
     }
 
@@ -481,7 +481,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
         if is_down {
             let focused = crate::focus::focused_process_name();
             let result = hook_state.router.dispatch(&action_id, &focused);
-            println!("{action_id} -> {result:?}");
+            println!("{action_id} -> {result}");
         }
         if is_down || is_up {
             return LRESULT(1); // suppress: OS/app never sees this key

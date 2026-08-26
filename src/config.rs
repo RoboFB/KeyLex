@@ -1,6 +1,6 @@
-//! Loads `actions.toml` and `targets.toml` and exposes lookups: which
-//! action a key combo triggers, which target (if any) matches a focused
-//! process, and an action's fallback behavior.
+//! Loads `actions.toml`, `targets.toml`, and `vocabulary.toml`, and exposes
+//! lookups: which action a key combo triggers, which target (if any)
+//! matches a focused process, and an action's fallback behavior.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt;
@@ -74,17 +74,60 @@ impl ActionSpec {
     }
 }
 
+/// The action-id vocabulary loaded from `vocabulary.toml`: every action's
+/// `modifier` and (if present) `location` must appear in these sets, or
+/// `Registry::load` rejects the config outright. See
+/// `docs/protocol.md#action-ids`.
+#[derive(Debug, Clone, Deserialize)]
+struct RawVocabulary {
+    #[serde(default)]
+    modifiers: Vec<String>,
+    #[serde(default)]
+    locations: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Vocabulary {
+    pub modifiers: HashSet<String>,
+    pub locations: HashSet<String>,
+}
+
+impl From<RawVocabulary> for Vocabulary {
+    fn from(raw: RawVocabulary) -> Vocabulary {
+        Vocabulary {
+            modifiers: raw.modifiers.into_iter().collect(),
+            locations: raw.locations.into_iter().collect(),
+        }
+    }
+}
+
+/// Builds an action id from a validated `modifier`/`location` pair: just
+/// `modifier` when there's no location, otherwise `modifier.location`.
+/// The only place an action id string is ever assembled -- see
+/// `docs/protocol.md#action-ids`.
+fn action_id(modifier: &str, location: Option<&str>) -> String {
+    match location {
+        Some(location) => format!("{modifier}.{location}"),
+        None => modifier.to_string(),
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Target {
     pub program: String,
     #[serde(default)]
     pub match_process: Vec<String>,
     pub adapter: String,
+    /// Populated either directly from an inline `[target.supports]` table
+    /// (the `neovim` target, which has no `extensions/` folder yet) or, far
+    /// more commonly, by `Registry::load` reading the file named by
+    /// `capabilities()` -- see `docs/protocol.md#action-ids`.
     #[serde(default)]
     pub supports: HashMap<String, String>,
     /// Adapter-specific fields not common to every target: `address` for
     /// the socket adapter; `port` and, optionally, `allowed_origin` (see
-    /// `Target::allowed_origin`) for the websocket adapter.
+    /// `Target::allowed_origin`) for the websocket adapter; `capabilities`
+    /// and `exempt_command_grammar` (see below).
     #[serde(flatten)]
     pub extra: HashMap<String, toml::Value>,
 }
@@ -105,6 +148,26 @@ impl Target {
     pub fn os(&self) -> Option<&str> {
         self.extra.get("os").and_then(|v| v.as_str())
     }
+
+    /// Path (relative to the config directory) to this target's own
+    /// `capabilities.toml`, which owns its action -> native-command map --
+    /// see `docs/protocol.md#action-ids`. Absent for a target (like
+    /// `neovim`) that still declares `[target.supports]` inline.
+    pub fn capabilities_path(&self) -> Option<&str> {
+        self.extra.get("capabilities").and_then(|v| v.as_str())
+    }
+
+    /// Whether this target's `supports` values are exempt from the enforced
+    /// `application.location.action` command-string shape -- for targets
+    /// whose command strings are an upstream API's own naming (VS Code) or
+    /// a foreign scripting language (Neovim ex-commands), not ours to
+    /// rename. See `docs/protocol.md#native-command-strings`.
+    pub fn exempt_command_grammar(&self) -> bool {
+        self.extra
+            .get("exempt_command_grammar")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -116,7 +179,8 @@ pub struct SystemAction {
 
 #[derive(Debug, Deserialize)]
 struct RawAction {
-    id: String,
+    modifier: String,
+    location: Option<String>,
     key: Option<String>,
     /// Order-independent multi-key chord trigger, mutually exclusive with
     /// `key`. See `ChordSpec`.
@@ -144,11 +208,25 @@ struct RawTargetsFile {
     system_action: Vec<SystemAction>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+struct RawCapabilitiesFile {
+    #[serde(default)]
+    supports: HashMap<String, String>,
+}
+
 #[derive(Debug)]
 pub enum ConfigError {
     Io(String, std::io::Error),
     Toml(String, toml::de::Error),
     InvalidChord(String),
+    /// An action's `modifier` or `location` isn't in `vocabulary.toml`.
+    UnknownVocabulary(String),
+    /// A target's `supports` map has a key that's not any known action id
+    /// (typo, or the action was renamed/removed from `actions.toml`).
+    UnknownAction(String),
+    /// A non-exempt target's native command string doesn't fit the
+    /// enforced `application.location.action` shape.
+    BadCommandGrammar(String),
 }
 
 impl fmt::Display for ConfigError {
@@ -157,6 +235,9 @@ impl fmt::Display for ConfigError {
             ConfigError::Io(path, e) => write!(f, "could not read {path}: {e}"),
             ConfigError::Toml(path, e) => write!(f, "could not parse {path}: {e}"),
             ConfigError::InvalidChord(msg) => write!(f, "invalid chord binding: {msg}"),
+            ConfigError::UnknownVocabulary(msg) => write!(f, "unknown vocabulary word: {msg}"),
+            ConfigError::UnknownAction(msg) => write!(f, "unknown action id: {msg}"),
+            ConfigError::BadCommandGrammar(msg) => write!(f, "invalid command string: {msg}"),
         }
     }
 }
@@ -210,8 +291,46 @@ fn validate_chord(action_id: &str, tokens: &[String]) -> Result<BTreeSet<String>
     Ok(keys)
 }
 
+/// Validates one action's `modifier`/`location` against the vocabulary,
+/// returning the derived id on success.
+fn validate_action_vocabulary(
+    vocabulary: &Vocabulary,
+    modifier: &str,
+    location: Option<&str>,
+) -> Result<String, ConfigError> {
+    if !vocabulary.modifiers.contains(modifier) {
+        return Err(ConfigError::UnknownVocabulary(format!(
+            "{modifier:?} is not a modifier in vocabulary.toml"
+        )));
+    }
+    if let Some(location) = location {
+        if !vocabulary.locations.contains(location) {
+            return Err(ConfigError::UnknownVocabulary(format!(
+                "{location:?} is not a location in vocabulary.toml"
+            )));
+        }
+    }
+    Ok(action_id(modifier, location))
+}
+
+/// Whether `command` fits the enforced `application.location.action` shape:
+/// exactly three dot-separated, non-empty, lowercase-letters-and-underscores
+/// tokens. See `docs/protocol.md#native-command-strings`.
+fn fits_command_grammar(command: &str) -> bool {
+    let parts: Vec<&str> = command.split('.').collect();
+    parts.len() == 3
+        && parts.iter().all(|part| {
+            !part.is_empty()
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '_')
+        })
+}
+
 impl Registry {
     pub fn load(config_dir: &Path) -> Result<Registry, ConfigError> {
+        let vocabulary: Vocabulary =
+            load_toml::<RawVocabulary>(&config_dir.join("vocabulary.toml"))?.into();
         let actions_file: RawActionsFile = load_toml(&config_dir.join("actions.toml"))?;
         let targets_file: RawTargetsFile = load_toml(&config_dir.join("targets.toml"))?;
 
@@ -222,26 +341,53 @@ impl Registry {
         for raw in actions_file.action {
             if raw.key.is_some() && raw.chord.is_some() {
                 return Err(ConfigError::InvalidChord(format!(
-                    "action {:?} has both 'key' and 'chord' set; they are mutually exclusive",
-                    raw.id
+                    "action with modifier {:?} has both 'key' and 'chord' set; they are mutually exclusive",
+                    raw.modifier
                 )));
             }
+            let id = validate_action_vocabulary(&vocabulary, &raw.modifier, raw.location.as_deref())?;
             if let Some(key) = &raw.key {
-                triggers.insert(KeyCombo::parse(key), raw.id.clone());
+                triggers.insert(KeyCombo::parse(key), id.clone());
             }
             if let Some(chord) = &raw.chord {
-                let keys = validate_chord(&raw.id, chord)?;
+                let keys = validate_chord(&id, chord)?;
                 chord_member_keys.extend(keys.iter().cloned());
-                chord_triggers.insert(keys, raw.id.clone());
+                chord_triggers.insert(keys, id.clone());
             }
             actions.insert(
-                raw.id.clone(),
+                id.clone(),
                 ActionSpec {
-                    id: raw.id,
+                    id,
                     fallback_tier: raw.fallback_tier,
                     fallback_keycode: raw.fallback_keycode,
                 },
             );
+        }
+
+        let known_action_ids: HashSet<&str> = actions.keys().map(String::as_str).collect();
+
+        let mut targets = targets_file.target;
+        for target in &mut targets {
+            if let Some(path) = target.capabilities_path() {
+                let capabilities: RawCapabilitiesFile =
+                    load_toml(&config_dir.join(path))?;
+                target.supports = capabilities.supports;
+            }
+
+            for (action_id, command) in &target.supports {
+                if !known_action_ids.contains(action_id.as_str()) {
+                    return Err(ConfigError::UnknownAction(format!(
+                        "target {:?} supports unknown action {action_id:?}",
+                        target.program
+                    )));
+                }
+                if !target.exempt_command_grammar() && !fits_command_grammar(command) {
+                    return Err(ConfigError::BadCommandGrammar(format!(
+                        "target {:?} action {action_id:?} has command {command:?}, expected application.location.action",
+                        target.program
+                    )));
+                }
+            }
         }
 
         let system_actions = targets_file
@@ -252,7 +398,7 @@ impl Registry {
 
         Ok(Registry {
             actions,
-            targets: targets_file.target,
+            targets,
             system_actions,
             triggers,
             chord_triggers,
@@ -278,8 +424,8 @@ impl Registry {
     /// `extensions/windows-extension` listener, reached via `target.os`
     /// matching `std::env::consts::OS`) -- independent of which app, if any,
     /// currently has focus. Used by `Router::dispatch` for actions like
-    /// `system.shutdown` or `window.move_left` that aren't scoped to a
-    /// focused process at all.
+    /// `shutdown` or `move.left` that aren't scoped to a focused process at
+    /// all.
     pub fn system_target(&self) -> Option<&Target> {
         self.targets
             .iter()
@@ -375,9 +521,15 @@ mod tests {
         ))
     }
 
+    const TEST_VOCABULARY: &str = r#"
+modifiers = ["close", "some", "bad"]
+locations = ["tab"]
+"#;
+
     fn load_actions_only(name: &str, actions_toml: &str) -> Result<Registry, ConfigError> {
         let dir = temp_config_dir(name);
         std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
         std::fs::write(dir.join("actions.toml"), actions_toml).unwrap();
         std::fs::write(dir.join("targets.toml"), "").unwrap();
         let result = Registry::load(&dir);
@@ -389,12 +541,12 @@ mod tests {
     fn chord_matches_regardless_of_declared_order() {
         let registry = load_actions_only(
             "chord-order",
-            "[[action]]\nid = \"some.action\"\nchord = [\"f\", \"ctrl\", \"d\"]\n",
+            "[[action]]\nmodifier = \"some\"\nchord = [\"f\", \"ctrl\", \"d\"]\n",
         )
         .expect("chord config should load");
 
         let keys: BTreeSet<String> = ["ctrl", "d", "f"].into_iter().map(String::from).collect();
-        assert_eq!(registry.action_for_chord(&keys), Some("some.action"));
+        assert_eq!(registry.action_for_chord(&keys), Some("some"));
         assert!(registry.is_chord_member("ctrl"));
         assert!(registry.is_chord_member("d"));
         assert!(registry.is_chord_member("f"));
@@ -405,7 +557,7 @@ mod tests {
     fn chord_and_key_are_mutually_exclusive() {
         let err = load_actions_only(
             "chord-and-key",
-            "[[action]]\nid = \"bad\"\nkey = \"ctrl+w\"\nchord = [\"d\", \"f\"]\n",
+            "[[action]]\nmodifier = \"bad\"\nkey = \"ctrl+w\"\nchord = [\"d\", \"f\"]\n",
         )
         .expect_err("both key and chord should be rejected");
         assert!(matches!(err, ConfigError::InvalidChord(_)));
@@ -413,7 +565,7 @@ mod tests {
 
     #[test]
     fn chord_needs_at_least_two_keys() {
-        let err = load_actions_only("chord-too-short", "[[action]]\nid = \"bad\"\nchord = [\"d\"]\n")
+        let err = load_actions_only("chord-too-short", "[[action]]\nmodifier = \"bad\"\nchord = [\"d\"]\n")
             .expect_err("single-key chord should be rejected");
         assert!(matches!(err, ConfigError::InvalidChord(_)));
     }
@@ -422,7 +574,7 @@ mod tests {
     fn chord_rejects_duplicate_keys() {
         let err = load_actions_only(
             "chord-dupe",
-            "[[action]]\nid = \"bad\"\nchord = [\"d\", \"d\"]\n",
+            "[[action]]\nmodifier = \"bad\"\nchord = [\"d\", \"d\"]\n",
         )
         .expect_err("duplicate chord key should be rejected");
         assert!(matches!(err, ConfigError::InvalidChord(_)));
@@ -432,7 +584,7 @@ mod tests {
     fn chord_rejects_modifiers_only() {
         let err = load_actions_only(
             "chord-mods-only",
-            "[[action]]\nid = \"bad\"\nchord = [\"ctrl\", \"shift\"]\n",
+            "[[action]]\nmodifier = \"bad\"\nchord = [\"ctrl\", \"shift\"]\n",
         )
         .expect_err("all-modifier chord should be rejected");
         assert!(matches!(err, ConfigError::InvalidChord(_)));
@@ -443,11 +595,11 @@ mod tests {
         let registry = load_actions_only(
             "chord-overlap",
             r#"[[action]]
-id = "first"
+modifier = "some"
 chord = ["d", "f"]
 
 [[action]]
-id = "second"
+modifier = "bad"
 chord = ["d", "g"]
 "#,
         )
@@ -455,7 +607,146 @@ chord = ["d", "g"]
 
         let df: BTreeSet<String> = ["d", "f"].into_iter().map(String::from).collect();
         let dg: BTreeSet<String> = ["d", "g"].into_iter().map(String::from).collect();
-        assert_eq!(registry.action_for_chord(&df), Some("first"));
-        assert_eq!(registry.action_for_chord(&dg), Some("second"));
+        assert_eq!(registry.action_for_chord(&df), Some("some"));
+        assert_eq!(registry.action_for_chord(&dg), Some("bad"));
+    }
+
+    #[test]
+    fn unknown_modifier_is_rejected() {
+        let err = load_actions_only("unknown-modifier", "[[action]]\nmodifier = \"frobnicate\"\n")
+            .expect_err("modifier not in vocabulary.toml should be rejected");
+        assert!(matches!(err, ConfigError::UnknownVocabulary(_)));
+    }
+
+    #[test]
+    fn unknown_location_is_rejected() {
+        let err = load_actions_only(
+            "unknown-location",
+            "[[action]]\nmodifier = \"close\"\nlocation = \"nonexistent\"\n",
+        )
+        .expect_err("location not in vocabulary.toml should be rejected");
+        assert!(matches!(err, ConfigError::UnknownVocabulary(_)));
+    }
+
+    #[test]
+    fn action_id_is_derived_from_modifier_and_location() {
+        let registry = load_actions_only(
+            "derived-id",
+            "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\nkey = \"ctrl+w\"\n",
+        )
+        .expect("valid modifier/location should load");
+        let id = registry
+            .action_for_trigger(&KeyCombo::parse("ctrl+w"))
+            .expect("ctrl+w should be bound");
+        assert_eq!(id, "close.tab");
+    }
+
+    #[test]
+    fn bare_modifier_with_no_location_is_the_action_id() {
+        let registry = load_actions_only("bare-modifier", "[[action]]\nmodifier = \"close\"\n")
+            .expect("bare modifier should load");
+        assert_eq!(registry.action_spec("close").id, "close");
+    }
+
+    fn write_full_config(name: &str, targets_toml: &str) -> PathBuf {
+        let dir = temp_config_dir(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
+        std::fs::write(
+            dir.join("actions.toml"),
+            "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("targets.toml"), targets_toml).unwrap();
+        dir
+    }
+
+    #[test]
+    fn target_supports_unknown_action_is_rejected() {
+        let dir = write_full_config(
+            "unknown-action",
+            r#"[[target]]
+program = "vscode"
+adapter = "socket"
+
+  [target.supports]
+  "close.nonexistent" = "workbench.action.closeActiveEditor"
+"#,
+        );
+        let err = Registry::load(&dir).expect_err("unknown action in supports should be rejected");
+        assert!(matches!(err, ConfigError::UnknownAction(_)));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn target_command_must_fit_grammar_unless_exempt() {
+        let dir = write_full_config(
+            "bad-grammar",
+            r#"[[target]]
+program = "chrome"
+adapter = "websocket"
+
+  [target.supports]
+  "close.tab" = "not_enough_parts"
+"#,
+        );
+        let err = Registry::load(&dir).expect_err("2-token command should be rejected");
+        assert!(matches!(err, ConfigError::BadCommandGrammar(_)));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn exempt_target_skips_command_grammar_check() {
+        let dir = write_full_config(
+            "exempt-grammar",
+            r#"[[target]]
+program = "vscode"
+adapter = "socket"
+exempt_command_grammar = true
+
+  [target.supports]
+  "close.tab" = "workbench.action.closeActiveEditor"
+"#,
+        );
+        let registry = Registry::load(&dir).expect("exempt target should skip grammar check");
+        assert_eq!(
+            registry.targets[0].supports.get("close.tab").map(String::as_str),
+            Some("workbench.action.closeActiveEditor")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn capabilities_file_is_loaded_and_merged_into_target_supports() {
+        let dir = temp_config_dir("capabilities-file");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(dir.join("ext")).unwrap();
+        std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
+        std::fs::write(
+            dir.join("actions.toml"),
+            "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("ext").join("capabilities.toml"),
+            "[supports]\n\"close.tab\" = \"app.tab.close\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("targets.toml"),
+            r#"[[target]]
+program = "app"
+adapter = "socket"
+capabilities = "ext/capabilities.toml"
+"#,
+        )
+        .unwrap();
+
+        let registry = Registry::load(&dir).expect("capabilities file should load");
+        assert_eq!(
+            registry.targets[0].supports.get("close.tab").map(String::as_str),
+            Some("app.tab.close")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -304,7 +304,7 @@ impl ChordEngine {
 
             let focused = crate::focus::focused_process_name();
             let result = router.dispatch(&action_id, &focused);
-            println!("{action_id} -> {result:?} (chord)");
+            println!("{action_id} -> {result} (chord)");
             return Ok(());
         }
 
@@ -491,7 +491,7 @@ impl ChordEngine {
             if event.value() == 1 {
                 let focused = crate::focus::focused_process_name();
                 let result = router.dispatch(&action_id, &focused);
-                println!("{action_id} -> {result:?}");
+                println!("{action_id} -> {result}");
             }
             return Ok(()); // consumed: never re-emitted, down/up/repeat alike
         }

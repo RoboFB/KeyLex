@@ -4,8 +4,8 @@ Reference client for the `keylex/v0` socket transport (see
 [../../docs/protocol.md](../../docs/protocol.md)), backing the
 `system-windows` target in [../../config/targets.toml](../../config/targets.toml).
 Windows counterpart of `../linux-extension`: handles the same OS-wide actions
-(`system.shutdown`, `system.show_desktop`, `window.move_left`,
-`window.move_right`) regardless of which app has focus, by shelling out to
+(`shutdown`, `show.desktop`, `move.left`,
+`move.right`) regardless of which app has focus, by shelling out to
 PowerShell -- Win32 `SetWindowPos`/`ShowWindow` (via inline C#) for the window
 moves, `Shell.Application.ToggleDesktop()` for show-desktop, and
 `shutdown /s /t 0`.
@@ -32,9 +32,9 @@ target's `address` in `config/targets.toml`.
 
 ## Command mapping
 
-| `command` (wire) | Action                | Implementation                                                    |
-|-------------------|------------------------|--------------------------------------------------------------------|
-| `shutdown`        | `system.shutdown`     | `shutdown /s /t 0`                                                  |
-| `show_desktop`    | `system.show_desktop` | `(New-Object -ComObject Shell.Application).ToggleDesktop()`         |
-| `move_left`       | `window.move_left`    | restore + `SetWindowPos` foreground window to left half of screen  |
-| `move_right`      | `window.move_right`   | restore + `SetWindowPos` foreground window to right half of screen |
+| `command` (wire)       | Action          | Implementation                                                      |
+|--------------------------|-----------------|-----------------------------------------------------------------------|
+| `os.system.shutdown`     | `shutdown`      | `shutdown /s /t 0`                                                    |
+| `os.desktop.show`        | `show.desktop`  | `(New-Object -ComObject Shell.Application).ToggleDesktop()`           |
+| `os.window.move_left`    | `move.left`     | restore + `SetWindowPos` foreground window to left half of screen     |
+| `os.window.move_right`   | `move.right`    | restore + `SetWindowPos` foreground window to right half of screen    |

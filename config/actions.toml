@@ -2,6 +2,14 @@
 # any) and its fallback behavior when the focused app has no native
 # adapter for it.
 #
+# modifier/location: the action's id, built from two validated word
+#                 lists in vocabulary.toml -- `modifier` (a verb, e.g.
+#                 "close") plus an optional `location` (the thing it
+#                 acts on, e.g. "tab"). The id itself
+#                 (`<modifier>` or `<modifier>.<location>`) is derived,
+#                 never written by hand -- Registry::load rejects any
+#                 word not in vocabulary.toml. See
+#                 docs/protocol.md#action-ids for the full grammar.
 # key:            "ctrl+w"-style combo that triggers this action. A combo
 #                 that matches a key here is always consumed (never reaches
 #                 the OS/app directly) and re-emitted only via the fallback
@@ -15,13 +23,14 @@
 #                 no native adapter for the focused app.
 
 [[action]]
-id = "save"
+modifier = "save"
 key = "ctrl+s"
 fallback_tier = "silent"
 fallback_keycode = "ctrl+s"
 
 [[action]]
-id = "close.tab"
+modifier = "close"
+location = "tab"
 key = "ctrl+w"
 fallback_tier = "silent"
 fallback_keycode = "ctrl+w"
@@ -30,49 +39,59 @@ fallback_keycode = "ctrl+w"
 # a wrongly guessed alt+f4 would be destructive) -> notify_only, so they
 # only ever work through a real adapter.
 [[action]]
-id = "close.window"
+modifier = "close"
+location = "window"
 fallback_tier = "notify_only"
 
 [[action]]
-id = "close.sidebar"
+modifier = "close"
+location = "sidebar"
 fallback_tier = "notify_only"
 
 [[action]]
-id = "close.pane"
+modifier = "close"
+location = "pane"
 fallback_tier = "notify_only"
 
 [[action]]
-id = "close.terminal"
+modifier = "close"
+location = "terminal"
 fallback_tier = "notify_only"
 
 [[action]]
-id = "go_to.definition"
+modifier = "go_to"
+location = "definition"
 fallback_tier = "notify_only"   # no meaningful global keycode guess
 
 [[action]]
-id = "duplicate.line"
+modifier = "duplicate"
+location = "line"
 fallback_tier = "notify_attempt"
 fallback_keycode = "ctrl+shift+d"
 
 [[action]]
-id = "comment.line"
+modifier = "comment"
+location = "line"
 fallback_tier = "notify_only"
 
 [[action]]
-id = "toggle.pane"
+modifier = "toggle"
+location = "pane"
 chord = ["d", "f"]
 fallback_tier = "notify_only"
 
 # Pure OS combos with no target app needed -- always run via the fallback
 # sender.
 [[action]]
-id = "system.show_desktop"
+modifier = "show"
+location = "desktop"
 key = "prtsc"
 fallback_tier = "silent"
 fallback_keycode = "win+d"
 
 [[action]]
-id = "system.reset_graphics_driver"
+modifier = "reset"
+location = "graphics_driver"
 key = "win+ctrl+shift+b"
 fallback_tier = "silent"
 fallback_keycode = "win+ctrl+shift+b"
@@ -82,18 +101,20 @@ fallback_keycode = "win+ctrl+shift+b"
 # system-windows targets) rather than a keycode -- destructive, so no key
 # is bound by default and there's no keycode fallback to guess with.
 [[action]]
-id = "system.shutdown"
+modifier = "shutdown"
 fallback_tier = "notify_only"
 
 # Window snap/move -- there's no keycode guess that's safe *and* reliable
-# across window managers (unlike win+d for show_desktop), so these only
+# across window managers (unlike win+d for show.desktop), so these only
 # work through the system listener too.
 [[action]]
-id = "window.move_left"
+modifier = "move"
+location = "left"
 key = "win+left"
 fallback_tier = "notify_only"
 
 [[action]]
-id = "window.move_right"
+modifier = "move"
+location = "right"
 key = "win+right"
 fallback_tier = "notify_only"

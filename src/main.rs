@@ -65,8 +65,8 @@ fn run_demo(registry: &Registry, token: &str) {
         fallback_sender: Box::new(LogFallbackSender),
     };
 
-    println!("{:?}", router.dispatch("close.tab", "code"));
-    println!("{:?}", router.dispatch("go_to.definition", "chrome.exe"));
+    println!("close.tab -> {}", router.dispatch("close.tab", "code"));
+    println!("go_to.definition -> {}", router.dispatch("go_to.definition", "chrome.exe"));
 }
 
 fn main() -> ExitCode {

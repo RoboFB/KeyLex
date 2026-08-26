@@ -1,0 +1,11 @@
+# This extension's declared capabilities: which Keylex action ids it can
+# carry out, and the native command string each maps to. Unlike the VS
+# Code target, Keylex controls both ends of this command string (the
+# `runCommand` switch in background.js), so it's held to the enforced
+# application.location.action shape -- see
+# docs/protocol.md#native-command-strings.
+
+[supports]
+"close.tab" = "chrome.tab.close"
+"close.window" = "chrome.window.close"
+"close.sidebar" = "chrome.sidepanel.toggle"
