@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What Keylex is
 
-Keylex turns physical input (keyboard shortcuts, Stream Deck buttons, a
-Space Mouse, …) into abstract **verb+object actions** (`close.tab`,
-`go_to.definition`, `save`) and dispatches each action through the
-**native API of whatever application is currently focused**, instead of
-just simulating a keycode. A keycode is only sent as a fallback, when the
-focused app has no native adapter or doesn't support that action. See
+Keylex intercepts every keystroke as deep in the OS as possible (evdev/
+uinput on Linux, a WH_KEYBOARD_LL hook on Windows), resolves the bound
+ones into abstract **actions** (`close.tab`, `go_to.definition`, `save`),
+figures out which application is currently focused, and dispatches each
+action through that app's **native API** — instead of just simulating a
+keycode. A keycode is only sent as a fallback, when the focused app has
+no native adapter or doesn't support that action. See
 [README.md](README.md) for the German-language project pitch and the
 architecture diagram.
 
@@ -17,126 +18,198 @@ The long-term ambition (not yet built) is for this action vocabulary to
 become a shared, documented protocol that device firmware and application
 plugins can target directly — see [docs/protocol.md](docs/protocol.md) for
 the current (draft, unstable) wire format and its LSP-inspired rationale.
-This is *not* about literal Linux kernel source — no kernel code is
-planned; `evdev`/`uinput` on Linux and the low-level keyboard hook on
-Windows already provide everything needed for input capture.
 
-Everything here is early-stage. The core dispatch pipeline
-(config → registry → router → adapter/fallback) works and is tested; the
-Windows/Linux input listeners exist but are effectively untested outside
-this Windows dev environment (no evdev available here), and most target
-adapters beyond VS Code are unimplemented stubs.
+Everything here is early-stage. The core capture/dispatch pipeline
+(config → registry → router/capture → adapter/fallback) is written in
+Rust and is tested on Linux; the Windows capture backend exists but is
+untestable outside a Windows machine (this dev environment is Linux, no
+Windows box available). Application-side integrations are a separate,
+per-app concern in whatever language fits that app's ecosystem — the VS
+Code extension (plain JS, using the official `vscode` extension API) and
+the Chrome extension (Manifest V3, `chrome.tabs`/`chrome.windows`/
+`chrome.sidePanel`) both exist; Neovim/terminal adapters are unimplemented
+stubs. macOS has no capture backend at all yet, not even an untested one
+(see "Known gaps" below) — Linux and Windows are the only supported
+platforms for now.
 
 ## Commands
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"          # + ".[linux,dev]" on Linux, for the evdev listener
+cargo build              # compiles the daemon (Linux backend on this machine)
+cargo run                 # real capture loop, blocks (needs evdev/uinput perms)
+cargo run -- --demo        # two hardcoded dispatches, no capture/hardware needed
+cargo run -- --config-dir <path>  # load actions.toml/targets.toml from elsewhere
 
-python -m keylex.daemon          # real platform input listener, blocks
-python -m keylex.daemon --demo   # two hardcoded dispatches, no listener/hardware needed
-
-pytest                           # tests/test_registry.py, tests/test_router.py
-pytest tests/test_router.py -k native   # single test
+cargo test                # unit tests (src/config.rs) + integration tests (tests/dispatch.rs)
+cargo test <name>          # single test by substring
 ```
 
-There is no separate build or lint step configured yet.
+There is no separate lint step configured beyond `cargo clippy`.
 
 ## Architecture
 
-### Three config layers (`src/keylex/config/*.toml`), loaded by `Registry`
+### Two config layers (`config/*.toml`), loaded by `Registry` (`src/config.rs`)
 
-1. **`devices.toml`** — input side. Which physical devices are listened to
-   and how their raw signals map to internal events. Keyboard bindings are
-   `key + modifiers → event`; button devices (Stream Deck, Space Mouse) map
-   `button → event`. Each binding resolves to a `mode`:
-   `"grab"` (consume the key — OS/app never sees it unless re-emitted) or
-   `"observe"` (additive, normal OS behavior untouched). Resolution order:
-   binding-level `mode` → device-level `default_mode` → global default
-   `"observe"` (`registry.DEFAULT_BINDING_MODE`).
-2. **`actions.toml`** — the verb+object vocabulary itself (`[[verb]]`
-   entries with a `name` and allowed `objects`) plus per-action fallback
-   overrides (`[[action]]`: `fallback_tier` and optional
-   `fallback_keycode`). `Registry._validate_action_grammar` enforces this
-   at load time: every action ID referenced anywhere (actions.toml,
-   targets.toml `supports`, devices.toml `event`) must either be a
-   declared bare word (like `save`, no dot), a declared `system_action`
-   (`system.*`), or resolve to a declared `verb.object` pair — anything
-   else raises `GrammarError` and the daemon refuses to start. This is the
-   concrete enforcement of "verb + word logic."
-3. **`targets.toml`** — output side. Per target program: which process
+1. **`actions.toml`** — the action vocabulary itself: one `[[action]]`
+   entry per action, with an optional `key` field (a `"ctrl+w"`-style
+   combo — the same syntax used for `fallback_keycode`) that binds it to
+   a physical key, a `fallback_tier` (`silent` / `notify_attempt` /
+   `notify_only`), and an optional `fallback_keycode`. An action with no
+   `key` simply isn't reachable from the keyboard yet (e.g.
+   `go_to.definition` today) but can still be dispatched once something
+   else triggers it. There is no separate device-binding layer and no
+   enforced verb+object grammar — action IDs are plain strings; the
+   dot-separated naming (`close.tab`) is a convention, not validated at
+   load time.
+
+   An action may instead (never both) bind a `chord`: an array of two or
+   more key tokens (same vocabulary as `key`, including modifiers) that
+   must all be held down together, order-independent — e.g.
+   `chord = ["ctrl", "d", "f"]`. See
+   [docs/protocol.md](docs/protocol.md#chorded-triggers) for the full
+   syntax, validation rules, and the debounce/replay behavior this adds to
+   capture.
+2. **`targets.toml`** — output side. Per target program: which process
    names identify it (`match_process`), which adapter reaches it, and a
    `supports` whitelist mapping action IDs to that program's native
    command strings. Also holds `[[system_action]]` entries — OS-level
    actions that don't depend on the focused app at all.
 
-### Dispatch flow (`src/keylex/core/router.py`)
+### Capture rule
 
-`Router.dispatch(action_id, focused_process)`:
-1. `Registry.target_for_process` — does a target's `match_process` include
+A key combo that matches a bound action's `key` is **always consumed**
+(never reaches the OS/app directly, only indirectly via the fallback
+path) and dispatched. Everything else is re-emitted unchanged. This one
+rule is what "intercept every keycode as deeply as possible" means in
+practice — there's no per-binding grab/observe mode to configure.
+
+A `chord`-bound action extends this: any key that's a member of *some*
+configured chord is held in a short-lived "pending" state instead of being
+re-emitted immediately, since a lone keystroke can't yet be told apart
+from the start of a chord. If the rest of the chord follows within the
+debounce window, all of it is consumed and dispatched, same as a matched
+`key`. If it doesn't (timeout, or a key that breaks every possible match
+arrives), the pending key(s) are replayed as ordinary keystrokes instead —
+from the app's perspective, as if the brief hold never happened, aside
+from the added latency. Non-member keys are never buffered, so this adds
+no overhead to ordinary typing.
+
+### Adapters (`src/adapters/`)
+
+One implementation per transport, registered in `main.rs`'s `build_adapters()`
+map keyed by the `adapter` string used in `targets.toml` (`"socket"`,
+`"websocket"`, later `"rpc"`, …). `adapters::SocketAdapter` (TCP, Keylex is
+the client) backs the VS Code target; `adapters::WebSocketAdapter`
+(Keylex runs the WebSocket *server*, since a browser extension can only be
+a client) backs the Chrome target — see
+[docs/protocol.md](docs/protocol.md) for the full spec of both transports.
+Neovim/terminal adapters are unimplemented; each will need its own
+transport.
+
+Both adapters authenticate every message with a shared secret the daemon
+generates on first run at `<config-dir>/secret.token` (`src/auth.rs`,
+git-ignored, never committed): `SocketAdapter` sends it with every
+`command`, and `WebSocketAdapter` requires it as the first frame on a
+freshly accepted connection before promoting that connection into the slot
+`send()` uses (this also fixes what would otherwise be a "last-connect-wins"
+hijack risk on the single-connection WebSocket transport). The WebSocket
+adapter can additionally check the handshake's `Origin` header against a
+per-target `allowed_origin` in `targets.toml`. See
+[docs/protocol.md](docs/protocol.md#trust-model--authentication) for the
+full wire-level contract and threat model.
+
+### Dispatch flow (`src/dispatch.rs`)
+
+`Router::dispatch(action_id, focused_process)`:
+1. `Registry::target_for_process` — does a target's `match_process` include
    the focused process? If yes and it `supports` this action → **native**:
    look up the adapter by `target.adapter` and call `adapter.send(target,
    native_command)`.
-2. Otherwise → **fallback**: based on `ActionSpec.fallback_tier`
-   (`silent` / `notify_attempt` / `notify_only`), either send
-   `fallback_keycode` via `FallbackSender` (optionally also notifying), or
-   — if there's no usable keycode / tier is `notify_only` — report
-   **unsupported** and just notify.
+2. Otherwise → **fallback**: based on `ActionSpec.fallback_tier`, either
+   send `fallback_keycode` via the platform's `FallbackSender` (optionally
+   also notifying), or — if there's no usable keycode / tier is
+   `notify_only` — report **unsupported** and just notify.
 
-`Notifier`/`FallbackSender` (`src/keylex/core/system.py`) are currently
-logging-only placeholders on both platforms — real keycode injection and
-OS notifications are not implemented yet (tracked as deferred work, not
-forgotten).
+`Notifier` is a log-only placeholder on both platforms — real OS
+notifications are not implemented yet (a known, deferred gap). Fallback
+keycode injection *is* real on both platforms: Linux writes the keycode
+through the same `uinput` virtual device used for passthrough re-emission
+(`src/capture/linux.rs`), Windows uses `SendInput`
+(`src/capture/windows.rs`).
 
-### Adapters (`src/keylex/adapters/`)
+### Capture backends (`src/capture/`)
 
-One class per target program, registered in `daemon.build_router`'s
-`adapters` dict keyed by the `adapter` string used in `targets.toml`
-(`"socket"`, later `"native_messaging"`, `"rpc"`, …). Only
-`vscode.SocketAdapter` exists so far: newline-delimited JSON
-(`{"command": ...}`) over a local TCP socket — see
-[docs/protocol.md](docs/protocol.md) for the full spec of this wire
-format. Chrome/Neovim/terminal adapters are unimplemented; each will need
-its own transport, not necessarily this socket protocol.
-
-### Input listeners (`src/keylex/input/`)
-
-- `events.py` — the platform-independent `InputEvent` (device_id,
-  action_id, phase, key/button, modifiers). Listeners only call
-  `on_event` once `Registry.binding_for` has already matched a binding —
-  `action_id` comes from the listener, callers don't re-resolve it.
-- `base.py` — `InputListener` ABC (`start()` blocks, `stop()`).
-- `windows.py` — `WH_KEYBOARD_LL` hook via raw `ctypes.windll` (no
-  `pywin32` dependency). Suppression of a `"grab"` binding is done by
-  returning `1` from the hook instead of calling `CallNextHookEx`.
-- `linux.py` — grabs the physical `evdev` device exclusively and
-  re-emits everything that isn't a `"grab"` binding through a virtual
+- `linux.rs` — grabs the physical `evdev` device exclusively and
+  re-emits everything that isn't a matched trigger through a virtual
   `uinput` device, matching the interception-tools/evremap pattern (a raw
   evdev grab blinds the *whole* device, so anything not meant to be
-  suppressed has to be manually re-emitted). Needs the `linux` extra
-  (`python-evdev`) — the one new runtime dependency introduced so far.
-- `active_window.py` — resolves the focused process name needed by
-  `Router.dispatch`. Windows: `ctypes` (`GetForegroundWindow` +
-  `QueryFullProcessImageNameW`). Linux: shells out to `xdotool`/`ps`
-  (X11 only; **Wayland focused-window detection is unimplemented**, logs a
-  warning once and falls through to the keycode fallback instead of
-  erroring).
+  suppressed has to be manually re-emitted). The same virtual device is
+  reused to inject fallback keycodes and chord replays. Capture is split
+  across a reader thread (owns the grabbed device, forwards raw events
+  over a channel) and the main thread (owns all state, blocks on that same
+  channel), so a chord's debounce timer — a one-shot thread that sleeps
+  then sends a tagged "timeout" message — can wake the loop without evdev
+  needing any timeout support of its own.
+- `windows.rs` — `WH_KEYBOARD_LL` hook via the `windows` crate.
+  Suppression of a matched key is done by returning `1` from the hook
+  instead of calling `CallNextHookEx`. Fallback keycodes and chord replays
+  go out via `SendInput` (there's no re-emit queue here the way uinput
+  provides on Linux); `SendInput`-injected events are recognized via
+  `LLKHF_INJECTED` and passed straight through the hook without
+  re-processing, or a chord replay would re-trigger its own matching
+  logic. A chord's debounce window uses a `SetTimer`/`TIMERPROC` timer on
+  the hook's own thread (no second thread needed, since `run()` already
+  pumps the message loop that `DispatchMessageW` uses to invoke the timer
+  callback). Untested outside a real Windows machine.
+- `src/focus/` — resolves the focused process name needed by
+  `Router::dispatch`. Linux: shells out to `xdotool` then reads
+  `/proc/<pid>/comm` (X11 only; **Wayland focused-window detection is
+  unimplemented**, logs a warning once and falls through to the keycode
+  fallback instead of erroring). Windows: `GetForegroundWindow` +
+  `QueryFullProcessImageNameW` via the `windows` crate.
 
-`daemon.py` picks the listener by `sys.platform` in `start_input_listener`
-and wires its `on_event` to `Router.dispatch`, using `focused_process_name()`
-for the currently-focused app at dispatch time.
+`main.rs` picks the capture backend by `cfg(target_os)` and wires its
+dispatch calls to `focus::focused_process_name()` for the currently-
+focused app at dispatch time.
+
+### macOS (planned, not implemented)
+
+No macOS code exists anywhere in the repo — not even an untested stub like
+the Windows backend has. `src/capture/mod.rs`'s fallback `run()` for any
+`cfg(target_os)` other than Linux/Windows already covers this by returning
+an `Unsupported` io error, so nothing there needs to change to keep that
+true. The planned approach, when this is picked up, is a `CGEventTap`-based
+global event tap via CoreGraphics, gated behind an Accessibility permission
+grant — parallel in spirit to the Windows `WH_KEYBOARD_LL` hook, but not
+started.
 
 ## Known gaps / deliberately deferred (don't "fix" without discussion)
 
-- No real Windows/Linux fallback keycode sender or OS notification —
-  `FallbackSender`/`Notifier` just log.
-- Chrome (Native Messaging), Neovim (msgpack-RPC), terminal-emulator
-  adapters are unimplemented; terminal approach specifically needs its own
-  research pass before designing it.
-- Stream Deck / Space Mouse are configured as input sources in
-  `devices.toml` but have no actual HID-reading implementation.
+- No real OS notification — `Notifier` just logs, on both platforms.
+- No macOS capture backend at all (see "macOS" above) — Linux and Windows
+  only, for now.
+- Neovim (msgpack-RPC) and a terminal-emulator adapter are unimplemented;
+  the terminal approach specifically needs its own research pass before
+  designing it.
+- Stream Deck / Space Mouse support was dropped along with the old
+  per-device config layer — the daemon is single-keyboard-source only for
+  now. Nothing architecturally blocks adding another capture source
+  later (`src/capture/` is already backend-pluggable), it's just out of
+  scope until there's an actual HID implementation to add.
 - Wayland focused-window detection.
-- The Rust rewrite of the core is an intentional *later* milestone (after
-  the config schema and protocol stabilize) — the prototype is Python on
-  purpose for now.
+- The Windows capture backend (`src/capture/windows.rs`,
+  `src/focus/windows.rs`) is a careful port of the previous Python/ctypes
+  code (plus the newer chord/timer logic) but has never been compiled or
+  run on an actual Windows machine — this dev environment is Linux-only.
+- Chord debounce window (currently a hardcoded 35ms constant in both
+  capture backends) isn't configurable yet.
+- The privacy/GDPR posture described in [README.md](README.md#privacy--security)
+  holds only because there is zero telemetry, crash-reporting, or
+  cloud-sync anywhere in the codebase — that's a standing constraint, not
+  an oversight. If any such feature is ever proposed, the README's privacy
+  section (and this note) must be revisited before merging, since "all
+  processing stays on-device" is the entire basis for the current
+  GDPR-minimal claim.
+- The WebSocket adapter keeps only one connection per target (last-connect
+  wins) — no support yet for multiple simultaneous Chrome
+  windows/profiles.

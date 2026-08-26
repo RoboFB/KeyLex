@@ -1,0 +1,6 @@
+/target
+/.cargo/
+
+# Per-install shared secret, generated on first run by src/auth.rs. Never
+# check this in -- see docs/protocol.md#trust-model--authentication.
+/config/secret.token

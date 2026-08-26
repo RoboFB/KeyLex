@@ -1,0 +1,78 @@
+# Action vocabulary: one entry per action, with its keyboard trigger (if
+# any) and its fallback behavior when the focused app has no native
+# adapter for it.
+#
+# key:            "ctrl+w"-style combo that triggers this action. A combo
+#                 that matches a key here is always consumed (never reaches
+#                 the OS/app directly) and re-emitted only via the fallback
+#                 path below. Omit for actions not yet bound to a key.
+# chord:          array of two+ key tokens (same vocabulary as `key`,
+#                 including modifiers) that must all be held down together,
+#                 order-independent -- e.g. ["ctrl", "d", "f"]. Mutually
+#                 exclusive with `key`. See docs/protocol.md#chorded-triggers.
+# fallback_tier:  silent | notify_attempt | notify_only
+# fallback_keycode: same "ctrl+w"-style combo, sent system-wide when there's
+#                 no native adapter for the focused app.
+
+[[action]]
+id = "save"
+key = "ctrl+s"
+fallback_tier = "silent"
+fallback_keycode = "ctrl+s"
+
+[[action]]
+id = "close.tab"
+key = "ctrl+w"
+fallback_tier = "silent"
+fallback_keycode = "ctrl+w"
+
+# window/sidebar/pane/terminal have no safe, cross-app keycode guess (e.g.
+# a wrongly guessed alt+f4 would be destructive) -> notify_only, so they
+# only ever work through a real adapter.
+[[action]]
+id = "close.window"
+fallback_tier = "notify_only"
+
+[[action]]
+id = "close.sidebar"
+fallback_tier = "notify_only"
+
+[[action]]
+id = "close.pane"
+fallback_tier = "notify_only"
+
+[[action]]
+id = "close.terminal"
+fallback_tier = "notify_only"
+
+[[action]]
+id = "go_to.definition"
+fallback_tier = "notify_only"   # no meaningful global keycode guess
+
+[[action]]
+id = "duplicate.line"
+fallback_tier = "notify_attempt"
+fallback_keycode = "ctrl+shift+d"
+
+[[action]]
+id = "comment.line"
+fallback_tier = "notify_only"
+
+[[action]]
+id = "toggle.pane"
+chord = ["d", "f"]
+fallback_tier = "notify_only"
+
+# Pure OS combos with no target app needed -- always run via the fallback
+# sender.
+[[action]]
+id = "system.show_desktop"
+key = "prtsc"
+fallback_tier = "silent"
+fallback_keycode = "win+d"
+
+[[action]]
+id = "system.reset_graphics_driver"
+key = "win+ctrl+shift+b"
+fallback_tier = "silent"
+fallback_keycode = "win+ctrl+shift+b"

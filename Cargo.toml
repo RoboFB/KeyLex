@@ -1,0 +1,33 @@
+[package]
+name = "keylex"
+version = "0.1.0"
+edition = "2021"
+description = "Dispatch abstract actions to per-app native commands, with keycode fallback."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+# Both already resolved transitively via tungstenite's handshake feature
+# (nonce generation / HTTP types) -- promoted to direct deps for auth.rs
+# and the websocket Origin check, no new supply-chain surface added.
+rand = "0.10"
+http = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.12"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+    "Win32_System_LibraryLoader",
+] }
+
+[[bin]]
+name = "keylex"
+path = "src/main.rs"
