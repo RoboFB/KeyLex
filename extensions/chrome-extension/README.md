@@ -1,18 +1,19 @@
 # Keylex Chrome adapter
 
 Reference client for the `keylex/v0` WebSocket transport (see
-[../docs/protocol.md](../docs/protocol.md)). Not published to the Chrome Web
-Store — load it as an unpacked extension for now.
+[../../docs/protocol.md](../../docs/protocol.md)). Not published to the
+Chrome Web Store — load it as an unpacked extension for now.
 
 ## Install
 
 1. Open `chrome://extensions/`.
 2. Enable **Developer mode** (top right).
-3. Click **Load unpacked** and select this `chrome-extension/` folder.
+3. Click **Load unpacked** and select this `extensions/chrome-extension/`
+   folder.
 4. Open the extension's **Details → Extension options** (or click its icon
    on `chrome://extensions/`), paste in the contents of the daemon's
    `config/secret.token` (generated on first run -- see
-   [../docs/protocol.md](../docs/protocol.md#trust-model--authentication)),
+   [../../docs/protocol.md](../../docs/protocol.md#trust-model--authentication)),
    and click **Save**. The daemon won't trust this connection at all until
    this token matches.
 5. (Optional, recommended) Note the extension's ID from `chrome://extensions/`
@@ -32,7 +33,7 @@ Store — load it as an unpacked extension for now.
 
 ## Try it without the daemon
 
-Run `node ../scripts/fake-chrome-listener.js` to start a fake Keylex daemon
+Run `node ../../scripts/fake-chrome-listener.js` to start a fake Keylex daemon
 that logs commands it receives, or run the real daemon (`cargo run` from the
 repo root) with `config/targets.toml`'s `chrome` target enabled.
 

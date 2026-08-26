@@ -1,10 +1,10 @@
 // Reference implementation of the keylex/v0 adapter protocol
-// (../docs/protocol.md): newline-delimited JSON, one {"command": "..."}
+// (../../docs/protocol.md): newline-delimited JSON, one {"command": "..."}
 // object per line, over a local TCP socket. Address must match
 // src/keylex/config/targets.toml's vscode target ("127.0.0.1:7777").
 //
 // Every message must also carry the shared secret from config/secret.token
-// (../docs/protocol.md#trust-model--authentication) -- without it, any local
+// (../../docs/protocol.md#trust-model--authentication) -- without it, any local
 // process able to open a TCP connection to this port could otherwise drive
 // arbitrary VS Code commands. The allowlist below is a second, independent
 // layer: even a correctly-tokened message can only trigger a command this
@@ -38,7 +38,7 @@ function loadToken() {
   if (!tokenPath) {
     throw new Error(
       "keylex.tokenPath is not set -- point it at the secret.token file the " +
-        "daemon generated in its config directory (see ../docs/protocol.md#trust-model--authentication)"
+        "daemon generated in its config directory (see ../../docs/protocol.md#trust-model--authentication)"
     );
   }
   return fs.readFileSync(tokenPath, "utf8").trim();

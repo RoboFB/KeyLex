@@ -96,6 +96,15 @@ impl Target {
     pub fn allowed_origin(&self) -> Option<&str> {
         self.extra.get("allowed_origin").and_then(|v| v.as_str())
     }
+
+    /// The optional `os` field from `extra` (`"linux"` / `"windows"`, matching
+    /// `std::env::consts::OS`) that marks a target as the OS-wide system
+    /// listener rather than an app tied to a focused process -- see
+    /// `Registry::system_target`. A target with no `os` set is never picked
+    /// by that lookup, so ordinary app targets don't need this field at all.
+    pub fn os(&self) -> Option<&str> {
+        self.extra.get("os").and_then(|v| v.as_str())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -262,6 +271,19 @@ impl Registry {
         self.targets
             .iter()
             .find(|t| t.match_process.iter().any(|p| p == process_name))
+    }
+
+    /// The OS-wide system target for the platform this daemon is actually
+    /// running on (an `extensions/linux-extension` or
+    /// `extensions/windows-extension` listener, reached via `target.os`
+    /// matching `std::env::consts::OS`) -- independent of which app, if any,
+    /// currently has focus. Used by `Router::dispatch` for actions like
+    /// `system.shutdown` or `window.move_left` that aren't scoped to a
+    /// focused process at all.
+    pub fn system_target(&self) -> Option<&Target> {
+        self.targets
+            .iter()
+            .find(|t| t.os() == Some(std::env::consts::OS))
     }
 
     /// The action id bound to this physical key combo, if any.

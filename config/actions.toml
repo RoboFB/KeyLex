@@ -76,3 +76,24 @@ id = "system.reset_graphics_driver"
 key = "win+ctrl+shift+b"
 fallback_tier = "silent"
 fallback_keycode = "win+ctrl+shift+b"
+
+# Handled by the OS-wide system listener (extensions/linux-extension or
+# extensions/windows-extension, see config/targets.toml's system-linux /
+# system-windows targets) rather than a keycode -- destructive, so no key
+# is bound by default and there's no keycode fallback to guess with.
+[[action]]
+id = "system.shutdown"
+fallback_tier = "notify_only"
+
+# Window snap/move -- there's no keycode guess that's safe *and* reliable
+# across window managers (unlike win+d for show_desktop), so these only
+# work through the system listener too.
+[[action]]
+id = "window.move_left"
+key = "win+left"
+fallback_tier = "notify_only"
+
+[[action]]
+id = "window.move_right"
+key = "win+right"
+fallback_tier = "notify_only"

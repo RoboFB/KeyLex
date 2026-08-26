@@ -32,7 +32,7 @@ port = 7778
 # Placeholder -- replace with the real extension ID after loading it
 # unpacked (chrome://extensions/), so the daemon rejects any WebSocket
 # handshake from a browser tab/page other than this extension. See
-# chrome-extension/README.md for how to get a ***stable*** ID (otherwise
+# extensions/chrome-extension/README.md for how to get a ***stable*** ID (otherwise
 # it changes on every dev reload). Comment this line out entirely to skip
 # the Origin check (not recommended -- see docs/protocol.md).
 allowed_origin = "chrome-extension://REPLACE_WITH_REAL_EXTENSION_ID"
@@ -52,6 +52,36 @@ socket_env = "NVIM_LISTEN_ADDRESS"
   "close.tab" = "bd"
   "save" = "w"
   "duplicate.line" = "normal yyp"
+
+# OS-wide system listeners -- independent of the focused program, matched by
+# `os` (against std::env::consts::OS) rather than `match_process`. Each is a
+# small standalone script under extensions/<os>-extension/ that speaks the
+# same keylex/v0 socket protocol as the vscode target above; run it alongside
+# the daemon (see that folder's README.md). Only the entry matching the OS
+# the daemon is actually running on is ever used (Registry::system_target).
+[[target]]
+program = "system-linux"
+os = "linux"
+adapter = "socket"
+address = "127.0.0.1:7779"
+
+  [target.supports]
+  "system.shutdown" = "shutdown"
+  "system.show_desktop" = "show_desktop"
+  "window.move_left" = "move_left"
+  "window.move_right" = "move_right"
+
+[[target]]
+program = "system-windows"
+os = "windows"
+adapter = "socket"
+address = "127.0.0.1:7780"
+
+  [target.supports]
+  "system.shutdown" = "shutdown"
+  "system.show_desktop" = "show_desktop"
+  "window.move_left" = "move_left"
+  "window.move_right" = "move_right"
 
 # System-wide actions, independent of the focused program.
 [[system_action]]

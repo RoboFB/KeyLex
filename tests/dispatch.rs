@@ -197,6 +197,84 @@ adapter = "socket"
 }
 
 #[test]
+fn dispatch_uses_system_target_when_no_focused_target_supports_action() {
+    let dir = write_config(
+        "[[action]]\nid = \"window.move_left\"\n",
+        &format!(
+            r#"[[target]]
+program = "system-{os}"
+os = "{os}"
+adapter = "socket"
+
+  [target.supports]
+  "window.move_left" = "move_left"
+"#,
+            os = std::env::consts::OS
+        ),
+        "system-target",
+    );
+    let registry = load(&dir);
+
+    let calls = Rc::new(RefCell::new(Vec::new()));
+    let mut adapters: HashMap<String, Box<dyn Adapter>> = HashMap::new();
+    adapters.insert("socket".to_string(), Box::new(RecordingAdapter(Rc::clone(&calls))));
+    let (router, _recording) = router_with(&registry, adapters);
+
+    // No app is focused with a matching target at all -- "unknown.exe" -- so
+    // this should only succeed via the OS-wide system target.
+    let result = router.dispatch("window.move_left", "unknown.exe");
+
+    assert_eq!(result.status, DispatchStatus::Native);
+    assert_eq!(result.detail, "move_left");
+    assert_eq!(
+        calls.borrow().as_slice(),
+        [(format!("system-{}", std::env::consts::OS), "move_left".to_string())]
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn dispatch_prefers_focused_app_target_over_system_target() {
+    let dir = write_config(
+        "[[action]]\nid = \"close.tab\"\n",
+        &format!(
+            r#"[[target]]
+program = "vscode"
+match_process = ["Code.exe"]
+adapter = "socket"
+
+  [target.supports]
+  "close.tab" = "workbench.action.closeActiveEditor"
+
+[[target]]
+program = "system-{os}"
+os = "{os}"
+adapter = "socket"
+
+  [target.supports]
+  "close.tab" = "should-not-be-used"
+"#,
+            os = std::env::consts::OS
+        ),
+        "system-target-precedence",
+    );
+    let registry = load(&dir);
+
+    let calls = Rc::new(RefCell::new(Vec::new()));
+    let mut adapters: HashMap<String, Box<dyn Adapter>> = HashMap::new();
+    adapters.insert("socket".to_string(), Box::new(RecordingAdapter(Rc::clone(&calls))));
+    let (router, _recording) = router_with(&registry, adapters);
+
+    let result = router.dispatch("close.tab", "Code.exe");
+
+    assert_eq!(result.status, DispatchStatus::Native);
+    assert_eq!(result.detail, "workbench.action.closeActiveEditor");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn websocket_adapter_delivers_command_to_connected_client() {
     const PORT: u16 = 47778;
 

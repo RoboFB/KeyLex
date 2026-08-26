@@ -1,4 +1,4 @@
-// Reference client for the keylex/v0 WebSocket transport (../docs/protocol.md):
+// Reference client for the keylex/v0 WebSocket transport (../../docs/protocol.md):
 // same {"command": "..."} message the VS Code extension (../vscode-extension/
 // extension.js) gets over TCP, just delivered as a WS text frame instead.
 //
@@ -9,7 +9,7 @@
 //
 // The daemon won't trust this connection until it sees the shared secret
 // from config/secret.token as the very first frame
-// (../docs/protocol.md#trust-model--authentication) -- since a browser
+// (../../docs/protocol.md#trust-model--authentication) -- since a browser
 // extension can't read an arbitrary filesystem path, that token is pasted
 // once into this extension's options page (options.html/options.js) and
 // kept in chrome.storage.local from then on.

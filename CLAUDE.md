@@ -23,14 +23,19 @@ Everything here is early-stage. The core capture/dispatch pipeline
 (config → registry → router/capture → adapter/fallback) is written in
 Rust and is tested on Linux; the Windows capture backend exists but is
 untestable outside a Windows machine (this dev environment is Linux, no
-Windows box available). Application-side integrations are a separate,
-per-app concern in whatever language fits that app's ecosystem — the VS
-Code extension (plain JS, using the official `vscode` extension API) and
-the Chrome extension (Manifest V3, `chrome.tabs`/`chrome.windows`/
-`chrome.sidePanel`) both exist; Neovim/terminal adapters are unimplemented
-stubs. macOS has no capture backend at all yet, not even an untested one
-(see "Known gaps" below) — Linux and Windows are the only supported
-platforms for now.
+Windows box available). Application-side and OS-side integrations each
+live in their own subfolder under [extensions/](extensions/), in whatever
+language fits that target's ecosystem — the VS Code extension
+(`extensions/vscode-extension/`, plain JS, using the official `vscode`
+extension API), the Chrome extension (`extensions/chrome-extension/`,
+Manifest V3, `chrome.tabs`/`chrome.windows`/`chrome.sidePanel`), and the
+Linux/Windows OS-wide system listeners (`extensions/linux-extension/`,
+`extensions/windows-extension/` — small Node scripts handling
+focus-independent actions like `system.shutdown` and `window.move_left`
+via `wmctrl`/PowerShell respectively, see "Dispatch flow" below) all
+exist; Neovim/terminal adapters are unimplemented stubs. macOS has no
+capture backend at all yet, not even an untested one (see "Known gaps"
+below) — Linux and Windows are the only supported platforms for now.
 
 ## Commands
 
@@ -73,7 +78,12 @@ There is no separate lint step configured beyond `cargo clippy`.
    names identify it (`match_process`), which adapter reaches it, and a
    `supports` whitelist mapping action IDs to that program's native
    command strings. Also holds `[[system_action]]` entries — OS-level
-   actions that don't depend on the focused app at all.
+   actions that don't depend on the focused app at all — and, as an
+   ordinary `[[target]]` with an `os` field instead of `match_process`
+   (`"system-linux"` / `"system-windows"`), the OS-wide system listeners
+   under `extensions/`. `Registry::system_target` picks whichever one's
+   `os` matches `std::env::consts::OS`, so only one is ever live per
+   platform even though both entries are declared in the same file.
 
 ### Capture rule
 
@@ -125,7 +135,14 @@ full wire-level contract and threat model.
    the focused process? If yes and it `supports` this action → **native**:
    look up the adapter by `target.adapter` and call `adapter.send(target,
    native_command)`.
-2. Otherwise → **fallback**: based on `ActionSpec.fallback_tier`, either
+2. Otherwise, `Registry::system_target` — the OS-wide listener target for
+   this platform (`extensions/linux-extension` or
+   `extensions/windows-extension`, see "Two config layers" above). If it
+   `supports` this action → **native** via that target instead, regardless
+   of what's focused (used for actions like `system.shutdown` and
+   `window.move_left`/`window.move_right` that don't belong to any one
+   app).
+3. Otherwise → **fallback**: based on `ActionSpec.fallback_tier`, either
    send `fallback_keycode` via the platform's `FallbackSender` (optionally
    also notifying), or — if there's no usable keycode / tier is
    `notify_only` — report **unsupported** and just notify.
@@ -213,3 +230,11 @@ started.
 - The WebSocket adapter keeps only one connection per target (last-connect
   wins) — no support yet for multiple simultaneous Chrome
   windows/profiles.
+- `extensions/windows-extension/listener.js` (the `system-windows` target's
+  listener) is untested outside a real Windows machine, same caveat as
+  `src/capture/windows.rs`/`src/focus/windows.rs`.
+- The OS-wide system listeners (`extensions/linux-extension`,
+  `extensions/windows-extension`) have to be started manually alongside the
+  daemon, same as `vscode-extension`/`chrome-extension` — there's no
+  process supervision or auto-launch for any of the `extensions/` targets
+  yet.

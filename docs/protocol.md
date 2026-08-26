@@ -43,7 +43,7 @@ and the target's client connects in. The wire message is identical to the
 TCP transport's, just carried as a single WS text frame instead of a
 newline-terminated line. See
 [src/adapters/websocket.rs](../src/adapters/websocket.rs) for the daemon
-side and [chrome-extension/background.js](../chrome-extension/background.js)
+side and [extensions/chrome-extension/background.js](../extensions/chrome-extension/background.js)
 for the reference client. A target using this transport sets
 `adapter = "websocket"` and a `port` in `targets.toml`; only one connected
 client is kept per target for now (a fresh connection supersedes an older

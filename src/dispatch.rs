@@ -44,6 +44,14 @@ impl<'a> Router<'a> {
             }
         }
 
+        // Not scoped to (or not supported by) the focused app -- try the
+        // OS-wide system listener before falling back to a keycode guess.
+        if let Some(system_target) = self.registry.system_target() {
+            if system_target.supports.contains_key(action_id) {
+                return self.dispatch_native(system_target, action_id);
+            }
+        }
+
         let spec = self.registry.action_spec(action_id);
         self.dispatch_fallback(action_id, &spec.fallback_tier, spec.fallback_keycode.as_deref())
     }
