@@ -353,6 +353,14 @@ gaps" section:
 
 ## Libraries worth knowing about (not adopted, just catalogued)
 
+For general-purpose keyboard/mouse *libraries* (as opposed to the
+standalone products above) — pynput, libuiohook and everything built on
+it, robotgo, global-hotkey, and why none of them can replace Keylex's own
+hand-rolled capture layer — see the dedicated companion doc,
+[libraries.md](libraries.md). The Rust crates listed below are repeated
+here because they're closer to Keylex's own domain (remapping daemons)
+than that survey's app-hotkey-library focus.
+
 - **[rdev](https://github.com/Narsil/rdev)** — cross-platform (Linux via
   evdev, Windows, macOS) Rust listen/grab/send library, MIT-licensed,
   serde-friendly event types. The closest existing crate to what Keylex's
