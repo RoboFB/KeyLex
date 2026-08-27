@@ -213,6 +213,18 @@ impl PendingChord {
     }
 }
 
+/// The read-only handles a chord-member event needs beyond its own
+/// per-call arguments (`token`, `event`, `pressed_modifiers`) -- bundled
+/// so `ChordEngine`'s methods take one context reference instead of
+/// threading `registry`/`router`/`virtual_device`/`tx` through each of
+/// them individually.
+struct EventCtx<'a> {
+    registry: &'a Registry,
+    router: &'a Router<'a>,
+    virtual_device: &'a Rc<RefCell<VirtualDevice>>,
+    tx: &'a mpsc::Sender<Msg>,
+}
+
 /// All chord-related state for the capture loop. Kept separate from the
 /// single-key+modifier trigger path (`pressed_modifiers`, matched via
 /// `Registry::action_for_trigger`), which stays exactly as it always was
@@ -240,45 +252,26 @@ impl ChordEngine {
     /// Dispatch on a key event already known to be for a token that is a
     /// member of at least one configured chord (`Registry::is_chord_member`
     /// already checked by the caller).
-    #[allow(clippy::too_many_arguments)]
     fn handle_chord_member_event(
         &mut self,
         token: String,
-        is_modifier: bool,
         event: InputEvent,
         pressed_modifiers: &mut HashSet<&'static str>,
-        registry: &Registry,
-        router: &Router,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-        tx: &mpsc::Sender<Msg>,
+        ctx: &EventCtx,
     ) -> io::Result<()> {
         match event.value() {
-            1 => self.on_chord_key_down(
-                token,
-                is_modifier,
-                event,
-                pressed_modifiers,
-                registry,
-                router,
-                virtual_device,
-                tx,
-            ),
-            0 => self.on_chord_key_up(token, is_modifier, event, pressed_modifiers, virtual_device),
-            _ => self.on_chord_key_repeat(token, event, virtual_device),
+            1 => self.on_chord_key_down(token, event, pressed_modifiers, ctx),
+            0 => self.on_chord_key_up(token, event, pressed_modifiers, ctx.virtual_device),
+            _ => self.on_chord_key_repeat(token, event, ctx.virtual_device),
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn on_chord_key_down(
         &mut self,
         token: String,
-        is_modifier: bool,
         event: InputEvent,
         pressed_modifiers: &mut HashSet<&'static str>,
-        registry: &Registry,
-        router: &Router,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-        tx: &mpsc::Sender<Msg>,
+        ctx: &EventCtx,
     ) -> io::Result<()> {
         let Some(mut pending) = self.pending.take() else {
             let mut order = Vec::new();
@@ -287,14 +280,14 @@ impl ChordEngine {
             down_events.insert(token, event);
             let generation = self.next_generation();
             self.pending = Some(PendingChord { order, down_events, generation });
-            arm_timer(tx.clone(), generation);
+            arm_timer(ctx.tx.clone(), generation);
             return Ok(());
         };
 
         let mut candidate = pending.members();
         candidate.insert(token.clone());
 
-        if let Some(action_id) = registry.action_for_chord(&candidate) {
+        if let Some(action_id) = ctx.registry.action_for_chord(&candidate) {
             let action_id = action_id.to_string();
             for member in &pending.order {
                 self.held.insert(member.clone(), ChordKeyState::ConsumedByChord);
@@ -303,18 +296,18 @@ impl ChordEngine {
             self.next_generation(); // invalidate any in-flight timer for the old pending set
 
             let focused = crate::focus::focused_process_name();
-            let result = router.dispatch(&action_id, &focused);
+            let result = ctx.router.dispatch(&action_id, &focused);
             println!("{action_id} -> {result} (chord)");
             return Ok(());
         }
 
-        if registry.is_chord_prefix(&candidate) {
+        if ctx.registry.is_chord_prefix(&candidate) {
             pending.order.push(token.clone());
             pending.down_events.insert(token, event);
             let generation = self.next_generation();
             pending.generation = generation;
             self.pending = Some(pending);
-            arm_timer(tx.clone(), generation);
+            arm_timer(ctx.tx.clone(), generation);
             return Ok(());
         }
 
@@ -323,14 +316,13 @@ impl ChordEngine {
         // key start a fresh pending sequence of its own (it might yet be
         // the start of a *different* chord).
         self.pending = Some(pending);
-        self.replay_pending(pressed_modifiers, virtual_device)?;
-        self.on_chord_key_down(token, is_modifier, event, pressed_modifiers, registry, router, virtual_device, tx)
+        self.replay_pending(pressed_modifiers, ctx.virtual_device)?;
+        self.on_chord_key_down(token, event, pressed_modifiers, ctx)
     }
 
     fn on_chord_key_up(
         &mut self,
         token: String,
-        is_modifier: bool,
         event: InputEvent,
         pressed_modifiers: &mut HashSet<&'static str>,
         virtual_device: &Rc<RefCell<VirtualDevice>>,
@@ -356,10 +348,11 @@ impl ChordEngine {
         match self.held.remove(&token) {
             Some(ChordKeyState::ConsumedByChord) => Ok(()), // matched trigger: fully consumed
             Some(ChordKeyState::ReplayedPassthrough) => {
-                if is_modifier {
-                    if let Some(name) = modifier_static_name(&token) {
-                        pressed_modifiers.remove(name);
-                    }
+                // `modifier_static_name` is the single source of truth for
+                // "is this token a modifier" -- no need for callers to pass
+                // that redundantly alongside `token` itself.
+                if let Some(name) = modifier_static_name(&token) {
+                    pressed_modifiers.remove(name);
                 }
                 virtual_device.borrow_mut().emit(&[event])
             }
@@ -425,19 +418,15 @@ impl ChordEngine {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn handle_key_event(
         &mut self,
         key: Key,
         event: InputEvent,
         pressed_modifiers: &mut HashSet<&'static str>,
-        registry: &Registry,
-        router: &Router,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-        tx: &mpsc::Sender<Msg>,
+        ctx: &EventCtx,
     ) -> io::Result<()> {
         if let Some(name) = modifier_name(key) {
-            if !registry.is_chord_member(name) {
+            if !ctx.registry.is_chord_member(name) {
                 match event.value() {
                     1 => {
                         pressed_modifiers.insert(name);
@@ -447,37 +436,19 @@ impl ChordEngine {
                     }
                     _ => {}
                 }
-                return virtual_device.borrow_mut().emit(&[event]);
+                return ctx.virtual_device.borrow_mut().emit(&[event]);
             }
-            return self.handle_chord_member_event(
-                name.to_string(),
-                true,
-                event,
-                pressed_modifiers,
-                registry,
-                router,
-                virtual_device,
-                tx,
-            );
+            return self.handle_chord_member_event(name.to_string(), event, pressed_modifiers, ctx);
         }
 
         let Some(token) = key_to_token(key) else {
             // Untracked key (e.g. arrow keys): always passthrough, same as
             // before chords existed.
-            return virtual_device.borrow_mut().emit(&[event]);
+            return ctx.virtual_device.borrow_mut().emit(&[event]);
         };
 
-        if registry.is_chord_member(&token) {
-            return self.handle_chord_member_event(
-                token,
-                false,
-                event,
-                pressed_modifiers,
-                registry,
-                router,
-                virtual_device,
-                tx,
-            );
+        if ctx.registry.is_chord_member(&token) {
+            return self.handle_chord_member_event(token, event, pressed_modifiers, ctx);
         }
 
         // Existing single-key(+modifier) trigger path, unchanged: matches
@@ -487,16 +458,16 @@ impl ChordEngine {
             key: token,
             modifiers: pressed_modifiers.iter().map(|s| s.to_string()).collect(),
         };
-        if let Some(action_id) = registry.action_for_trigger(&combo).map(str::to_string) {
+        if let Some(action_id) = ctx.registry.action_for_trigger(&combo).map(str::to_string) {
             if event.value() == 1 {
                 let focused = crate::focus::focused_process_name();
-                let result = router.dispatch(&action_id, &focused);
+                let result = ctx.router.dispatch(&action_id, &focused);
                 println!("{action_id} -> {result}");
             }
             return Ok(()); // consumed: never re-emitted, down/up/repeat alike
         }
 
-        virtual_device.borrow_mut().emit(&[event])
+        ctx.virtual_device.borrow_mut().emit(&[event])
     }
 }
 
@@ -542,12 +513,18 @@ pub fn run(
 
     let mut pressed_modifiers: HashSet<&'static str> = HashSet::new();
     let mut chord_engine = ChordEngine::new();
+    let (tx, rx) = mpsc::channel::<Msg>();
+    let ctx = EventCtx {
+        registry,
+        router: &router,
+        virtual_device: &virtual_device,
+        tx: &tx,
+    };
 
     // Reader thread: owns the grabbed device, forwards raw events over a
     // channel. Keeping this separate from the main thread is what lets the
     // main thread also receive debounce-timer ticks on the same channel,
     // without ever needing a timeout on the blocking evdev read itself.
-    let (tx, rx) = mpsc::channel::<Msg>();
     let reader_tx = tx.clone();
     thread::spawn(move || loop {
         match source.fetch_events() {
@@ -582,15 +559,7 @@ pub fn run(
                         continue;
                     }
                 };
-                chord_engine.handle_key_event(
-                    key,
-                    event,
-                    &mut pressed_modifiers,
-                    registry,
-                    &router,
-                    &virtual_device,
-                    &tx,
-                )?;
+                chord_engine.handle_key_event(key, event, &mut pressed_modifiers, &ctx)?;
             }
         }
     }
