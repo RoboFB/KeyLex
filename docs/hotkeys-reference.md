@@ -1883,3 +1883,369 @@ equivalent noted in the comment.*
 | Repeat last shell command | `:!!` | Re-run the previous `:!` command **[Ex-only]** |
 | Print hex of char under cursor | `g8` | Show UTF-8 byte breakdown |
 | Print ASCII value of char | `ga` | Show decimal/hex/octal value |
+
+## Autodesk Fusion 360
+
+*IDs and hotkeys compiled from web research (Autodesk's own API
+documentation, real Fusion 360 add-in source code, and third-party
+cheat sheets/forum discussions). Most primary Autodesk help pages
+weren't directly fetchable in this environment, so most entries could
+only be cross-checked through search snippets rather than opened and
+verified verbatim. A handful of Command IDs (marked "Confirmed internal
+ID") were verified directly against real Fusion 360 add-in source or
+Autodesk's own `itemById()` examples; every other row uses the exact UI
+command name in place of an unconfirmed internal ID, as flagged per
+section. Hotkeys are given only where corroborated by at least one
+source — most Fusion 360 commands ship with no default binding and are
+reached via the `S` command-search box or bound manually in
+Preferences > Keyboard Shortcuts.*
+
+### File
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| New Design | Ctrl+N | Creates a new empty design document |
+| Open | Ctrl+O | Opens a design from the Data Panel |
+| Save | Ctrl+S | Saves the active design to the cloud |
+| Save As | | Saves a copy of the design under a new name/location |
+| Save a Copy | | Saves an unlinked copy of the current design |
+| `ExportCommand` | | Confirmed internal ID. Exports the design/body to STEP, STL, IGES, F3D, etc. |
+| 3D Print | | Sends the model to the 3D Print utility |
+| Upload | | Uploads local CAD files into the Data Panel |
+| Open From Local Drive | | Opens a non-cloud file (e.g. STEP, IGES) directly |
+| Close | | Closes the active document tab |
+
+### Edit
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Undo | Ctrl+Z | Steps back one action |
+| Redo | Ctrl+Y | Re-applies an undone action |
+| Cut | Ctrl+X | Cuts the selection |
+| Copy | Ctrl+C | Copies the selection |
+| Paste | Ctrl+V | Pastes the clipboard contents |
+| `FusionPasteNewCommand` | | Confirmed internal ID. Pastes the clipboard contents as a new independent component |
+| Find | Ctrl+F | Searches for an item in the browser tree |
+| Select All | Ctrl+A | Selects all visible objects in context |
+| Delete | Delete | Deletes the selected entities |
+| Cancel | Esc | Cancels the active command/tool |
+
+### View, Display & Navigation
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Command Search | S | Opens the type-ahead command search box |
+| Look At | L | Orients the view normal to the selected face/sketch |
+| Zoom | Scroll wheel | Zooms the 3D view in/out |
+| Pan | Shift+MMB drag | Pans the 3D view |
+| Orbit (Free Orbit) | MMB drag | Rotates the 3D view around the model |
+| Home View | | Returns to the default isometric orientation |
+| Fit | | Zooms to fit all visible geometry in the window |
+| Shaded | Ctrl+4 | Visual style: shaded, no edges |
+| Shaded with Hidden Edges | Ctrl+5 | Visual style: shaded, hidden edges dimmed |
+| Shaded with Visible Edges Only | Ctrl+6 | Visual style: shaded, hidden edges suppressed |
+| Wireframe | Ctrl+7 | Visual style: edges only, no shading |
+| Wireframe with Hidden Edges | Ctrl+8 | Visual style: wireframe with hidden lines shown |
+| Wireframe with Visible Edges Only | Ctrl+9 | Visual style: wireframe, hidden lines suppressed |
+| Toggle Visibility | V | Shows/hides the selected component or body |
+| Measure | I | Opens the Inspect > Measure tool |
+| Section Analysis | | Cuts a temporary cross-section through the model for inspection |
+| Interference Check | | Detects clashes between selected bodies/components |
+
+### Panels & Workspace Layout
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Next Workspace | Ctrl+] | Switches to the next workspace in the switcher order |
+| Previous Workspace | Ctrl+[ | Switches to the previous workspace in the switcher order |
+| Show/Hide ViewCube | Ctrl+Alt+V | Toggles the navigation ViewCube |
+| Show/Hide Browser | Ctrl+Alt+B | Toggles the design browser tree panel |
+| Show/Hide Comments | Ctrl+Alt+A | Toggles the comments panel |
+| Show/Hide Text Commands | Ctrl+Alt+C | Toggles the Text Commands debug console |
+| Show/Hide Navigation Bar | Ctrl+Alt+N | Toggles the navigation bar |
+| Show/Hide Data Panel | Ctrl+Alt+P | Toggles the Data Panel |
+| Reset to Default Layout | Ctrl+Alt+R | Restores the default UI panel layout |
+
+### Sketch — Draw
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Line | L | Draws a line or connected line/arc chain |
+| Rectangle (2-Point) | R | Draws a rectangle from two corners |
+| Center Rectangle | | Draws a rectangle from its center point |
+| Circle (Center Diameter) | C | Draws a circle from center and diameter |
+| Arc (3-Point) | A | Draws an arc through three points |
+| Ellipse | | Draws an ellipse from center and two axes |
+| Polygon | | Draws a regular polygon |
+| Slot | | Draws a slot profile |
+| Spline (Fit Point) | | Draws a smooth curve through fit points |
+| Conic Curve | | Draws a conic-section curve |
+| Sketch Point | | Places a reference point in the sketch |
+| Sketch Text | | Adds text geometry to the sketch |
+
+### Sketch — Modify
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Trim | T | Trims sketch geometry to the nearest intersection |
+| Extend | | Extends a curve to the next intersection |
+| Offset | O | Offsets selected sketch curves by a distance |
+| Mirror (Sketch) | M | Mirrors sketch geometry about a line |
+| Move/Copy (Sketch) | | Moves, rotates, or copies sketch geometry |
+| Scale (Sketch) | | Scales sketch geometry from a point |
+| Toggle Construction | X | Toggles selected geometry between normal and construction |
+| Fillet (Sketch) | | Rounds a corner between two sketch curves |
+| Break | | Splits a curve at a point |
+| Project | | Projects existing geometry onto the active sketch |
+| Include 3D Geometry | | Projects 3D edges/points into the sketch as sketch curves |
+
+### Sketch — Constraints & Dimensions
+*(UI names — internal IDs not confirmed, except SketchEditDimensionCmdDef)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Sketch Dimension | D | Applies a driving dimension to selected geometry |
+| `SketchEditDimensionCmdDef` | | Confirmed internal ID. Edits an existing sketch dimension's value |
+| Coincident Constraint | | Constrains two points to coincide |
+| Collinear Constraint | | Constrains two lines to lie on the same line |
+| Concentric Constraint | | Constrains two circles/arcs to share a center |
+| Tangent Constraint | | Constrains a curve to be tangent to another |
+| Parallel Constraint | | Constrains two lines to stay parallel |
+| Perpendicular Constraint | | Constrains two lines to stay perpendicular |
+| Horizontal/Vertical Constraint | | Constrains a line to horizontal or vertical |
+| Equal Constraint | | Constrains two curves to equal length/radius |
+| Symmetry Constraint | | Constrains two entities symmetric about a line |
+| Fix/Unfix | | Locks or unlocks a sketch entity's position |
+| Finish Sketch | | Exits sketch edit mode back to the 3D model |
+
+### Solid — Create
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Extrude | E | Extrudes a profile into a solid or surface |
+| Revolve | | Revolves a profile around an axis |
+| Sweep | | Sweeps a profile along a path |
+| Loft | | Blends between two or more profiles |
+| Rib | | Creates a thin structural rib from an open profile |
+| Web | | Creates a network of ribs from sketch lines |
+| Emboss | | Raises or recesses sketch geometry on a face |
+| Boundary Fill | | Creates solids/surfaces from enclosed regions |
+| Coil | | Creates a helical coil feature |
+| Pipe | | Creates a solid pipe along a path |
+| Create Base Feature | | Starts an editable base feature (non-parametric) |
+
+### Solid — Modify
+*(UI names — internal IDs not confirmed, except a few marked)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Fillet | F | Rounds selected edges |
+| Chamfer | | Bevels selected edges |
+| Shell | | Hollows a solid, leaving selected faces open |
+| Draft | | Adds a taper angle to faces for molding/casting |
+| Thread | | Adds cosmetic or modeled thread to a cylindrical face |
+| Press Pull | Q | Extrudes/offsets a face or profile interactively |
+| Move/Copy | M | Moves, rotates, or copies bodies/components |
+| Combine | | Boolean joins/cuts/intersects bodies |
+| Split Body | | Splits a body using a plane/face/sketch curve |
+| Split Face | | Splits a face using a plane/sketch curve |
+| Replace Face | | Replaces a face with another surface |
+| Delete Face | | Removes a face and heals or leaves the gap |
+| Scale | | Scales a body uniformly or non-uniformly |
+| `ChangeParameterCommand` | | Confirmed internal ID. Opens the Change Parameter / user-parameter edit dialog |
+| `RenameCommand` | | Confirmed internal ID. Renames the selected component, body, sketch, or feature |
+| Physical Material | | Assigns a physical (density/mass) material to a body |
+| Appearance | | Assigns a visual appearance/material to a body or face |
+
+### Solid — Pattern, Mirror & Combine
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Rectangular Pattern | | Patterns features/bodies along one or two directions |
+| Circular Pattern | | Patterns features/bodies around an axis |
+| Path Pattern | | Patterns features/bodies along a curve |
+| Mirror (Feature) | | Mirrors solid features/bodies about a plane |
+| Pattern on Path | | Alternate name for Path Pattern in some UI versions |
+| Component Pattern | | Patterns whole occurrences (not just features) |
+
+### Surface
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Patch | | Fills a closed boundary loop with a surface |
+| Extend (Surface) | | Extends a surface edge |
+| Trim (Surface) | | Trims a surface against a cutting tool |
+| Stitch | | Stitches adjacent surfaces into one surface or a solid |
+| Unstitch | | Separates a stitched surface/solid back into faces |
+| Thicken | | Converts a surface into a solid of given thickness |
+| Ruled Surface | | Creates a ruled surface from an edge/curve |
+| Offset (Surface) | | Offsets a surface by a distance |
+
+### Sculpt / T-Spline
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Create Form | | Enters the Sculpt (T-Spline) editing environment |
+| Sculpt Box | | Creates a primitive box T-Spline body |
+| Sculpt Sphere | | Creates a primitive sphere T-Spline body |
+| Sculpt Cylinder | | Creates a primitive cylinder T-Spline body |
+| Sculpt Plane | | Creates a primitive flat T-Spline body |
+| Revolve (Sculpt) | | Creates a T-Spline body by revolving a profile |
+| Edit Form | | Free-form moves/rotates/scales T-Spline control points |
+| Bridge (Sculpt) | | Connects two open edges/faces with new geometry |
+| Fill Hole (Sculpt) | | Caps an open edge loop |
+| Crease | | Sharpens an edge on a smoothed T-Spline body |
+
+### Assembly / Joints
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Joint | J | Creates a joint defining relative motion between components |
+| As-Built Joint | Shift+J | Creates a joint that preserves the components' current position |
+| Joint Origin | | Places a reusable joint reference point |
+| Rigid Group | | Locks a set of components together as one rigid body |
+| New Component | | Creates a new empty component in the assembly |
+| Ground | | Fixes a component in place relative to the assembly origin |
+| Align | | Aligns two components' faces/points/axes |
+| Motion Study | | Opens a study for previewing joint-driven motion |
+| Contact Sets | | Enables collision detection between selected components |
+| Insert Derive | | Inserts another design as a linked/derived component |
+
+### Sheet Metal
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Flange | | Adds a sheet-metal flange from a sketch, edge, or face |
+| Contour Flange | | Extrudes a sheet-metal profile with bend allowances |
+| Lofted Flange | | Lofts a sheet-metal wall between two open profiles |
+| Convert to Sheet Metal | | Converts an existing solid body to sheet metal rules |
+| Unfold | | Temporarily unfolds bent walls for editing |
+| Refold | | Re-folds walls unfolded by Unfold |
+| Flat Pattern | | Generates the flattened manufacturing pattern |
+| Bend | | Adds a bend feature at a sketch line |
+| Corner Round | | Rounds a sheet-metal corner |
+| Corner Chamfer | | Chamfers a sheet-metal corner |
+| Rip | | Splits a face to allow it to bend or unfold |
+
+### Mesh
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Insert Mesh | | Imports a mesh file (STL, OBJ, etc.) into the design |
+| Mesh to BRep | | Converts a mesh body to a solid B-Rep body |
+| Remesh | | Re-triangulates a mesh to a new resolution |
+| Reduce | | Reduces a mesh's triangle count |
+| Prepare Mesh | | Repairs/cleans a mesh before further editing |
+| Modify Mesh | | Smooths, offsets, or otherwise edits mesh geometry |
+| Mesh Section Sketch | | Creates a sketch from a mesh cross-section |
+| Watertight Analysis | | Checks a mesh body for gaps/non-manifold errors |
+
+### Simulation
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| New Study | | Creates a new simulation study and selects a study type |
+| Loads | | Applies forces, pressures, or torques to the model |
+| Constraints (Simulation) | | Fixes or restrains geometry for the study |
+| Contacts | | Defines how bodies interact/touch in the study |
+| Study Materials | | Assigns simulation material properties |
+| Mesh Settings | | Controls the finite-element mesh density |
+| Simulate | | Runs the solve for the active study |
+| Results | | Displays stress/displacement/factor-of-safety results |
+
+### Render
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| In-Canvas Render | | Toggles progressive photorealistic rendering in the viewport |
+| Render (Cloud/Local Gallery) | | Sends the scene to a full offline render job |
+| Appearance (Render) | | Opens the appearance library for material assignment |
+| Decal | | Applies an image decal to a face |
+| Scene Settings | | Configures environment lighting/backdrop for rendering |
+| Ground Plane | | Adds/adjusts a render ground plane and shadow catcher |
+
+### Drawing / Documentation
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Base View | | Places the first view of a model on a drawing sheet |
+| Projected View | | Creates an orthographic view projected from a base view |
+| Section View | | Creates a cross-sectional drawing view |
+| Detail View | | Creates a magnified callout of part of a view |
+| Break View | | Shortens a long view with a break |
+| General Dimension | | Adds a linear/angular/radial dimension to a drawing |
+| Ordinate Dimension | | Adds a baseline (ordinate) dimension set |
+| Center Mark | | Marks the center of a circular edge |
+| Centerline | | Adds a centerline between two edges/points |
+| Surface Finish Symbol | | Adds a surface-texture callout |
+| Geometric Tolerance | | Adds a GD&T feature control frame |
+| Balloon | | Adds a BOM item-number balloon |
+| Parts List | | Inserts a bill-of-materials table |
+| Hole Table | | Inserts a table listing hole positions/sizes |
+| New Sheet | | Adds a new drawing sheet |
+
+### Manufacture / CAM
+*(UI names — internal IDs not confirmed)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| New Setup | | Defines stock, WCS, and post configuration for a job |
+| 2D Adaptive Clearing | | Roughs a pocket with adaptive-clearing toolpaths |
+| 2D Pocket | | Clears material from a closed 2D boundary |
+| 2D Contour | | Cuts along a 2D profile boundary |
+| 2D Face | | Faces the top of the stock flat |
+| Drill | | Cycles a drilling toolpath on selected holes |
+| 3D Adaptive Clearing | | Roughs a 3D solid with adaptive-clearing toolpaths |
+| 3D Parallel | | Finishes a 3D surface with parallel passes |
+| 3D Contour | | Finishes a 3D surface following contour lines |
+| Regenerate Toolpath | G | Recomputes the selected/out-of-date toolpaths |
+| Simulate (CAM) | | Simulates material removal for the selected toolpaths |
+| Post Process | | Generates NC code from the selected toolpaths |
+| Setup Sheet | | Generates a documentation sheet for a setup |
+| Backplot | | Steps through toolpath motion move-by-move |
+
+### Timeline / History
+*(UI names — internal IDs not confirmed, except two marked)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| Roll History Marker Here | | Moves the timeline playhead to just after a feature |
+| Suppress Features | | Temporarily disables selected timeline features |
+| Skip | | Excludes selected features from the design without deleting them |
+| Edit Feature | | Reopens a timeline feature's dialog for editing |
+| Group | | Groups consecutive timeline features together |
+| `FusionComputeAllCommand` | | Confirmed internal ID. Forces a full recompute of the design |
+| `FusionRenameTimelineEntryCommand` | | Confirmed internal ID. Renames a timeline feature entry |
+| Insert (Timeline Position) | | Sets where new features are inserted into history |
+
+### Data Panel / Project
+*(UI names — internal IDs not confirmed, except two marked)*
+
+| Command ID | Default hotkey | Comment |
+|---|---|---|
+| New Project | | Creates a new project folder in the Data Panel |
+| New Folder | | Creates a subfolder within a project |
+| Upload (Data Panel) | | Uploads local files into the current project |
+| Move | | Moves a file/folder to another project or folder |
+| Copy | | Copies a file to another project or folder |
+| Delete (Data Panel) | | Deletes a file or folder (moves to Recycle Bin) |
+| Version History | | Lists and restores prior saved versions of a file |
+| Manage Access | | Sets sharing/collaborator permissions on a project |
+| `FusionPropertiesCommand` | | Confirmed internal ID. Opens the document properties dialog |
+| `DesignConfigurationActivateRowCmd` | | Confirmed internal ID. Activates a row in the design's Configurations table |
