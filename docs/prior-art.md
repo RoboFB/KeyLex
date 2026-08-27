@@ -239,7 +239,7 @@ you see quoted for it elsewhere as unverified.
 ## Gaming: input remapping as a first-class abstraction, not just a keycode swap
 
 This corner of the ecosystem is the closest external parallel to what
-Keylex's action vocabulary (`actions.toml`, `vocabulary.toml`) is trying to
+Keylex's action vocabulary (`actions.toml`, `hotkeys-reference.csv`) is trying to
 do, even though the domain is game controllers rather than keyboards +
 apps:
 

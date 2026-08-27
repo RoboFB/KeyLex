@@ -1,6 +1,6 @@
-//! Loads `actions.toml`, `targets.toml`, and `vocabulary.toml`, and exposes
-//! lookups: which action a key combo triggers, which target (if any)
-//! matches a focused process, and an action's fallback behavior.
+//! Loads `actions.toml`, `targets.toml`, and `hotkeys-reference.csv`, and
+//! exposes lookups: which action a key combo triggers, which target (if
+//! any) matches a focused process, and an action's fallback behavior.
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt;
@@ -74,31 +74,92 @@ impl ActionSpec {
     }
 }
 
-/// The action-id vocabulary loaded from `vocabulary.toml`: every action's
+/// One row of `hotkeys-reference.csv`: the full per-app command catalog the
+/// action-id vocabulary is derived from. `application`/`group` mirror what
+/// used to be the `##`/`###` headings in the old `docs/hotkeys-reference.md`;
+/// `command_id`/`default_hotkey`/`comment` are that app's own documentation
+/// of the command; `modifier`/`location`/`condition` are Keylex's own
+/// annotation of it, empty when this particular row hasn't been mapped onto
+/// the action grammar yet.
+#[derive(Debug, Clone, Deserialize)]
+struct HotkeyRow {
+    #[allow(dead_code)]
+    application: String,
+    #[allow(dead_code)]
+    group: String,
+    #[allow(dead_code)]
+    command_id: String,
+    #[allow(dead_code)]
+    default_hotkey: String,
+    #[allow(dead_code)]
+    comment: String,
+    #[serde(default)]
+    modifier: String,
+    #[serde(default)]
+    location: String,
+    #[serde(default)]
+    condition: String,
+}
+
+/// The action-id vocabulary, derived from every non-empty `modifier` /
+/// `location` / `condition` value in `hotkeys-reference.csv`: every action's
 /// `modifier` and (if present) `location` must appear in these sets, or
 /// `Registry::load` rejects the config outright. See
 /// `docs/protocol.md#action-ids`.
-#[derive(Debug, Clone, Deserialize)]
-struct RawVocabulary {
-    #[serde(default)]
-    modifiers: Vec<String>,
-    #[serde(default)]
-    locations: Vec<String>,
-}
-
+///
+/// Unlike the old hand-curated `vocabulary.toml`, this set is exactly
+/// whatever the CSV happens to contain -- every app's raw command survey
+/// doubles as the vocabulary source, so it's as broad (and as easy to grow
+/// unintentionally) as that survey is. `conditions` is carried the same way
+/// but, as of this writing, isn't yet consulted anywhere -- `RawAction` has
+/// no `condition` field -- it's here so the set exists once that wiring is
+/// added.
 #[derive(Debug, Clone)]
 pub struct Vocabulary {
     pub modifiers: HashSet<String>,
     pub locations: HashSet<String>,
+    #[allow(dead_code)]
+    pub conditions: HashSet<String>,
 }
 
-impl From<RawVocabulary> for Vocabulary {
-    fn from(raw: RawVocabulary) -> Vocabulary {
-        Vocabulary {
-            modifiers: raw.modifiers.into_iter().collect(),
-            locations: raw.locations.into_iter().collect(),
+/// Extracts the bare condition names referenced by one `condition` cell,
+/// e.g. `"!Formatting"` -> `["Formatting"]`, `"A && !B"` -> `["A", "B"]` --
+/// stripping the `&& || () !` operators the syntax allows chaining with
+/// (see `conditions` in the old `vocabulary.toml`) rather than treating the
+/// whole expression as one vocabulary word.
+fn condition_names(expr: &str) -> impl Iterator<Item = String> + '_ {
+    expr.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .filter(|tok| !tok.is_empty())
+        .map(str::to_string)
+}
+
+/// Reads `hotkeys-reference.csv` and collects the distinct non-empty
+/// `modifier`/`location` values, and the distinct condition names embedded
+/// in every `condition` cell, across every row into the vocabulary sets
+/// `Registry::load` validates actions against.
+fn load_vocabulary_csv(path: &Path) -> Result<Vocabulary, ConfigError> {
+    let mut reader = csv::Reader::from_path(path)
+        .map_err(|e| ConfigError::Csv(path.display().to_string(), e))?;
+
+    let mut modifiers = HashSet::new();
+    let mut locations = HashSet::new();
+    let mut conditions = HashSet::new();
+    for result in reader.deserialize() {
+        let row: HotkeyRow = result.map_err(|e| ConfigError::Csv(path.display().to_string(), e))?;
+        if !row.modifier.is_empty() {
+            modifiers.insert(row.modifier);
         }
+        if !row.location.is_empty() {
+            locations.insert(row.location);
+        }
+        conditions.extend(condition_names(&row.condition));
     }
+
+    Ok(Vocabulary {
+        modifiers,
+        locations,
+        conditions,
+    })
 }
 
 /// Builds an action id from a validated `modifier`/`location` pair: just
@@ -218,8 +279,9 @@ struct RawCapabilitiesFile {
 pub enum ConfigError {
     Io(String, std::io::Error),
     Toml(String, toml::de::Error),
+    Csv(String, csv::Error),
     InvalidChord(String),
-    /// An action's `modifier` or `location` isn't in `vocabulary.toml`.
+    /// An action's `modifier` or `location` isn't in `hotkeys-reference.csv`.
     UnknownVocabulary(String),
     /// A target's `supports` map has a key that's not any known action id
     /// (typo, or the action was renamed/removed from `actions.toml`).
@@ -234,6 +296,7 @@ impl fmt::Display for ConfigError {
         match self {
             ConfigError::Io(path, e) => write!(f, "could not read {path}: {e}"),
             ConfigError::Toml(path, e) => write!(f, "could not parse {path}: {e}"),
+            ConfigError::Csv(path, e) => write!(f, "could not parse {path}: {e}"),
             ConfigError::InvalidChord(msg) => write!(f, "invalid chord binding: {msg}"),
             ConfigError::UnknownVocabulary(msg) => write!(f, "unknown vocabulary word: {msg}"),
             ConfigError::UnknownAction(msg) => write!(f, "unknown action id: {msg}"),
@@ -300,13 +363,13 @@ fn validate_action_vocabulary(
 ) -> Result<String, ConfigError> {
     if !vocabulary.modifiers.contains(modifier) {
         return Err(ConfigError::UnknownVocabulary(format!(
-            "{modifier:?} is not a modifier in vocabulary.toml"
+            "{modifier:?} is not a modifier in hotkeys-reference.csv"
         )));
     }
     if let Some(location) = location {
         if !vocabulary.locations.contains(location) {
             return Err(ConfigError::UnknownVocabulary(format!(
-                "{location:?} is not a location in vocabulary.toml"
+                "{location:?} is not a location in hotkeys-reference.csv"
             )));
         }
     }
@@ -329,8 +392,7 @@ fn fits_command_grammar(command: &str) -> bool {
 
 impl Registry {
     pub fn load(config_dir: &Path) -> Result<Registry, ConfigError> {
-        let vocabulary: Vocabulary =
-            load_toml::<RawVocabulary>(&config_dir.join("vocabulary.toml"))?.into();
+        let vocabulary = load_vocabulary_csv(&config_dir.join("hotkeys-reference.csv"))?;
         let actions_file: RawActionsFile = load_toml(&config_dir.join("actions.toml"))?;
         let targets_file: RawTargetsFile = load_toml(&config_dir.join("targets.toml"))?;
 
@@ -481,6 +543,8 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "config/actions.toml is temporarily emptied out (WIP pivot, see its BIG TODO); \
+                re-enable once it has entries again"]
     fn loads_config_dir_and_resolves_lookups() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("config");
         let registry = Registry::load(&dir).expect("config should load");
@@ -505,6 +569,8 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "config/actions.toml is temporarily emptied out (WIP pivot, see its BIG TODO); \
+                re-enable once it has entries again"]
     fn unbound_action_id_falls_back_to_default_spec() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("config");
         let registry = Registry::load(&dir).expect("config should load");
@@ -521,15 +587,15 @@ mod tests {
         ))
     }
 
-    const TEST_VOCABULARY: &str = r#"
-modifiers = ["close", "some", "bad"]
-locations = ["tab"]
-"#;
+    const TEST_VOCABULARY: &str = "application,group,command_id,default_hotkey,comment,modifier,location,condition\n\
+        Test,Test,x,x,x,close,tab,\n\
+        Test,Test,x,x,x,some,,\n\
+        Test,Test,x,x,x,bad,,\n";
 
     fn load_actions_only(name: &str, actions_toml: &str) -> Result<Registry, ConfigError> {
         let dir = temp_config_dir(name);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
+        std::fs::write(dir.join("hotkeys-reference.csv"), TEST_VOCABULARY).unwrap();
         std::fs::write(dir.join("actions.toml"), actions_toml).unwrap();
         std::fs::write(dir.join("targets.toml"), "").unwrap();
         let result = Registry::load(&dir);
@@ -614,7 +680,7 @@ chord = ["d", "g"]
     #[test]
     fn unknown_modifier_is_rejected() {
         let err = load_actions_only("unknown-modifier", "[[action]]\nmodifier = \"frobnicate\"\n")
-            .expect_err("modifier not in vocabulary.toml should be rejected");
+            .expect_err("modifier not in hotkeys-reference.csv should be rejected");
         assert!(matches!(err, ConfigError::UnknownVocabulary(_)));
     }
 
@@ -624,7 +690,7 @@ chord = ["d", "g"]
             "unknown-location",
             "[[action]]\nmodifier = \"close\"\nlocation = \"nonexistent\"\n",
         )
-        .expect_err("location not in vocabulary.toml should be rejected");
+        .expect_err("location not in hotkeys-reference.csv should be rejected");
         assert!(matches!(err, ConfigError::UnknownVocabulary(_)));
     }
 
@@ -651,7 +717,7 @@ chord = ["d", "g"]
     fn write_full_config(name: &str, targets_toml: &str) -> PathBuf {
         let dir = temp_config_dir(name);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
+        std::fs::write(dir.join("hotkeys-reference.csv"), TEST_VOCABULARY).unwrap();
         std::fs::write(
             dir.join("actions.toml"),
             "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
@@ -721,7 +787,7 @@ exempt_command_grammar = true
         let dir = temp_config_dir("capabilities-file");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::create_dir_all(dir.join("ext")).unwrap();
-        std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
+        std::fs::write(dir.join("hotkeys-reference.csv"), TEST_VOCABULARY).unwrap();
         std::fs::write(
             dir.join("actions.toml"),
             "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",

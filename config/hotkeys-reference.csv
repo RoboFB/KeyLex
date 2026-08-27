@@ -1,0 +1,1606 @@
+modifier,location,condition,default_hotkey,command_id,comment,application,group
+new,file,,Ctrl+N,`workbench.action.files.newUntitledFile`,New untitled text file,VS Code,File
+open,file,,Ctrl+O,`workbench.action.files.openFile`,Open File...,VS Code,File
+open,file,,Ctrl+O,`workbench.action.files.openFileFolder`,Open File or Folder (browse dialog),VS Code,File
+open,folder,,Ctrl+K Ctrl+O,`workbench.action.files.openFolder`,Open Folder...,VS Code,File
+,,,,`workbench.action.addRootFolder`,Add Folder to Workspace...,VS Code,File
+,,,,`workbench.action.openWorkspace`,Open Workspace from File...,VS Code,File
+,,,,`workbench.action.saveWorkspaceAs`,Save Workspace As...,VS Code,File
+open,recent,,Ctrl+R,`workbench.action.openRecent`,Open Recent (files/folders/workspaces),VS Code,File
+save,file,,Ctrl+S,`workbench.action.files.save`,Save,VS Code,File
+save_as,file,,Ctrl+Shift+S,`workbench.action.files.saveAs`,Save As...,VS Code,File
+,,,Ctrl+K S,`saveAll`,Save All open editors,VS Code,File
+save,file,!Formatting,Ctrl+K Ctrl+Shift+S,`workbench.action.files.saveWithoutFormatting`,Save without running formatters,VS Code,File
+undo,file,,,`workbench.action.files.revert`,Revert File to last saved state,VS Code,File
+close,editor,,Ctrl+W / Ctrl+F4,`workbench.action.closeActiveEditor`,Close Editor,VS Code,File
+close,editor,,Ctrl+K Ctrl+W,`workbench.action.closeAllEditors`,Close All Editors,VS Code,File
+,,,Ctrl+K U,`workbench.action.closeUnmodifiedEditors`,Close Unmodified Editors,VS Code,File
+,,,Ctrl+K W,`workbench.action.closeEditorsInGroup`,Close all editors in the active group,VS Code,File
+,,,,`workbench.action.closeOtherEditors`,Close Other Editors in group,VS Code,File
+,,,,`workbench.action.closeEditorsToTheRight`,Close Editors to the Right,VS Code,File
+,,,Ctrl+K F,`workbench.action.closeFolder`,Close Folder,VS Code,File
+,,,Ctrl+Shift+W / Alt+F4,`workbench.action.closeWindow`,Close Window,VS Code,File
+,,,Ctrl+Shift+N,`workbench.action.newWindow`,Open a new empty window,VS Code,File
+,,,Ctrl+Shift+T,`workbench.action.reopenClosedEditor`,Reopen Closed Editor,VS Code,File
+copy,file,,Ctrl+K P,`workbench.action.files.copyPathOfActiveFile`,Copy Path of Active File,VS Code,File
+,,,Ctrl+K R,`workbench.action.files.revealActiveFileInWindows`,Reveal Active File in Explorer/Finder,VS Code,File
+,,,Ctrl+K D,`workbench.files.action.compareWithSaved`,Compare Active File with Saved,VS Code,File
+,,,,`workbench.action.duplicateWorkspaceInNewWindow`,Duplicate As Workspace in New Window,VS Code,File
+cut,clipboard,,Ctrl+X,`editor.action.clipboardCutAction`,Cut (cuts whole line if selection is empty),VS Code,Edit
+copy,clipboard,,Ctrl+C,`editor.action.clipboardCopyAction`,Copy (copies whole line if selection is empty),VS Code,Edit
+paste,clipboard,,Ctrl+V,`editor.action.clipboardPasteAction`,Paste,VS Code,Edit
+copy,clipboard,,,`editor.action.clipboardCopyWithSyntaxHighlightingAction`,Copy With Syntax Highlighting (as HTML),VS Code,Edit
+undo,,,Ctrl+Z,`undo`,Undo,VS Code,Edit
+redo,,,Ctrl+Y / Ctrl+Shift+Z,`redo`,Redo,VS Code,Edit
+undo,,,Ctrl+U,`cursorUndo`,Undo last cursor operation,VS Code,Edit
+insert,line,,Ctrl+Enter,`editor.action.insertLineAfter`,Insert Line Below,VS Code,Edit
+insert,line,,Ctrl+Shift+Enter,`editor.action.insertLineBefore`,Insert Line Above,VS Code,Edit
+delete,line,,Ctrl+Shift+K,`editor.action.deleteLines`,Delete Line,VS Code,Edit
+move,line,,Alt+Down,`editor.action.moveLinesDownAction`,Move Line Down,VS Code,Edit
+move,line,,Alt+Up,`editor.action.moveLinesUpAction`,Move Line Up,VS Code,Edit
+copy,line,,Shift+Alt+Down,`editor.action.copyLinesDownAction`,Copy Line Down,VS Code,Edit
+copy,line,,Shift+Alt+Up,`editor.action.copyLinesUpAction`,Copy Line Up,VS Code,Edit
+,,,Ctrl+],`editor.action.indentLines`,Indent Line,VS Code,Edit
+,,,Ctrl+[,`editor.action.outdentLines`,Outdent Line,VS Code,Edit
+,,,Tab,`tab`,Indent / insert tab,VS Code,Edit
+,,,Shift+Tab,`outdent`,Outdent,VS Code,Edit
+delete,character,,Backspace,`deleteLeft`,Delete character to the left,VS Code,Edit
+delete,character,,Delete,`deleteRight`,Delete character to the right,VS Code,Edit
+delete,word,,Ctrl+Backspace,`deleteWordLeft`,Delete Word (left),VS Code,Edit
+delete,word,,Ctrl+Delete,`deleteWordRight`,Delete Word (right),VS Code,Edit
+toggle,comment,,Ctrl+/,`editor.action.commentLine`,Toggle Line Comment,VS Code,Edit
+new,comment,,Ctrl+K Ctrl+C,`editor.action.addCommentLine`,Add Line Comment,VS Code,Edit
+delete,comment,,Ctrl+K Ctrl+U,`editor.action.removeCommentLine`,Remove Line Comment,VS Code,Edit
+toggle,comment,,Shift+Alt+A,`editor.action.blockComment`,Toggle Block Comment,VS Code,Edit
+format,document,,Shift+Alt+F,`editor.action.formatDocument`,Format Document,VS Code,Edit
+format,selection,,Ctrl+K Ctrl+F,`editor.action.formatSelection`,Format Selection,VS Code,Edit
+,,,Shift+Alt+O,`editor.action.organizeImports`,Organize Imports,VS Code,Edit
+,,,Shift+Alt+.,`editor.action.autoFix`,Apply Auto Fix,VS Code,Edit
+,,,Ctrl+.,`editor.action.quickFix`,Show Quick Fix menu,VS Code,Edit
+,,,Ctrl+Shift+R,`editor.action.refactor`,Show Refactor menu,VS Code,Edit
+,,,,`editor.action.sourceAction`,Show Source Action menu,VS Code,Edit
+rename,symbol,,F2,`editor.action.rename`,Rename Symbol,VS Code,Edit
+,,,Ctrl+Shift+F2,`editor.action.linkedEditing`,Start Linked/Type Editing (rename tag pairs etc.),VS Code,Edit
+go_to,bracket,,Ctrl+Shift+\,`editor.action.jumpToBracket`,Go to Bracket,VS Code,Edit
+delete,bracket,,Ctrl+Alt+Backspace,`editor.action.removeBrackets`,Remove Brackets,VS Code,Edit
+delete,whitespace,,Ctrl+K Ctrl+X,`editor.action.trimTrailingWhitespace`,Trim Trailing Whitespace,VS Code,Edit
+,,,"Ctrl+Shift+,",`editor.action.inPlaceReplace.up`,Replace with Previous Value,VS Code,Edit
+,,,Ctrl+Shift+.,`editor.action.inPlaceReplace.down`,Replace with Next Value,VS Code,Edit
+,,,,`editor.action.transpose`,Transpose Letters around cursor,VS Code,Edit
+,,,,`editor.action.joinLines`,Join current line with the next,VS Code,Edit
+sort,,,,`editor.action.sortLinesAscending`,Sort Lines Ascending,VS Code,Edit
+sort,,,,`editor.action.sortLinesDescending`,Sort Lines Descending,VS Code,Edit
+duplicate,selection,,,`editor.action.duplicateSelection`,Duplicate Selection,VS Code,Edit
+,,,,`editor.action.transformToUppercase`,Transform Selection to UPPERCASE,VS Code,Edit
+,,,,`editor.action.transformToLowercase`,Transform Selection to lowercase,VS Code,Edit
+,,,,`editor.action.transformToTitlecase`,Transform Selection to Title Case,VS Code,Edit
+,,,,`editor.action.transformToSnakecase`,Transform Selection to snake_case,VS Code,Edit
+,,,Tab,`editor.emmet.action.expandAbbreviation`,Emmet: Expand Abbreviation,VS Code,Edit
+,,,Alt+Z,`editor.action.toggleWordWrap`,Toggle Word Wrap,VS Code,Edit
+,,,Ctrl+M,`editor.action.toggleTabFocusMode`,Toggle whether Tab moves focus instead of indenting,VS Code,Edit
+show,symbol,,Ctrl+K Ctrl+I,`editor.action.showHover`,Show Hover for symbol under cursor,VS Code,Edit
+,,,Ctrl+K Ctrl+B,`editor.action.setSelectionAnchor`,Set Selection Anchor,VS Code,Edit
+,,,Ctrl+K Ctrl+K,`editor.action.selectFromAnchorToCursor`,Select from Anchor to Cursor,VS Code,Edit
+,,,,`editor.action.cancelSelectionAnchor`,Cancel Selection Anchor,VS Code,Edit
+,,,Shift+F10,`editor.action.showContextMenu`,Show Editor Context Menu,VS Code,Edit
+collapse,region,,Ctrl+Shift+[,`editor.fold`,Fold (collapse) region,VS Code,Code Folding
+expand,region,,Ctrl+Shift+],`editor.unfold`,Unfold (uncollapse) region,VS Code,Code Folding
+toggle,region,,Ctrl+K Ctrl+L,`editor.toggleFold`,Toggle Fold region,VS Code,Code Folding
+collapse,region,,Ctrl+K Ctrl+[,`editor.foldRecursively`,Fold region and all subregions,VS Code,Code Folding
+expand,region,,Ctrl+K Ctrl+],`editor.unfoldRecursively`,Unfold region and all subregions,VS Code,Code Folding
+toggle,region,,Ctrl+K Ctrl+Shift+L,`editor.toggleFoldRecursively`,Toggle fold region and subregions,VS Code,Code Folding
+collapse,region,,Ctrl+K Ctrl+0,`editor.foldAll`,Fold All regions,VS Code,Code Folding
+expand,region,,Ctrl+K Ctrl+J,`editor.unfoldAll`,Unfold All regions,VS Code,Code Folding
+collapse,comment,,Ctrl+K Ctrl+/,`editor.foldAllBlockComments`,Fold All Block Comments,VS Code,Code Folding
+collapse,region,,Ctrl+K Ctrl+8,`editor.foldAllMarkerRegions`,Fold All Regions marked by `//region`,VS Code,Code Folding
+expand,region,,Ctrl+K Ctrl+9,`editor.unfoldAllMarkerRegions`,Unfold All Marker Regions,VS Code,Code Folding
+,,,Ctrl+K Ctrl+-,`editor.foldAllExcept`,Fold All Except Selected,VS Code,Code Folding
+,,,Ctrl+K Ctrl+=,`editor.unfoldAllExcept`,Unfold All Except Selected,VS Code,Code Folding
+,,,Ctrl+K Ctrl+1 … Ctrl+K Ctrl+7,`editor.foldLevel1` … `editor.foldLevel7`,Fold to nesting Level N,VS Code,Code Folding
+new,region,,"Ctrl+K Ctrl+,",`editor.createFoldingRangeFromSelection`,Create Manual Folding Range from Selection,VS Code,Code Folding
+delete,region,,Ctrl+K Ctrl+.,`editor.removeManualFoldingRanges`,Remove Manual Folding Ranges,VS Code,Code Folding
+select,,,Ctrl+A,`editor.action.selectAll`,Select All,VS Code,Selection & Multi-cursor
+select,line,,Ctrl+L,`expandLineSelection`,Select Current Line,VS Code,Selection & Multi-cursor
+expand,selection,,Shift+Alt+Right,`editor.action.smartSelect.expand`,Expand Selection (AST-aware),VS Code,Selection & Multi-cursor
+collapse,selection,,Shift+Alt+Left,`editor.action.smartSelect.shrink`,Shrink Selection,VS Code,Selection & Multi-cursor
+,,,Ctrl+Alt+Up,`editor.action.insertCursorAbove`,Add Cursor Above,VS Code,Selection & Multi-cursor
+,,,Ctrl+Alt+Down,`editor.action.insertCursorBelow`,Add Cursor Below,VS Code,Selection & Multi-cursor
+,,,Shift+Alt+I,`editor.action.insertCursorAtEndOfEachLineSelected`,Add Cursors to Line Ends of selection,VS Code,Selection & Multi-cursor
+select,match,,Ctrl+D,`editor.action.addSelectionToNextFindMatch`,Add Selection to Next Find Match,VS Code,Selection & Multi-cursor
+select,match,,,`editor.action.addSelectionToPreviousFindMatch`,Add Selection to Previous Find Match,VS Code,Selection & Multi-cursor
+move,selection,,Ctrl+K Ctrl+D,`editor.action.moveSelectionToNextFindMatch`,Move Last Selection to Next Find Match,VS Code,Selection & Multi-cursor
+select,selection,,Ctrl+Shift+L,`editor.action.selectHighlights`,Select All Occurrences of Current Selection,VS Code,Selection & Multi-cursor
+select,word,,Ctrl+F2,`editor.action.changeAll`,Change/select All Occurrences of Current Word,VS Code,Selection & Multi-cursor
+select,match,,Alt+Enter,`editor.action.selectAllMatches`,Select All Occurrences of Find Match (from Find widget),VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+Alt+Up,`cursorColumnSelectUp`,Column (box) select up,VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+Alt+Down,`cursorColumnSelectDown`,Column (box) select down,VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+Alt+Left,`cursorColumnSelectLeft`,Column select left,VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+Alt+Right,`cursorColumnSelectRight`,Column select right,VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+Alt+PageUp,`cursorColumnSelectPageUp`,Column select page up,VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+Alt+PageDown,`cursorColumnSelectPageDown`,Column select page down,VS Code,Selection & Multi-cursor
+,,,Escape,`removeSecondaryCursors`,Collapse multi-cursor down to a single cursor,VS Code,Selection & Multi-cursor
+,,,Escape,`cancelSelection`,Cancel current selection,VS Code,Selection & Multi-cursor
+next,word,,F7,`editor.action.wordHighlight.next`,Go to Next symbol/word highlight,VS Code,Selection & Multi-cursor
+previous,word,,Shift+F7,`editor.action.wordHighlight.prev`,Go to Previous symbol/word highlight,VS Code,Selection & Multi-cursor
+,,,Ctrl+Shift+P / F1,`workbench.action.showCommands`,Show Command Palette,VS Code,View & Workbench Navigation
+go_to,file,,Ctrl+P,`workbench.action.quickOpen`,Go to File... (Quick Open),VS Code,View & Workbench Navigation
+,,,Ctrl+Q,`workbench.action.quickOpenView`,Quick Open a View,VS Code,View & Workbench Navigation
+activate,sidebar,,Ctrl+Shift+E,`workbench.view.explorer`,Show Explorer / toggle focus,VS Code,View & Workbench Navigation
+activate,search,,Ctrl+Shift+F,`workbench.view.search`,Show Search,VS Code,View & Workbench Navigation
+,,,Ctrl+Shift+G,`workbench.view.scm`,Show Source Control,VS Code,View & Workbench Navigation
+,,,Ctrl+Shift+D,`workbench.view.debug`,Show Run and Debug,VS Code,View & Workbench Navigation
+activate,extension,,Ctrl+Shift+X,`workbench.view.extensions`,Show Extensions,VS Code,View & Workbench Navigation
+activate,problem,,Ctrl+Shift+M,`workbench.actions.view.problems`,Show Problems Panel,VS Code,View & Workbench Navigation
+toggle,output,,Ctrl+Shift+U,`workbench.action.output.toggleOutput`,Show Output Panel,VS Code,View & Workbench Navigation
+,,,Ctrl+Shift+Y,`workbench.debug.action.toggleRepl`,Show Debug Console,VS Code,View & Workbench Navigation
+toggle,terminal,,Ctrl+`,`workbench.action.terminal.toggleTerminal`,Show/hide Integrated Terminal,VS Code,View & Workbench Navigation
+,,,Ctrl+Shift+I,`workbench.action.toggleDevTools`,Toggle Developer Tools,VS Code,View & Workbench Navigation
+previous,editor,,Ctrl+Tab,`workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup`,Show/cycle recently used editors in group,VS Code,View & Workbench Navigation
+,,,Ctrl+Shift+Tab,`workbench.action.quickOpenLeastRecentlyUsedEditorInGroup`,Cycle recently used editors backward,VS Code,View & Workbench Navigation
+,,,Ctrl+P (held),`workbench.action.quickOpenNavigateNextInFilePicker`,Navigate Next in Quick Open file picker,VS Code,View & Workbench Navigation
+,,,Ctrl+R (held),`workbench.action.quickOpenNavigateNextInRecentFilesPicker`,Navigate in Open Recent picker,VS Code,View & Workbench Navigation
+,,,Ctrl+Q (held),`workbench.action.quickOpenNavigateNextInViewPicker`,Navigate in Quick View picker,VS Code,View & Workbench Navigation
+,,,Ctrl+Tab (held),`workbench.action.quickOpenNavigateNextInEditorPicker`,Navigate in editor-history picker,VS Code,View & Workbench Navigation
+,,,Escape,`workbench.action.closeQuickOpen`,Close the Quick Open / Command Palette widget,VS Code,View & Workbench Navigation
+previous,,,Alt+Left,`workbench.action.navigateBack`,Go Back,VS Code,View & Workbench Navigation
+next,,,Alt+Right,`workbench.action.navigateForward`,Go Forward,VS Code,View & Workbench Navigation
+,,,,`workbench.action.quickInputBack`,Go back one step in a multi-step Quick Input,VS Code,View & Workbench Navigation
+go_to,definition,,F12,`editor.action.revealDefinition`,Go to Definition,VS Code,Go
+go_to,definition,,Ctrl+K F12,`editor.action.revealDefinitionAside`,Open Definition to the Side,VS Code,Go
+show,definition,,Alt+F12,`editor.action.peekDefinition`,Peek Definition inline,VS Code,Go
+go_to,type_definition,,,`editor.action.goToTypeDefinition`,Go to Type Definition,VS Code,Go
+go_to,implementation,,Ctrl+F12,`editor.action.goToImplementation`,Go to Implementation,VS Code,Go
+show,implementation,,Ctrl+Shift+F12,`editor.action.peekImplementation`,Peek Implementation,VS Code,Go
+go_to,reference,,Shift+F12,`editor.action.goToReferences`,Go to References,VS Code,Go
+show,reference,,Shift+Alt+F12,`references-view.findReferences`,Find All References (References view),VS Code,Go
+show,call_hierarchy,,Shift+Alt+H,`references-view.showCallHierarchy`,Show Call Hierarchy,VS Code,Go
+next,reference,,F4,`references-view.next`,Go to Next Reference (References view),VS Code,Go
+previous,reference,,Shift+F4,`references-view.prev`,Go to Previous Reference (References view),VS Code,Go
+next,reference,,F4,`goToNextReference`,Go to Next Reference (Peek widget),VS Code,Go
+previous,reference,,Shift+F4,`goToPreviousReference`,Go to Previous Reference (Peek widget),VS Code,Go
+go_to,line,,Ctrl+G,`workbench.action.gotoLine`,Go to Line/Column...,VS Code,Go
+go_to,symbol,,Ctrl+Shift+O,`workbench.action.gotoSymbol`,Go to Symbol in Editor...,VS Code,Go
+go_to,symbol,,Ctrl+T,`workbench.action.showAllSymbols`,Go to Symbol in Workspace...,VS Code,Go
+go_to,bracket,,Ctrl+Shift+\,`editor.action.jumpToBracket`,Go to Matching Bracket,VS Code,Go
+go_to,last_edit_location,,Ctrl+K Ctrl+Q,`workbench.action.navigateToLastEditLocation`,Go to Last Edit Location,VS Code,Go
+next,problem,,Alt+F8,`editor.action.marker.next`,Go to Next Problem in file,VS Code,Go
+previous,problem,,Shift+Alt+F8,`editor.action.marker.prev`,Go to Previous Problem in file,VS Code,Go
+next,problem,,F8,`editor.action.marker.nextInFiles`,Go to Next Problem (across files),VS Code,Go
+previous,problem,,Shift+F8,`editor.action.marker.prevInFiles`,Go to Previous Problem (across files),VS Code,Go
+next,change,,Alt+F3,`editor.action.dirtydiff.next`,Go to Next Change (uncommitted diff gutter),VS Code,Go
+previous,change,,Shift+Alt+F3,`editor.action.dirtydiff.previous`,Go to Previous Change,VS Code,Go
+next,change,,Alt+F5,`workbench.action.editor.nextChange`,Go to Next Change,VS Code,Go
+previous,change,,Shift+Alt+F5,`workbench.action.editor.previousChange`,Go to Previous Change,VS Code,Go
+next,change,,Alt+F5,`workbench.action.compareEditor.nextChange`,Next Change (diff editor),VS Code,Go
+previous,change,,Shift+Alt+F5,`workbench.action.compareEditor.previousChange`,Previous Change (diff editor),VS Code,Go
+open,change,,Ctrl+K Shift+O,`workbench.action.compareEditor.openSide`,Open Changes to the Side,VS Code,Go
+Focus Breadcrumbs,,,Ctrl+Shift+,`breadcrumbs.focus`,,VS Code,Go
+,,,Ctrl+Shift+.,`breadcrumbs.focusAndSelect`,Focus and Select Breadcrumbs,VS Code,Go
+,,,Right / Left,`breadcrumbs.focusNext` / `breadcrumbs.focusPrevious`,Move focus along breadcrumb trail,VS Code,Go
+,,,Enter,`breadcrumbs.revealFocused`,Reveal focused breadcrumb entry,VS Code,Go
+run,,,F5,`workbench.action.debug.start`,Start Debugging,VS Code,Run & Debug
+,,,Ctrl+F5,`workbench.action.debug.run`,Start Without Debugging,VS Code,Run & Debug
+stop,,,Shift+F5,`workbench.action.debug.stop`,Stop debugging session,VS Code,Run & Debug
+restart,,,Ctrl+Shift+F5,`workbench.action.debug.restart`,Restart debugging session,VS Code,Run & Debug
+run,,,F5,`workbench.action.debug.continue`,Continue (while paused),VS Code,Run & Debug
+pause,,,F6,`workbench.action.debug.pause`,Pause,VS Code,Run & Debug
+,,,F10,`workbench.action.debug.stepOver`,Step Over,VS Code,Run & Debug
+,,,F11,`workbench.action.debug.stepInto`,Step Into,VS Code,Run & Debug
+,,,Shift+F11,`workbench.action.debug.stepOut`,Step Out,VS Code,Run & Debug
+,,,Ctrl+F11,`workbench.action.debug.stepIntoTarget`,Step Into Target...,VS Code,Run & Debug
+,,,Shift+F5,`workbench.action.debug.disconnect`,Disconnect from attached debuggee,VS Code,Run & Debug
+,,,,`workbench.action.debug.selectandstart`,Select and Start Debugging (config picker),VS Code,Run & Debug
+,,,,`debug.addConfiguration`,Add Configuration... to launch.json,VS Code,Run & Debug
+toggle,breakpoint,,F9,`editor.debug.action.toggleBreakpoint`,Toggle Breakpoint,VS Code,Run & Debug
+new,breakpoint,,,`editor.debug.action.conditionalBreakpoint`,Add Conditional Breakpoint...,VS Code,Run & Debug
+new,breakpoint,,,`editor.debug.action.toggleInlineBreakpoint`,Add Inline Breakpoint,VS Code,Run & Debug
+,,,Ctrl+K Ctrl+I,`editor.debug.action.showDebugHover`,Show hover for value while debugging,VS Code,Run & Debug
+,,,Escape,`editor.debug.action.closeExceptionWidget`,Close inline exception widget,VS Code,Run & Debug
+next,output,,Ctrl+PageDown,`workbench.action.debug.nextConsole`,Focus Next Debug Console,VS Code,Run & Debug
+previous,output,,Ctrl+PageUp,`workbench.action.debug.prevConsole`,Focus Previous Debug Console,VS Code,Run & Debug
+,,,Ctrl+Shift+Y,`workbench.debug.action.toggleRepl`,Toggle/show Debug Console,VS Code,Run & Debug
+,,,Enter,`repl.action.acceptInput`,Execute typed expression in Debug Console,VS Code,Run & Debug
+run,,,Ctrl+Enter / Enter,`repl.execute`,Execute cell in interactive Debug Console/REPL,VS Code,Run & Debug
+open,search,,Ctrl+Alt+F,`repl.action.find`,Find in Debug Console,VS Code,Run & Debug
+,,,Ctrl+Shift+D,`workbench.view.debug`,Show Run and Debug view,VS Code,Run & Debug
+toggle,terminal,,Ctrl+`,`workbench.action.terminal.toggleTerminal`,Show/Hide the Integrated Terminal,VS Code,Terminal
+new,terminal,,Ctrl+Shift+`,`workbench.action.terminal.new`,Create New Terminal,VS Code,Terminal
+new,terminal,,Ctrl+Shift+Alt+`,`workbench.action.terminal.newInNewWindow`,Create New Terminal in a new window,VS Code,Terminal
+new,split,,Ctrl+Shift+5,`workbench.action.terminal.split`,Split Terminal,VS Code,Terminal
+new,split,,Ctrl+Shift+5,`workbench.action.terminal.splitActiveTab`,Split the active terminal tab,VS Code,Terminal
+close,terminal,,Delete,`workbench.action.terminal.killActiveTab`,Kill the active terminal tab,VS Code,Terminal
+close,terminal,,Ctrl+W / Ctrl+F4,`workbench.action.terminal.killEditor`,Kill terminal opened as an editor tab,VS Code,Terminal
+activate,terminal,,Ctrl+Down (in editor at bottom),`workbench.action.terminal.focus`,Focus Terminal,VS Code,Terminal
+next,terminal,,Ctrl+PageDown,`workbench.action.terminal.focusNext`,Focus Next Terminal,VS Code,Terminal
+previous,terminal,,Ctrl+PageUp,`workbench.action.terminal.focusPrevious`,Focus Previous Terminal,VS Code,Terminal
+activate,terminal,,Ctrl+Shift+\,`workbench.action.terminal.focusTabs`,Focus Terminal Tabs list,VS Code,Terminal
+open,search,,Ctrl+F,`workbench.action.terminal.focusFind`,Focus Find in terminal,VS Code,Terminal
+close,search,,Escape,`workbench.action.terminal.hideFind`,Hide terminal Find widget,VS Code,Terminal
+,,,Escape,`workbench.action.terminal.clearSelection`,Clear terminal selection,VS Code,Terminal
+copy,selection,,Ctrl+Shift+C,`workbench.action.terminal.copySelection`,Copy Selection,VS Code,Terminal
+copy,selection,,Ctrl+C,`workbench.action.terminal.copyAndClearSelection`,Copy selection and clear it,VS Code,Terminal
+paste,terminal,,Ctrl+V / Ctrl+Shift+V,`workbench.action.terminal.paste`,Paste into terminal,VS Code,Terminal
+rename,terminal,,F2,`workbench.action.terminal.renameActiveTab`,Rename active terminal tab,VS Code,Terminal
+run,recent,,Ctrl+Alt+R,`workbench.action.terminal.runRecentCommand`,Run Recent Command from shell history,VS Code,Terminal
+go_to,recent,,Ctrl+G,`workbench.action.terminal.goToRecentDirectory`,Go to Recent Directory,VS Code,Terminal
+,,,Ctrl+Alt+PageDown,`workbench.action.terminal.scrollDown`,Scroll Down (line),VS Code,Terminal
+,,,Ctrl+Alt+PageUp,`workbench.action.terminal.scrollUp`,Scroll Up (line),VS Code,Terminal
+,,,Shift+PageDown,`workbench.action.terminal.scrollDownPage`,Scroll Down (page),VS Code,Terminal
+,,,Shift+PageUp,`workbench.action.terminal.scrollUpPage`,Scroll Up (page),VS Code,Terminal
+,,,Ctrl+Home,`workbench.action.terminal.scrollToTop`,Scroll to Top,VS Code,Terminal
+,,,Ctrl+End,`workbench.action.terminal.scrollToBottom`,Scroll to Bottom,VS Code,Terminal
+,,,Ctrl+Down,`workbench.action.terminal.scrollToNextCommand`,Scroll to Next Shell-Integration Command,VS Code,Terminal
+,,,Ctrl+Up,`workbench.action.terminal.scrollToPreviousCommand`,Scroll to Previous Shell-Integration Command,VS Code,Terminal
+,,,Ctrl+Shift+Down,`workbench.action.terminal.selectToNextCommand`,Select to Next Command,VS Code,Terminal
+,,,Ctrl+Shift+Up,`workbench.action.terminal.selectToPreviousCommand`,Select to Previous Command,VS Code,Terminal
+next,match,,F3,`workbench.action.terminal.findNext`,Find Next in terminal,VS Code,Terminal
+previous,match,,Shift+F3,`workbench.action.terminal.findPrevious`,Find Previous in terminal,VS Code,Terminal
+,,,Alt+C,`workbench.action.terminal.toggleFindCaseSensitive`,Toggle Find Case Sensitive,VS Code,Terminal
+,,,Alt+R,`workbench.action.terminal.toggleFindRegex`,Toggle Find Regex,VS Code,Terminal
+,,,Alt+W,`workbench.action.terminal.toggleFindWholeWord`,Toggle Find Whole Word,VS Code,Terminal
+,,,Alt+Z,`workbench.action.terminal.sizeToContentWidth`,Toggle terminal wrapping to content width,VS Code,Terminal
+,,,Ctrl+.,`workbench.action.terminal.showQuickFixes`,Show terminal Quick Fixes,VS Code,Terminal
+,,,Ctrl+Shift+G,`workbench.action.terminal.openDetectedLink`,Open Detected Link...,VS Code,Terminal
+open,search,,Ctrl+Shift+F,`workbench.action.terminal.searchWorkspace`,Search selected text in Workspace from terminal,VS Code,Terminal
+,,,Ctrl+Space,`workbench.action.terminal.triggerSuggest`,Trigger terminal shell-integration IntelliSense,VS Code,Terminal
+,,,Ctrl+I,`workbench.action.terminal.chat.start`,Open Terminal Inline Chat,VS Code,Terminal
+new,terminal,,,`workbench.action.createTerminalEditor`,Create New Terminal in Editor Area,VS Code,Terminal
+,,,Ctrl+Shift+G,`workbench.view.scm`,Show Source Control view,VS Code,Git (built-in)
+commit,,,Ctrl+Enter,`scm.acceptInput`,Commit staged changes (accept SCM input box),VS Code,Git (built-in)
+commit,,,,`git.commit`,Commit,VS Code,Git (built-in)
+commit,,,,`git.commitStaged`,Commit Staged,VS Code,Git (built-in)
+commit,,,,`git.commitAll`,Commit All (stage everything and commit),VS Code,Git (built-in)
+commit,,,,`git.commitAllSigned`,Commit All (Signed Off),VS Code,Git (built-in)
+commit,,,,`git.commitStagedAmend`,Commit Staged (Amend),VS Code,Git (built-in)
+stage,,,,`git.stage`,Stage Changes,VS Code,Git (built-in)
+stage,,,,`git.stageAll`,Stage All Changes,VS Code,Git (built-in)
+stage,selection,,Ctrl+K Ctrl+Alt+S,`git.stageSelectedRanges`,Stage Selected Ranges (in diff editor),VS Code,Git (built-in)
+unstage,,,,`git.unstage`,Unstage Changes,VS Code,Git (built-in)
+unstage,,,,`git.unstageAll`,Unstage All Changes,VS Code,Git (built-in)
+unstage,selection,,Ctrl+K Ctrl+N,`git.unstageSelectedRanges`,Unstage Selected Ranges,VS Code,Git (built-in)
+undo,selection,,Ctrl+K Ctrl+R,`git.revertSelectedRanges`,Revert Selected Ranges,VS Code,Git (built-in)
+undo,change,,,`git.clean`,Discard Changes,VS Code,Git (built-in)
+undo,change,,,`git.cleanAll`,Discard All Changes,VS Code,Git (built-in)
+push,,,,`git.push`,Push,VS Code,Git (built-in)
+push,remote,,,`git.pushTo`,Push to... (remote/branch picker),VS Code,Git (built-in)
+push,,,,`git.pushForce`,Push (Force),VS Code,Git (built-in)
+pull,,,,`git.pull`,Pull,VS Code,Git (built-in)
+pull,remote,,,`git.pullFrom`,Pull from...,VS Code,Git (built-in)
+pull,,,,`git.pullRebase`,Pull (Rebase),VS Code,Git (built-in)
+,,,,`git.sync`,Sync (pull then push),VS Code,Git (built-in)
+fetch,,,,`git.fetch`,Fetch,VS Code,Git (built-in)
+fetch,remote,,,`git.fetchAll`,Fetch From All Remotes,VS Code,Git (built-in)
+open,branch,,,`git.checkout`,Checkout to... branch/tag,VS Code,Git (built-in)
+new,branch,,,`git.branch`,Create Branch...,VS Code,Git (built-in)
+new,branch,,,`git.branchFrom`,Create Branch From...,VS Code,Git (built-in)
+delete,branch,,,`git.deleteBranch`,Delete Branch...,VS Code,Git (built-in)
+merge,branch,,,`git.merge`,Merge Branch...,VS Code,Git (built-in)
+rebase,branch,,,`git.rebase`,Rebase Branch...,VS Code,Git (built-in)
+new,tag,,,`git.createTag`,Create Tag,VS Code,Git (built-in)
+delete,tag,,,`git.deleteTag`,Delete Tag,VS Code,Git (built-in)
+new,stash,,,`git.stash`,Stash,VS Code,Git (built-in)
+restore,stash,,,`git.stashApply`,Apply Stash...,VS Code,Git (built-in)
+restore,stash,,,`git.stashPop`,Pop Stash...,VS Code,Git (built-in)
+delete,stash,,,`git.stashDrop`,Drop Stash...,VS Code,Git (built-in)
+new,repository,,,`git.init`,Initialize Repository,VS Code,Git (built-in)
+clone,repository,,,`git.clone`,Clone,VS Code,Git (built-in)
+close,repository,,,`git.close`,Close Repository,VS Code,Git (built-in)
+open,change,,,`git.openChange`,Open Changes (diff view for selected file),VS Code,Git (built-in)
+open,file,,,`git.openFile`,Open File (from a change),VS Code,Git (built-in)
+open,change,,,`git.openAllChanges`,Open All Changes,VS Code,Git (built-in)
+undo,commit,,,`git.undoCommit`,Undo Last Commit,VS Code,Git (built-in)
+,,,,`git.ignore`,Add File to .gitignore,VS Code,Git (built-in)
+show,output,,,`git.showOutput`,Show Git Output,VS Code,Git (built-in)
+show,history,,,`git.viewHistory`,View Git History for file/repo,VS Code,Git (built-in)
+,,,,`git.compareWithHead`,Compare Changes with HEAD,VS Code,Git (built-in)
+activate,search,,Ctrl+Shift+F,`workbench.view.search`,Show Search / Find in Files,VS Code,Search
+replace,file,,Ctrl+Shift+H,`workbench.action.replaceInFiles`,Replace in Files,VS Code,Search
+open,search,,Ctrl+F,`actions.find`,Find (in current editor),VS Code,Search
+open,search,,Ctrl+H,`editor.action.startFindReplaceAction`,Replace (in current editor),VS Code,Search
+next,match,,F3,`editor.action.nextMatchFindAction`,Find Next,VS Code,Search
+previous,match,,Shift+F3,`editor.action.previousMatchFindAction`,Find Previous,VS Code,Search
+next,match,,Ctrl+F3,`editor.action.nextSelectionMatchFindAction`,Find Next Selection Match,VS Code,Search
+previous,match,,Ctrl+Shift+F3,`editor.action.previousSelectionMatchFindAction`,Find Previous Selection Match,VS Code,Search
+,,,Alt+C,`toggleFindCaseSensitive`,Toggle Find Case Sensitive (editor Find widget),VS Code,Search
+,,,Alt+R,`toggleFindRegex`,Toggle Find Use Regular Expression,VS Code,Search
+,,,Alt+W,`toggleFindWholeWord`,Toggle Find Whole Word,VS Code,Search
+,,,Alt+C,`toggleSearchCaseSensitive`,Toggle Match Case (Search view),VS Code,Search
+,,,Alt+W,`toggleSearchWholeWord`,Toggle Match Whole Word (Search view),VS Code,Search
+,,,Alt+R,`toggleSearchRegex`,Toggle Use Regular Expression (Search view),VS Code,Search
+,,,,`workbench.action.search.toggleQueryDetails`,Toggle Search Details (include/exclude fields),VS Code,Search
+next,result,,F4,`search.action.focusNextSearchResult`,Focus Next Search Result,VS Code,Search
+previous,result,,Shift+F4,`search.action.focusPreviousSearchResult`,Focus Previous Search Result,VS Code,Search
+open,result,,,`search.action.openInEditor`,Open Results in Editor (Search Editor),VS Code,Search
+activate,search,,,`search.action.focusQueryEditorWidget`,Focus Search Editor Input,VS Code,Search
+run,search,,Ctrl+Shift+R,`rerunSearchEditorSearch`,Search Again (in Search Editor),VS Code,Search
+delete,result,,Ctrl+Shift+Backspace,`search.searchEditor.action.deleteFileResults`,Delete File Results (Search Editor),VS Code,Search
+next,history,,Alt+Down,`history.showNext`,Show Next Search Term in field history,VS Code,Search
+previous,history,,Alt+Up,`history.showPrevious`,Show Previous Search Term,VS Code,Search
+open,search,,Ctrl+Shift+F,`workbench.action.terminal.searchWorkspace`,Search Workspace using terminal selection,VS Code,Search
+run,cell,,Ctrl+Alt+Enter,`notebook.cell.execute`,Execute the focused cell,VS Code,Notebook
+run,cell,,Alt+Enter,`notebook.cell.executeAndInsertBelow`,Execute cell and insert a new one below,VS Code,Notebook
+run,cell,,Shift+Enter,`notebook.cell.executeAndSelectBelow`,Execute cell and select the next one,VS Code,Notebook
+new,cell,,Ctrl+Shift+Enter,`notebook.cell.insertCodeCellAbove`,Insert Code Cell Above,VS Code,Notebook
+new,cell,,Ctrl+Enter,`notebook.cell.insertCodeCellBelow`,Insert Code Cell Below,VS Code,Notebook
+open,cell,,Enter,`notebook.cell.edit`,Enter edit mode on the focused cell,VS Code,Notebook
+close,cell,,Escape,`notebook.cell.quitEdit`,Stop editing / return to command mode,VS Code,Notebook
+delete,cell,,Delete (command mode),`notebook.cell.delete`,Delete Cell,VS Code,Notebook
+move,cell,,Alt+Up,`notebook.cell.moveUp`,Move Cell Up,VS Code,Notebook
+move,cell,,Alt+Down,`notebook.cell.moveDown`,Move Cell Down,VS Code,Notebook
+copy,cell,,Shift+Alt+Up,`notebook.cell.copyUp`,Copy Cell Up,VS Code,Notebook
+copy,cell,,Shift+Alt+Down,`notebook.cell.copyDown`,Copy Cell Down,VS Code,Notebook
+new,split,,Ctrl+Shift+\,`notebook.cell.split`,Split Cell at cursor,VS Code,Notebook
+,,,Shift+Alt+Win+J,`notebook.cell.joinAbove`,Join With Previous Cell,VS Code,Notebook
+,,,Alt+Win+J,`notebook.cell.joinBelow`,Join With Next Cell,VS Code,Notebook
+,,,Y (command mode),`notebook.cell.changeToCode`,Change Cell to Code,VS Code,Notebook
+,,,M (command mode),`notebook.cell.changeToMarkdown`,Change Cell to Markdown,VS Code,Notebook
+,,,Ctrl+K M,`notebook.cell.changeLanguage`,Change Cell Language,VS Code,Notebook
+,,,Shift+Alt+D,`notebook.cell.detectLanguage`,Detect Cell Language,VS Code,Notebook
+delete,output,,Alt+Delete,`notebook.cell.clearOutputs`,Clear Cell Outputs,VS Code,Notebook
+collapse,cell,,Ctrl+K Ctrl+C,`notebook.cell.collapseCellInput`,Collapse Cell Input,VS Code,Notebook
+expand,cell,,Ctrl+K Ctrl+C,`notebook.cell.expandCellInput`,Expand Cell Input,VS Code,Notebook
+collapse,output,,Ctrl+K T,`notebook.cell.collapseCellOutput`,Collapse Cell Output,VS Code,Notebook
+expand,output,,Ctrl+K T,`notebook.cell.expandCellOutput`,Expand Cell Output,VS Code,Notebook
+,,,Ctrl+K Y,`notebook.cell.toggleOutputScrolling`,Toggle Scrollable Cell Output,VS Code,Notebook
+paste,cell,,Ctrl+Shift+V,`notebook.cell.pasteAbove`,Paste Cell Above,VS Code,Notebook
+,,,Ctrl+I,`notebook.cell.chat.start`,Start Cell inline chat,VS Code,Notebook
+,,,Ctrl+.,`notebook.cell.openFailureActions`,Open failed-cell Quick Fixes,VS Code,Notebook
+open,search,,Ctrl+F,`notebook.find`,Find in Notebook,VS Code,Notebook
+select,match,,Ctrl+D,`notebook.addFindMatchToSelection`,Add Find Match to Selection,VS Code,Notebook
+select,match,,Ctrl+Shift+L,`notebook.selectAllFindMatches`,Select All Find Matches,VS Code,Notebook
+,,,Ctrl+L,`notebook.centerActiveCell`,Center the active cell in the viewport,VS Code,Notebook
+,,,Ctrl+Home,`notebook.focusTop`,Focus First Cell,VS Code,Notebook
+,,,Ctrl+End,`notebook.focusBottom`,Focus Last Cell,VS Code,Notebook
+next,cell,,Down,`notebook.focusNextEditor`,Focus Next Cell Editor,VS Code,Notebook
+previous,cell,,Up,`notebook.focusPreviousEditor`,Focus Previous Cell Editor,VS Code,Notebook
+collapse,cell,,Ctrl+Shift+[,`notebook.fold`,Fold Notebook Cell(s),VS Code,Notebook
+expand,cell,,Ctrl+Shift+],`notebook.unfold`,Unfold Notebook Cell(s),VS Code,Notebook
+format,,,Shift+Alt+F,`notebook.format`,Format Notebook,VS Code,Notebook
+toggle,comment,,Ctrl+/,`notebook.commentSelectedCells`,Comment Selected Cells,VS Code,Notebook
+new,comment_thread,,Ctrl+K Ctrl+Alt+C,`workbench.action.addComment`,Add a Comment on the current line/range,VS Code,Comments
+save,comment_thread,,Ctrl+Enter,`editor.action.submitComment`,Submit the comment being edited,VS Code,Comments
+next,comment_thread,,Alt+F9,`editor.action.nextCommentThreadAction`,Go to Next Comment Thread,VS Code,Comments
+previous,comment_thread,,Shift+Alt+F9,`editor.action.previousCommentThreadAction`,Go to Previous Comment Thread,VS Code,Comments
+next,comment_thread,,Alt+F10,`editor.action.nextCommentedRangeAction`,Go to Next Commented Range,VS Code,Comments
+previous,comment_thread,,Shift+Alt+F10,`editor.action.previousCommentedRangeAction`,Go to Previous Commented Range,VS Code,Comments
+open,search,,Ctrl+F,`commentsFocusFilter`,Focus the Filter box in the Comments panel,VS Code,Comments
+,,,Escape,`commentsClearFilterText`,Clear Comments panel filter text,VS Code,Comments
+,,,Ctrl+Down,`commentsFocusViewFromFilter`,Move focus from filter into Comments list,VS Code,Comments
+collapse,comment_thread,,,`workbench.action.collapseAllComments`,Collapse All Comment Threads,VS Code,Comments
+expand,comment_thread,,,`workbench.action.expandAllComments`,Expand All Comment Threads,VS Code,Comments
+toggle,comment_thread,,,`workbench.action.toggleCommentThread`,Toggle a comment thread's expand state,VS Code,Comments
+close,comment_thread,,,`workbench.action.hideCommentThread`,Hide/dispose a comment thread,VS Code,Comments
+activate,comment_thread,,,`workbench.action.focusCommentsPanel`,Focus the Comments panel,VS Code,Comments
+new,split,,Ctrl+\,`workbench.action.splitEditor`,Split Editor,VS Code,Window & Editor Group Management
+new,split,,Ctrl+K Ctrl+\,`workbench.action.splitEditorDown`,Split Editor Down,VS Code,Window & Editor Group Management
+new,split,,,`workbench.action.splitEditorOrthogonal`,Split Editor Orthogonal (opposite of current layout),VS Code,Window & Editor Group Management
+activate,group,,Ctrl+1,`workbench.action.focusFirstEditorGroup`,Focus First Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+2,`workbench.action.focusSecondEditorGroup`,Focus Second Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+3,`workbench.action.focusThirdEditorGroup`,Focus Third Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+4,`workbench.action.focusFourthEditorGroup`,Focus Fourth Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+5,`workbench.action.focusFifthEditorGroup`,Focus Fifth Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+6,`workbench.action.focusSixthEditorGroup`,Focus Sixth Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+7,`workbench.action.focusSeventhEditorGroup`,Focus Seventh Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+8,`workbench.action.focusEighthEditorGroup`,Focus Eighth Editor Group,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+K Ctrl+Left,`workbench.action.focusLeftGroup`,Focus Editor Group to the Left,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+K Ctrl+Right,`workbench.action.focusRightGroup`,Focus Editor Group to the Right,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+K Ctrl+Up,`workbench.action.focusAboveGroup`,Focus Editor Group Above,VS Code,Window & Editor Group Management
+activate,group,,Ctrl+K Ctrl+Down,`workbench.action.focusBelowGroup`,Focus Editor Group Below,VS Code,Window & Editor Group Management
+activate,sidebar,,Ctrl+0,`workbench.action.focusSideBar`,Focus into Side Bar,VS Code,Window & Editor Group Management
+,,,F6,`workbench.action.focusNextPart`,Move Focus to Next Part of the workbench,VS Code,Window & Editor Group Management
+,,,Shift+F6,`workbench.action.focusPreviousPart`,Move Focus to Previous Part,VS Code,Window & Editor Group Management
+move,group,,Ctrl+Alt+Right,`workbench.action.moveEditorToNextGroup`,Move Editor into Next Group,VS Code,Window & Editor Group Management
+move,group,,Ctrl+Alt+Left,`workbench.action.moveEditorToPreviousGroup`,Move Editor into Previous Group,VS Code,Window & Editor Group Management
+move,left,,Ctrl+Shift+PageUp,`workbench.action.moveEditorLeftInGroup`,Move Editor Left within Tab bar,VS Code,Window & Editor Group Management
+move,right,,Ctrl+Shift+PageDown,`workbench.action.moveEditorRightInGroup`,Move Editor Right within Tab bar,VS Code,Window & Editor Group Management
+move,group,,Shift+Alt+1,`workbench.action.moveEditorToFirstGroup`,Move Editor into First Group,VS Code,Window & Editor Group Management
+move,group,,Shift+Alt+9,`workbench.action.moveEditorToLastGroup`,Move Editor into Last Group,VS Code,Window & Editor Group Management
+move,left,,,`workbench.action.moveActiveEditorGroupLeft`,Move Active Editor Group Left,VS Code,Window & Editor Group Management
+move,right,,,`workbench.action.moveActiveEditorGroupRight`,Move Active Editor Group Right,VS Code,Window & Editor Group Management
+close,group,,Ctrl+W / Ctrl+F4,`workbench.action.closeGroup`,Close the active editor group,VS Code,Window & Editor Group Management
+close,group,,Ctrl+K Ctrl+Shift+W,`workbench.action.closeAllGroups`,Close All Editor Groups,VS Code,Window & Editor Group Management
+toggle,group,,Shift+Alt+0,`workbench.action.toggleEditorGroupLayout`,Toggle Vertical/Horizontal Editor Layout,VS Code,Window & Editor Group Management
+maximize,group,,Ctrl+K Ctrl+M,`workbench.action.toggleMaximizeEditorGroup`,Toggle Maximize Active Editor Group,VS Code,Window & Editor Group Management
+reset,group,,,`workbench.action.evenEditorWidths`,Reset Editor Group Sizes to be even,VS Code,Window & Editor Group Management
+next,editor,,Ctrl+PageDown,`workbench.action.nextEditor`,Open Next Editor,VS Code,Window & Editor Group Management
+previous,editor,,Ctrl+PageUp,`workbench.action.previousEditor`,Open Previous Editor,VS Code,Window & Editor Group Management
+next,editor,,Ctrl+K Ctrl+PageDown,`workbench.action.nextEditorInGroup`,Open Next Editor in Group,VS Code,Window & Editor Group Management
+previous,editor,,Ctrl+K Ctrl+PageUp,`workbench.action.previousEditorInGroup`,Open Previous Editor in Group,VS Code,Window & Editor Group Management
+close,editor,,Ctrl+W,`workbench.action.closeActiveEditor`,Close active tab,VS Code,Tabs
+close,editor,,,`workbench.action.closeOtherEditors`,Close all other tabs in the group,VS Code,Tabs
+close,editor,,,`workbench.action.closeEditorsToTheRight`,Close tabs to the right of this one,VS Code,Tabs
+close,editor,,Ctrl+K Ctrl+W,`workbench.action.closeAllEditors`,Close All tabs,VS Code,Tabs
+close,editor,,Ctrl+K U,`workbench.action.closeUnmodifiedEditors`,Close Unmodified tabs,VS Code,Tabs
+open,closed,,Ctrl+Shift+T,`workbench.action.reopenClosedEditor`,Reopen a closed tab,VS Code,Tabs
+show,editor,,,`workbench.action.showAllEditors`,Show All Editors by Most Recently Used,VS Code,Tabs
+show,editor,,,`workbench.action.showEditorsInActiveGroup`,Show all tabs in the active group,VS Code,Tabs
+enable,pin,,Ctrl+K Shift+Enter,`workbench.action.pinEditor`,Pin Editor tab (keep open),VS Code,Tabs
+disable,pin,,Ctrl+K Shift+Enter,`workbench.action.unpinEditor`,Unpin Editor tab,VS Code,Tabs
+enable,pin,,,`workbench.action.keepEditor`,Keep a preview editor tab permanently open,VS Code,Tabs
+previous,editor,,Ctrl+Tab,`workbench.action.quickOpenPreviousRecentlyUsedEditorInGroup`,Cycle through open tabs,VS Code,Tabs
+move,left,,Ctrl+Shift+PageUp,`workbench.action.moveEditorLeftInGroup`,Move Tab Left,VS Code,Tabs
+move,right,,Ctrl+Shift+PageDown,`workbench.action.moveEditorRightInGroup`,Move Tab Right,VS Code,Tabs
+next,editor,,,`workbench.action.openNextRecentlyUsedEditorInGroup`,Open Next Recently Used Editor in current group,VS Code,Tabs
+previous,editor,,,`workbench.action.openPreviousRecentlyUsedEditorInGroup`,Open Previous Recently Used Editor in current group,VS Code,Tabs
+,,,Ctrl+K Z,`workbench.action.toggleZenMode`,Toggle Zen Mode,VS Code,Zen & Layout
+,,,Escape Escape,`workbench.action.exitZenMode`,Exit Zen Mode,VS Code,Zen & Layout
+toggle,screen,,F11,`workbench.action.toggleFullScreen`,Toggle Full Screen,VS Code,Zen & Layout
+toggle,sidebar,,Ctrl+B,`workbench.action.toggleSidebarVisibility`,Toggle Primary Side Bar Visibility,VS Code,Zen & Layout
+toggle,sidebar,,Ctrl+Alt+B,`workbench.action.toggleAuxiliaryBar`,Toggle Secondary Side Bar,VS Code,Zen & Layout
+toggle,panel,,Ctrl+J,`workbench.action.togglePanel`,Toggle Panel Visibility,VS Code,Zen & Layout
+maximize,panel,,,`workbench.action.toggleMaximizedPanel`,Toggle Maximized Panel,VS Code,Zen & Layout
+,,,,`workbench.action.toggleStatusbarVisibility`,Toggle Status Bar Visibility,VS Code,Zen & Layout
+,,,,`workbench.action.toggleActivityBarVisibility`,Toggle Activity Bar Visibility,VS Code,Zen & Layout
+,,,,`workbench.action.toggleMenuBar`,Toggle Menu Bar Visibility,VS Code,Zen & Layout
+,,,,`workbench.action.toggleTabsVisibility`,Toggle Editor Tabs Visibility,VS Code,Zen & Layout
+move,right,,,`workbench.action.moveSideBarRight`,Move Side Bar to the Right,VS Code,Zen & Layout
+move,left,,,`workbench.action.moveSideBarLeft`,Move Side Bar to the Left,VS Code,Zen & Layout
+more,zoom,,Ctrl+=,`workbench.action.zoomIn`,Zoom In,VS Code,Zen & Layout
+less,zoom,,Ctrl+-,`workbench.action.zoomOut`,Zoom Out,VS Code,Zen & Layout
+reset,zoom,,Ctrl+Numpad0,`workbench.action.zoomReset`,Reset Zoom,VS Code,Zen & Layout
+run,task,,,`workbench.action.tasks.runTask`,Run Task... (task picker),VS Code,Tasks
+run,task,,Ctrl+Shift+B,`workbench.action.tasks.build`,Run Build Task,VS Code,Tasks
+run,task,,,`workbench.action.tasks.test`,Run Test Task,VS Code,Tasks
+run,task,,,`workbench.action.tasks.reRunTask`,Rerun Last Task,VS Code,Tasks
+run,task,,Ctrl+Shift+R,`workbench.action.tasks.rerunForActiveTerminal`,Rerun the Task associated with the active terminal,VS Code,Tasks
+restart,task,,,`workbench.action.tasks.restartTask`,Restart Running Task,VS Code,Tasks
+stop,task,,,`workbench.action.tasks.terminate`,Terminate Task,VS Code,Tasks
+show,task,,,`workbench.action.tasks.showTasks`,Show Running Tasks,VS Code,Tasks
+show,output,,,`workbench.action.tasks.showLog`,Show Task Log,VS Code,Tasks
+,,,,`workbench.action.tasks.configureTaskRunner`,Configure Task,VS Code,Tasks
+,,,,`workbench.action.tasks.configureDefaultBuildTask`,Configure Default Build Task,VS Code,Tasks
+show,preview,,,`markdown.showPreview`,Open Markdown Preview,VS Code,Markdown Preview
+show,preview,,Ctrl+K V,`markdown.showPreviewToSide`,Open Markdown Preview to the Side,VS Code,Markdown Preview
+show,document,,,`markdown.showSource`,Show Markdown Source,VS Code,Markdown Preview
+toggle,preview,,Ctrl+Shift+V,`markdown.togglePreview`,Toggle between editor and Preview,VS Code,Markdown Preview
+,,,,`markdown.showPreviewSecuritySelector`,Change Markdown Preview Security Settings,VS Code,Markdown Preview
+,,,,`markdown.preview.toggleLock`,Toggle Preview Locking to current editor,VS Code,Markdown Preview
+,,,,`markdown.preview.refresh`,Refresh Markdown Preview,VS Code,Markdown Preview
+open,search,,,`markdown.findInPreview`,Find in the rendered Preview,VS Code,Markdown Preview
+,,,,`markdown.copyImage`,Copy Image from preview,VS Code,Markdown Preview
+manual,,,Alt+F1,`editor.action.accessibilityHelp`,Open Accessibility Help dialog,VS Code,Accessibility
+show,screen_reader,,Alt+F2,`editor.action.accessibleView`,Open Accessible View (screen-reader friendly rendering),VS Code,Accessibility
+next,screen_reader,,Alt+],`editor.action.accessibleViewNext`,Show Next in Accessible View,VS Code,Accessibility
+previous,screen_reader,,Alt+[,`editor.action.accessibleViewPrevious`,Show Previous in Accessible View,VS Code,Accessibility
+next,block,,Ctrl+Alt+PageDown,`editor.action.accessibleViewNextCodeBlock`,Accessible View: Next Code Block,VS Code,Accessibility
+previous,block,,Ctrl+Alt+PageUp,`editor.action.accessibleViewPreviousCodeBlock`,Accessible View: Previous Code Block,VS Code,Accessibility
+go_to,symbol,,Ctrl+Shift+O,`editor.action.accessibleViewGoToSymbol`,Go to Symbol in Accessible View,VS Code,Accessibility
+,,,Alt+F6,`editor.action.accessibleViewDisableHint`,Disable the hint for opening Accessible View,VS Code,Accessibility
+open,keybinding,,Alt+K,`editor.action.accessibilityHelpConfigureKeybindings`,Configure Keybindings from Accessibility Help,VS Code,Accessibility
+open,keybinding,,Alt+A,`editor.action.accessibilityHelpConfigureAssignedKeybindings`,Configure Assigned Keybindings,VS Code,Accessibility
+manual,,,Alt+H,`editor.action.accessibilityHelpOpenHelpLink`,Open Help Link from Accessibility Help,VS Code,Accessibility
+next,change,,F7,`editor.action.accessibleDiffViewer.next`,Go to Next Difference in Accessible Diff Viewer,VS Code,Accessibility
+previous,change,,Shift+F7,`editor.action.accessibleDiffViewer.prev`,Go to Previous Difference in Accessible Diff Viewer,VS Code,Accessibility
+previous,word,,Ctrl+Left,`cursorWordAccessibilityLeft`,Move cursor a word left (screen-reader mode word logic),VS Code,Accessibility
+next,word,,Ctrl+Right,`cursorWordAccessibilityRight`,Move cursor a word right (screen-reader mode),VS Code,Accessibility
+toggle,screen_reader,,,`workbench.action.toggleScreenReaderAccessibilityMode`,Toggle Screen Reader Accessibility Mode,VS Code,Accessibility
+open,setting,,"Ctrl+,",`workbench.action.openSettings`,Open Settings (UI editor),VS Code,Settings & Keybindings Editor
+open,setting,,,`workbench.action.openSettingsJson`,Open Settings (JSON),VS Code,Settings & Keybindings Editor
+open,setting,,,`workbench.action.openGlobalSettings`,Open User Settings,VS Code,Settings & Keybindings Editor
+open,setting,,,`workbench.action.openWorkspaceSettings`,Open Workspace Settings,VS Code,Settings & Keybindings Editor
+open,setting,,,`workbench.action.openAccessibilitySettings`,Open Accessibility Settings,VS Code,Settings & Keybindings Editor
+open,keybinding,,Ctrl+K Ctrl+S,`workbench.action.openGlobalKeybindings`,Open Keyboard Shortcuts editor,VS Code,Settings & Keybindings Editor
+open,keybinding,,,`workbench.action.openGlobalKeybindingsFile`,Open Keyboard Shortcuts (JSON),VS Code,Settings & Keybindings Editor
+open,keybinding,,,`workbench.action.openDefaultKeybindingsFile`,"Open Default Keyboard Shortcuts (JSON), read-only reference",VS Code,Settings & Keybindings Editor
+open,theme,,Ctrl+K Ctrl+T,`workbench.action.selectTheme`,Select Color Theme,VS Code,Settings & Keybindings Editor
+open,theme,,,`workbench.action.selectIconTheme`,Select File Icon Theme,VS Code,Settings & Keybindings Editor
+open,setting,,,`workbench.action.configureLanguageBasedSettings`,Configure Language Specific Settings...,VS Code,Settings & Keybindings Editor
+open,search,,Ctrl+F,`settings.action.search`,Focus Settings Search box,VS Code,Settings & Keybindings Editor
+,,,Escape,`settings.action.clearSearchResults`,Clear Settings Search Results,VS Code,Settings & Keybindings Editor
+toggle,search,,Ctrl+I,`settings.action.toggleAiSearch`,Toggle AI-assisted Settings Search,VS Code,Settings & Keybindings Editor
+activate,extension,,Ctrl+Shift+X,`workbench.view.extensions`,Show Extensions view,VS Code,Extensions View
+new,extension,,,`workbench.extensions.action.installExtension`,Install a specific Extension by id,VS Code,Extensions View
+show,extension,,,`workbench.extensions.action.showInstalledExtensions`,Show Installed Extensions,VS Code,Extensions View
+show,extension,,,`workbench.extensions.action.showEnabledExtensions`,Show Enabled Extensions,VS Code,Extensions View
+show,extension,,,`workbench.extensions.action.showDisabledExtensions`,Show Disabled Extensions,VS Code,Extensions View
+show,extension,,,`workbench.extensions.action.showRecommendedExtensions`,Show Recommended Extensions,VS Code,Extensions View
+show,extension,,,`workbench.extensions.action.showPopularExtensions`,Show Popular Extensions,VS Code,Extensions View
+show,extension,,,`workbench.extensions.action.showBuiltInExtensions`,Show Built-in Extensions,VS Code,Extensions View
+,,,,`workbench.extensions.action.checkForUpdates`,Check for Extension Updates,VS Code,Extensions View
+,,,,`workbench.extensions.action.updateAllExtensions`,Update All Extensions,VS Code,Extensions View
+disable,extension,,,`workbench.extensions.action.disableAll`,Disable All Installed Extensions,VS Code,Extensions View
+enable,extension,,,`workbench.extensions.action.enableAll`,Enable All Extensions,VS Code,Extensions View
+,,,,`workbench.extensions.action.configureWorkspaceRecommendedExtensions`,Configure Workspace Recommended Extensions,VS Code,Extensions View
+open,folder,,,`workbench.extensions.action.openExtensionsFolder`,Open Extensions Folder,VS Code,Extensions View
+,,,Ctrl+Space / Ctrl+I,`editor.action.triggerSuggest`,Trigger Suggest (IntelliSense),VS Code,IntelliSense & Suggestions
+,,,Ctrl+Shift+Space,`editor.action.triggerParameterHints`,Trigger Parameter Hints,VS Code,IntelliSense & Suggestions
+,,,Tab,`editor.action.inlineSuggest.commit`,Accept the current inline (ghost text) suggestion,VS Code,IntelliSense & Suggestions
+next,,,Alt+],`editor.action.inlineSuggest.showNext`,Show Next Inline Suggestion,VS Code,IntelliSense & Suggestions
+previous,,,Alt+[,`editor.action.inlineSuggest.showPrevious`,Show Previous Inline Suggestion,VS Code,IntelliSense & Suggestions
+,,,Escape,`editor.action.inlineSuggest.hide`,Hide the current inline suggestion,VS Code,IntelliSense & Suggestions
+,,,Ctrl+/,`toggleExplainMode`,Toggle Explain Mode in the suggest widget,VS Code,IntelliSense & Suggestions
+insert,snippet,,Tab,`insertSnippet`,Insert a matching snippet completion,VS Code,IntelliSense & Suggestions
+previous,,,Alt+Left,`IDC_BACK`,Go back one page in tab history,Google Chrome,Navigation
+next,,,Alt+Right,`IDC_FORWARD`,Go forward one page in tab history,Google Chrome,Navigation
+restart,,,"Ctrl+R, F5",`IDC_RELOAD`,Reload the current page,Google Chrome,Navigation
+,,,Alt+Home,`IDC_HOME`,Navigate to the homepage,Google Chrome,Navigation
+,,,,`IDC_OPEN_CURRENT_URL`,Navigate to whatever's typed in the omnibox,Google Chrome,Navigation
+stop,,,,`IDC_STOP`,Stop the page from loading,Google Chrome,Navigation
+restart,,,"Ctrl+Shift+R, Shift+F5, Ctrl+F5",`IDC_RELOAD_BYPASSING_CACHE`,"Hard reload, bypassing the cache",Google Chrome,Navigation
+restart,,,,`IDC_RELOAD_CLEARING_CACHE`,Reload after clearing the cache,Google Chrome,Navigation
+new,window,,Ctrl+N,`IDC_NEW_WINDOW`,Open a new browser window,Google Chrome,Windows & Tabs
+new,window,,Ctrl+Shift+N,`IDC_NEW_INCOGNITO_WINDOW`,Open a new Incognito window,Google Chrome,Windows & Tabs
+close,window,,"Ctrl+Shift+W, Alt+F4",`IDC_CLOSE_WINDOW`,Close the current window,Google Chrome,Windows & Tabs
+new,tab,,Ctrl+T,`IDC_NEW_TAB`,Open a new tab,Google Chrome,Windows & Tabs
+close,tab,,"Ctrl+W, Ctrl+F4",`IDC_CLOSE_TAB`,Close the current tab,Google Chrome,Windows & Tabs
+next,tab,,Ctrl+PageDown,`IDC_SELECT_NEXT_TAB`,Switch to the next tab,Google Chrome,Windows & Tabs
+previous,tab,,Ctrl+PageUp,`IDC_SELECT_PREVIOUS_TAB`,Switch to the previous tab,Google Chrome,Windows & Tabs
+next,tab,,Ctrl+Tab,`IDC_CYCLE_TO_NEXT_TAB`,Cycle forward through tabs,Google Chrome,Windows & Tabs
+previous,tab,,Ctrl+Shift+Tab,`IDC_CYCLE_TO_PREV_TAB`,Cycle backward through tabs,Google Chrome,Windows & Tabs
+,,,Ctrl+1,`IDC_SELECT_TAB_0`,Jump to tab 1,Google Chrome,Windows & Tabs
+,,,Ctrl+2,`IDC_SELECT_TAB_1`,Jump to tab 2,Google Chrome,Windows & Tabs
+,,,Ctrl+3,`IDC_SELECT_TAB_2`,Jump to tab 3,Google Chrome,Windows & Tabs
+,,,Ctrl+4,`IDC_SELECT_TAB_3`,Jump to tab 4,Google Chrome,Windows & Tabs
+,,,Ctrl+5,`IDC_SELECT_TAB_4`,Jump to tab 5,Google Chrome,Windows & Tabs
+,,,Ctrl+6,`IDC_SELECT_TAB_5`,Jump to tab 6,Google Chrome,Windows & Tabs
+,,,Ctrl+7,`IDC_SELECT_TAB_6`,Jump to tab 7,Google Chrome,Windows & Tabs
+,,,Ctrl+8,`IDC_SELECT_TAB_7`,Jump to tab 8,Google Chrome,Windows & Tabs
+go_to,tab,,Ctrl+9,`IDC_SELECT_LAST_TAB`,Jump to the last tab,Google Chrome,Windows & Tabs
+duplicate,tab,,,`IDC_DUPLICATE_TAB`,Duplicate the current tab,Google Chrome,Windows & Tabs
+open,closed,,Ctrl+Shift+T,`IDC_RESTORE_TAB`,Reopen the most recently closed tab/window,Google Chrome,Windows & Tabs
+toggle,screen,,F11,`IDC_FULLSCREEN`,Toggle fullscreen,Google Chrome,Windows & Tabs
+close,application,,,`IDC_EXIT`,Quit the browser,Google Chrome,Windows & Tabs
+move,tab,,Ctrl+Shift+PageDown,`IDC_MOVE_TAB_NEXT`,Move current tab one slot right,Google Chrome,Windows & Tabs
+move,tab,,Ctrl+Shift+PageUp,`IDC_MOVE_TAB_PREVIOUS`,Move current tab one slot left,Google Chrome,Windows & Tabs
+minimize,window,,,`IDC_MINIMIZE_WINDOW`,Minimize the window,Google Chrome,Windows & Tabs
+maximize,window,,,`IDC_MAXIMIZE_WINDOW`,Maximize the window,Google Chrome,Windows & Tabs
+restore,window,,,`IDC_RESTORE_WINDOW`,(Windows/Linux) Restore a minimized/maximized window,Google Chrome,Windows & Tabs
+open,application,,,`IDC_OPEN_IN_PWA_WINDOW`,Reopen the current page as an installed web app,Google Chrome,Windows & Tabs
+move,tab,,,`IDC_MOVE_TAB_TO_NEW_WINDOW`,Move the current tab into its own new window,Google Chrome,Windows & Tabs
+new,split,,Alt+Shift+N,`IDC_NEW_SPLIT_TAB`,(Win/Linux) Split the tab into a side-by-side view,Google Chrome,Windows & Tabs
+toggle,tab,,,`IDC_TOGGLE_VERTICAL_TABS`,Toggle the vertical tab-strip layout,Google Chrome,Windows & Tabs
+collapse,tab,,Ctrl+Shift+L,`IDC_TOGGLE_VERTICAL_TABS_COLLAPSE`,Collapse/expand the vertical tab strip,Google Chrome,Windows & Tabs
+new,tab,,Alt+Shift+C,`IDC_ADD_NEW_TAB_TO_GROUP`,Add a new tab to the current tab group,Google Chrome,Tab Groups
+new,group,,Alt+Shift+P,`IDC_CREATE_NEW_TAB_GROUP`,Group the current tab into a new tab group,Google Chrome,Tab Groups
+next,group,,Alt+Shift+X,`IDC_FOCUS_NEXT_TAB_GROUP`,Move focus to the next tab group,Google Chrome,Tab Groups
+previous,group,,Alt+Shift+Z,`IDC_FOCUS_PREV_TAB_GROUP`,Move focus to the previous tab group,Google Chrome,Tab Groups
+close,group,,Alt+Shift+W,`IDC_CLOSE_TAB_GROUP`,Close every tab in the current group,Google Chrome,Tab Groups
+new,group,,,`IDC_GROUP_UNGROUPED_TABS`,Group all currently ungrouped tabs,Google Chrome,Tab Groups
+new,group,,,`IDC_ADD_NEW_TAB_RECENT_GROUP`,Add a new tab into a recently-used group,Google Chrome,Tab Groups
+,,,,`IDC_UNFOCUS_TAB_GROUP`,Move keyboard focus out of a tab group,Google Chrome,Tab Groups
+,,,,`IDC_COPY_URL`,Copy the current page's URL,Google Chrome,Web App (PWA) Windows
+open,application,,,`IDC_OPEN_IN_CHROME`,Open this web app page in a regular Chrome tab,Google Chrome,Web App (PWA) Windows
+open,setting,,,`IDC_WEB_APP_SETTINGS`,Open this web app's settings,Google Chrome,Web App (PWA) Windows
+new,bookmark,,Ctrl+D,`IDC_BOOKMARK_THIS_TAB`,Bookmark the current tab,Google Chrome,Bookmarks & Reading List
+new,bookmark,,Ctrl+Shift+D,`IDC_BOOKMARK_ALL_TABS`,Bookmark all open tabs into a new folder,Google Chrome,Bookmarks & Reading List
+toggle,bookmark,,Ctrl+Shift+B,`IDC_SHOW_BOOKMARK_BAR`,Toggle the bookmarks bar,Google Chrome,Bookmarks & Reading List
+show,bookmark,,Ctrl+Shift+O,`IDC_SHOW_BOOKMARK_MANAGER`,Open the Bookmark Manager,Google Chrome,Bookmarks & Reading List
+show,bookmark,,,`IDC_BOOKMARK_MANAGER`,Open Bookmark Manager (context-menu variant),Google Chrome,Bookmarks & Reading List
+show,bookmark,,,`IDC_SHOW_BOOKMARK_SIDE_PANEL`,Open Bookmarks in the side panel,Google Chrome,Bookmarks & Reading List
+new,reading_list,,,`IDC_READING_LIST_MENU_ADD_TAB`,Add the current tab to the Reading List,Google Chrome,Bookmarks & Reading List
+show,reading_list,,,`IDC_READING_LIST_MENU_SHOW_UI`,Open the Reading List,Google Chrome,Bookmarks & Reading List
+,,,,`IDC_SHOW_READING_MODE_SIDE_PANEL`,Open Reading Mode in the side panel,Google Chrome,Bookmarks & Reading List
+,,,Alt+Shift+R,`IDC_SHOW_READING_MODE_KEYBOARD`,Toggle Reading Mode,Google Chrome,Bookmarks & Reading List
+new,reading_list,,,`IDC_CONTENT_CONTEXT_ADD_LINK_TO_READING_LIST`,Add the right-clicked link to the Reading List,Google Chrome,Bookmarks & Reading List
+,,,,`IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE`,Open the page in Reading Mode,Google Chrome,Bookmarks & Reading List
+open,bookmark,,,`IDC_BOOKMARK_BAR_OPEN_ALL`,Open every bookmark in this folder as tabs,Google Chrome,Bookmarks & Reading List
+open,bookmark,,,`IDC_BOOKMARK_BAR_OPEN_ALL_NEW_WINDOW`,Open every bookmark in this folder in a new window,Google Chrome,Bookmarks & Reading List
+open,bookmark,,,`IDC_BOOKMARK_BAR_OPEN_ALL_INCOGNITO`,Open every bookmark in this folder in Incognito,Google Chrome,Bookmarks & Reading List
+open,bookmark,,,`IDC_BOOKMARK_BAR_OPEN_INCOGNITO`,Open this one bookmark in Incognito,Google Chrome,Bookmarks & Reading List
+open,bookmark,,,`IDC_BOOKMARK_BAR_OPEN_ALL_NEW_TAB_GROUP`,Open every bookmark in this folder into a new tab group,Google Chrome,Bookmarks & Reading List
+rename,folder,,,`IDC_BOOKMARK_BAR_RENAME_FOLDER`,Rename a bookmark folder,Google Chrome,Bookmarks & Reading List
+,,,,`IDC_BOOKMARK_BAR_EDIT`,Edit a bookmark,Google Chrome,Bookmarks & Reading List
+delete,bookmark,,,`IDC_BOOKMARK_BAR_REMOVE`,Delete a bookmark or folder,Google Chrome,Bookmarks & Reading List
+undo,bookmark,,,`IDC_BOOKMARK_BAR_UNDO`,Undo the last bookmark change,Google Chrome,Bookmarks & Reading List
+redo,bookmark,,,`IDC_BOOKMARK_BAR_REDO`,Redo the last undone bookmark change,Google Chrome,Bookmarks & Reading List
+new,bookmark,,,`IDC_BOOKMARK_BAR_ADD_NEW_BOOKMARK`,Add a new bookmark,Google Chrome,Bookmarks & Reading List
+new,folder,,,`IDC_BOOKMARK_BAR_NEW_FOLDER`,Create a new bookmark folder,Google Chrome,Bookmarks & Reading List
+toggle,bookmark,,,`IDC_BOOKMARK_BAR_ALWAYS_SHOW`,"Toggle ""Always show bookmarks bar""",Google Chrome,Bookmarks & Reading List
+new,bookmark,,,`IDC_BOOKMARK_BAR_ADD_TO_BOOKMARKS_BAR`,Add this bookmark to the bookmarks bar,Google Chrome,Bookmarks & Reading List
+delete,bookmark,,,`IDC_BOOKMARK_BAR_REMOVE_FROM_BOOKMARKS_BAR`,Remove this bookmark from the bookmarks bar,Google Chrome,Bookmarks & Reading List
+move,bookmark,,,`IDC_BOOKMARK_BAR_MOVE`,Move a bookmark to another folder,Google Chrome,Bookmarks & Reading List
+show,document,,Ctrl+U,`IDC_VIEW_SOURCE`,View the page's HTML source,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+print,,,Ctrl+P,`IDC_PRINT`,Print the current page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+save,document,,Ctrl+S,`IDC_SAVE_PAGE`,Save the current page to disk,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+print,,,Ctrl+Shift+P,`IDC_BASIC_PRINT`,"Open the system print dialog, bypassing print preview",Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_EMAIL_PAGE_LOCATION`,Email a link to the current page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_SHOW_TRANSLATE`,Translate the current page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_MANAGE_PASSWORDS_FOR_PAGE`,Open the password bubble for this site,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_ROUTE_MEDIA`,Start Casting media from this page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+mute,tab,,,`IDC_WINDOW_MUTE_SITE`,Mute audio from the current tab's site,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+enable,pin,,,`IDC_WINDOW_PIN_TAB`,Pin the current tab,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+new,group,,,`IDC_WINDOW_GROUP_TAB`,Add the current tab to a tab group,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_SEND_TAB_TO_SELF`,Send the current tab to another signed-in device,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+activate,tab,,,`IDC_FOCUS_THIS_TAB`,Move keyboard focus to the current tab,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_QRCODE_GENERATOR`,Generate a QR code for the current page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+close,tab,,,`IDC_WINDOW_CLOSE_TABS_TO_RIGHT`,Close all tabs to the right of this one,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+close,tab,,,`IDC_WINDOW_CLOSE_OTHER_TABS`,Close every tab except this one,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+new,tab,,,`IDC_NEW_TAB_TO_RIGHT`,Open a new tab immediately to the right,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_SHARING_HUB`,Open the sharing hub for this page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+new,screenshot,,,`IDC_SHARING_HUB_SCREENSHOT`,Take a screenshot via the sharing hub,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_SHOW_PASSWORD_MANAGER`,Open Chrome's Password Manager,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_SHOW_PAYMENT_METHODS`,Open saved payment methods,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_SHOW_ADDRESSES`,Open saved addresses,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_ORGANIZE_TABS`,Open AI-assisted tab organization,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+new,screenshot,,,`IDC_TAKE_SCREENSHOT`,Capture a screenshot of the page,Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+,,,,`IDC_CONTENT_CONTEXT_GENERATE_QR_CODE`,Generate a QR code for the link/page (context menu),Google Chrome,"Page Actions (Print, Save, Sharing, Site Controls)"
+more,zoom,,Ctrl+= (also Ctrl+Shift+=),`IDC_ZOOM_PLUS`,Zoom in,Google Chrome,Zoom
+reset,zoom,,Ctrl+0,`IDC_ZOOM_NORMAL`,Reset zoom to 100%,Google Chrome,Zoom
+less,zoom,,Ctrl+- (also Ctrl+Shift+-),`IDC_ZOOM_MINUS`,Zoom out,Google Chrome,Zoom
+open,search,,Ctrl+F,`IDC_FIND`,Open the find-in-page bar,Google Chrome,Find in Page
+next,match,,"Ctrl+G, F3",`IDC_FIND_NEXT`,Jump to the next match,Google Chrome,Find in Page
+previous,match,,"Ctrl+Shift+G, Shift+F3",`IDC_FIND_PREVIOUS`,Jump to the previous match,Google Chrome,Find in Page
+close,search,,Esc,`IDC_CLOSE_FIND_OR_STOP`,"Close the find bar, or stop page load if find isn't open",Google Chrome,Find in Page
+cut,clipboard,,Ctrl+X,`IDC_CUT`,Cut,Google Chrome,Clipboard
+copy,clipboard,,Ctrl+C,`IDC_COPY`,Copy,Google Chrome,Clipboard
+paste,clipboard,,Ctrl+V,`IDC_PASTE`,Paste,Google Chrome,Clipboard
+paste,clipboard,,,`IDC_PASTE_AND_GO`,Paste clipboard text into the omnibox and navigate,Google Chrome,Clipboard
+show,history,,Ctrl+H,`IDC_SHOW_HISTORY`,Open History,Google Chrome,History & Downloads
+show,history,,,`IDC_SHOW_HISTORY_SIDE_PANEL`,Open History in the side panel,Google Chrome,History & Downloads
+show,history,,,`IDC_SHOW_HISTORY_CLUSTERS_SIDE_PANEL`,Open History Journeys side panel,Google Chrome,History & Downloads
+show,download,,Ctrl+J,`IDC_SHOW_DOWNLOADS`,Open Downloads,Google Chrome,History & Downloads
+delete,history,,Ctrl+Shift+Delete,`IDC_CLEAR_BROWSING_DATA`,"Open ""Clear browsing data""",Google Chrome,History & Downloads
+open,closed,,,`IDC_OPEN_RECENT_TAB`,Reopen a specific recently-closed tab (dynamic menu item),Google Chrome,History & Downloads
+show,tab,,,`IDC_RECENT_TABS_SEE_DEVICE_TABS`,See tabs open on other signed-in devices,Google Chrome,History & Downloads
+show,tab,,,`IDC_SHOW_TABS_FROM_OTHER_DEVICES_SIDE_PANEL`,Show other devices' open tabs in the side panel,Google Chrome,History & Downloads
+,,,F12,`IDC_DEV_TOOLS_TOGGLE`,Toggle DevTools open/closed,Google Chrome,DevTools
+,,,Ctrl+Shift+I,`IDC_DEV_TOOLS`,Open DevTools,Google Chrome,DevTools
+open,output,,Ctrl+Shift+J,`IDC_DEV_TOOLS_CONSOLE`,Open DevTools to the JS console,Google Chrome,DevTools
+,,,Ctrl+Shift+C,`IDC_DEV_TOOLS_INSPECT`,Open DevTools in inspect-element mode,Google Chrome,DevTools
+,,,,`IDC_CONTENT_CONTEXT_INSPECTELEMENT`,Inspect the right-clicked element,Google Chrome,DevTools
+,,,,`IDC_TASK_MANAGER`,Open Chrome's Task Manager,Google Chrome,DevTools
+,,,Shift+Esc,`IDC_TASK_MANAGER_SHORTCUT`,Open Task Manager (keyboard variant),Google Chrome,DevTools
+show,account,,Ctrl+Shift+M,`IDC_SHOW_AVATAR_MENU`,Open the profile/avatar menu,Google Chrome,Profiles & Sync
+,,,,`IDC_CUSTOMIZE_CHROME`,"Open the ""Customize Chrome"" side panel",Google Chrome,Profiles & Sync
+close,account,,,`IDC_CLOSE_PROFILE`,Close all windows for the current profile,Google Chrome,Profiles & Sync
+open,account,,,`IDC_MANAGE_GOOGLE_ACCOUNT`,Open your Google Account page,Google Chrome,Profiles & Sync
+new,profile,,,`IDC_OPEN_GUEST_PROFILE`,Open a new Guest window,Google Chrome,Profiles & Sync
+new,profile,,,`IDC_ADD_NEW_PROFILE`,Add a new Chrome profile,Google Chrome,Profiles & Sync
+open,profile,,,`IDC_MANAGE_CHROME_PROFILES`,Open profile-management settings,Google Chrome,Profiles & Sync
+open,account,,,`IDC_SHOW_SIGNIN`,Open the sign-in flow,Google Chrome,Profiles & Sync
+open,setting,,,`IDC_OPTIONS`,Open Chrome Settings,Google Chrome,"Settings, Browser UI & Extensions"
+open,file,,Ctrl+O,`IDC_OPEN_FILE`,Open a local file in the browser,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_CREATE_SHORTCUT`,Create a desktop shortcut for the current page/app,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_IMPORT_SETTINGS`,Import bookmarks/settings from another browser,Google Chrome,"Settings, Browser UI & Extensions"
+open,setting,,,`IDC_EDIT_SEARCH_ENGINES`,Open search-engine settings,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_VIEW_PASSWORDS`,Open the Password Manager,Google Chrome,"Settings, Browser UI & Extensions"
+manual,,,,`IDC_ABOUT`,Open the About/relaunch page,Google Chrome,"Settings, Browser UI & Extensions"
+manual,,,F1,`IDC_HELP_PAGE_VIA_KEYBOARD`,Open Chrome help,Google Chrome,"Settings, Browser UI & Extensions"
+manual,,,,`IDC_HELP_PAGE_VIA_MENU`,Open Chrome help (via menu),Google Chrome,"Settings, Browser UI & Extensions"
+,,,"Alt+E, Alt+F",`IDC_SHOW_APP_MENU`,Open the Chrome (3-dot) menu,Google Chrome,"Settings, Browser UI & Extensions"
+open,extension,,,`IDC_MANAGE_EXTENSIONS`,Open the Extensions management page,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_UPGRADE_DIALOG`,"Show the ""relaunch to update"" dialog",Google Chrome,"Settings, Browser UI & Extensions"
+new,application,,,`IDC_INSTALL_PWA`,Install the current site as an app,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_SHOW_MANAGEMENT_PAGE`,Open chrome://management,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_SHOW_FULL_URLS`,Toggle showing full URLs in the address bar,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_CHROME_WHATS_NEW`,"Open ""What's New in Chrome""",Google Chrome,"Settings, Browser UI & Extensions"
+open,setting,,,`IDC_PERFORMANCE`,Open Performance settings (memory/energy saver),Google Chrome,"Settings, Browser UI & Extensions"
+open,extension,,,`IDC_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS`,Manage extensions (toolbar submenu),Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_EXTENSIONS_SUBMENU_VISIT_CHROME_WEB_STORE`,Open the Chrome Web Store,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_SHOW_CHROME_LABS`,Open Chrome Labs (experimental features flask),Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_OPEN_SAFETY_HUB`,Open Safety Check / Safety Hub,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_SHOW_GOOGLE_LENS_SHORTCUT`,Open Google Lens search,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL`,Open the Customize Chrome side panel,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_SET_BROWSER_AS_DEFAULT`,Set Chrome as the default browser,Google Chrome,"Settings, Browser UI & Extensions"
+,,,Alt+Shift+I,`IDC_FEEDBACK`,Report an issue / send feedback (branded builds),Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_UPDATE_SIDE_PANEL_PIN_STATE`,Pin/unpin a side-panel entry to the toolbar,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_STATUS_TRAY_KEEP_CHROME_RUNNING_IN_BACKGROUND`,"Toggle ""keep running background apps""",Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_OPEN_GLIC`,"Open Glic, Chrome's built-in AI assistant panel",Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_GLIC_TOGGLE_PIN`,Pin/unpin the Glic button on the toolbar,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_GLIC_STATUS_ICON_MENU_TOGGLE`,Show/hide the Glic panel (system tray),Google Chrome,"Settings, Browser UI & Extensions"
+open,search,,Ctrl+Shift+A,`IDC_TAB_SEARCH`,Open the tab-search dropdown,Google Chrome,"Settings, Browser UI & Extensions"
+close,search,,,`IDC_TAB_SEARCH_CLOSE`,Close the tab-search dropdown,Google Chrome,"Settings, Browser UI & Extensions"
+toggle,caption,,,`IDC_LIVE_CAPTION`,Toggle Live Caption,Google Chrome,"Settings, Browser UI & Extensions"
+,,,,`IDC_CHROME_ENTERPRISE_RELEASE_NOTES`,Open Chrome Enterprise release notes,Google Chrome,"Settings, Browser UI & Extensions"
+,,,Alt+Shift+A,`IDC_FOCUS_INACTIVE_POPUP_FOR_ACCESSIBILITY`,Move focus to an inactive popup/infobar for screen readers,Google Chrome,Accessibility
+,,,F7,`IDC_CARET_BROWSING_TOGGLE`,Toggle caret browsing,Google Chrome,Accessibility
+,,,,`IDC_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_TOGGLE`,"Toggle ""Get image descriptions"" labels",Google Chrome,Accessibility
+,,,,`IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE`,Read this page aloud,Google Chrome,Accessibility
+,,,Alt+Shift+T,`IDC_FOCUS_TOOLBAR`,Move keyboard focus to the toolbar,Google Chrome,Focus / Keyboard Navigation
+,,,"Ctrl+L, Alt+D",`IDC_FOCUS_LOCATION`,Move keyboard focus to the address bar,Google Chrome,Focus / Keyboard Navigation
+activate,search,,"Ctrl+K, Ctrl+E",`IDC_FOCUS_SEARCH`,Focus the address bar in search/keyword mode,Google Chrome,Focus / Keyboard Navigation
+,,,"F10, Alt",`IDC_FOCUS_MENU_BAR`,Move keyboard focus to the menu bar (Linux),Google Chrome,Focus / Keyboard Navigation
+next,pane,,F6,`IDC_FOCUS_NEXT_PANE`,Move focus to the next UI pane,Google Chrome,Focus / Keyboard Navigation
+previous,pane,,Shift+F6,`IDC_FOCUS_PREVIOUS_PANE`,Move focus to the previous UI pane,Google Chrome,Focus / Keyboard Navigation
+activate,bookmark,,Alt+Shift+B,`IDC_FOCUS_BOOKMARKS`,Move keyboard focus to the bookmarks bar,Google Chrome,Focus / Keyboard Navigation
+activate,pane,,Ctrl+F6,`IDC_FOCUS_WEB_CONTENTS_PANE`,Move keyboard focus to the page content,Google Chrome,Focus / Keyboard Navigation
+,,,,`IDC_CHECK_SPELLING_WHILE_TYPING`,"Toggle ""Check spelling while typing""",Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_SPELLCHECK_ADD_TO_DICTIONARY`,Add the selected word to the custom dictionary,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_SPELLCHECK_MULTI_LINGUAL`,Toggle multilingual spellcheck,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY`,Remove the selected word from the custom dictionary,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_CONTENT_CONTEXT_SPELLING_SUGGESTION`,Apply the top spelling suggestion,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_CONTENT_CONTEXT_SPELLING_TOGGLE`,Toggle spell-check for this field,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_WRITING_DIRECTION_LTR`,Set editable text's direction to left-to-right,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_WRITING_DIRECTION_RTL`,Set editable text's direction to right-to-left,Google Chrome,Spell Check & Writing Direction
+,,,,`IDC_SAVE_CREDIT_CARD_FOR_PAGE`,"Show the ""save this card"" prompt",Google Chrome,"Autofill, Passwords & Payments"
+,,,,`IDC_SAVE_AUTOFILL_ADDRESS`,"Show the ""save this address"" prompt",Google Chrome,"Autofill, Passwords & Payments"
+,,,,`IDC_CONTENT_CONTEXT_GENERATEPASSWORD`,Suggest a generated password for this field,Google Chrome,"Autofill, Passwords & Payments"
+,,,,`IDC_CONTENT_CONTEXT_SHOWALLSAVEDPASSWORDS`,Show all saved passwords,Google Chrome,"Autofill, Passwords & Payments"
+,,,,`IDC_CONTENT_CONTEXT_USE_PASSKEY_FROM_ANOTHER_DEVICE`,Use a passkey from another device,Google Chrome,"Autofill, Passwords & Payments"
+,,,,`IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK`,Send feedback about an Autofill suggestion,Google Chrome,"Autofill, Passwords & Payments"
+,,,,`IDC_MEDIA_ROUTER_ABOUT`,About Google Cast,Google Chrome,"Sharing, QR Codes & Casting"
+,,,,`IDC_MEDIA_ROUTER_TOGGLE_MEDIA_REMOTING`,Toggle media remoting for a cast session,Google Chrome,"Sharing, QR Codes & Casting"
+,,,,`IDC_MEDIA_TOOLBAR_CONTEXT_SHOW_OTHER_SESSIONS`,Show other active Cast sessions,Google Chrome,"Sharing, QR Codes & Casting"
+open,tab,,,`IDC_CONTENT_CONTEXT_OPENLINKNEWTAB`,Open link in a new tab,Google Chrome,Context Menu — Links
+open,window,,,`IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW`,Open link in a new window,Google Chrome,Context Menu — Links
+open,window,,,`IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD`,Open link in a new Incognito window,Google Chrome,Context Menu — Links
+open,split,,,`IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW`,Open link in a new split-view tab,Google Chrome,Context Menu — Links
+save,file,,,`IDC_CONTENT_CONTEXT_SAVELINKAS`,Save the link target as a file,Google Chrome,Context Menu — Links
+copy,clipboard,,,`IDC_CONTENT_CONTEXT_COPYLINKLOCATION`,Copy the link URL,Google Chrome,Context Menu — Links
+copy,clipboard,,,`IDC_CONTENT_CONTEXT_COPYLINKTEXT`,Copy the link's visible text,Google Chrome,Context Menu — Links
+copy,clipboard,,,`IDC_CONTENT_CONTEXT_COPYLINKTOTEXT`,Copy a link that scrolls to and highlights this text,Google Chrome,Context Menu — Links
+save,file,,,`IDC_CONTENT_CONTEXT_SAVEIMAGEAS`,Save image as a file,Google Chrome,"Context Menu — Images, Audio & Video"
+copy,clipboard,,,`IDC_CONTENT_CONTEXT_COPYIMAGELOCATION`,Copy the image URL,Google Chrome,"Context Menu — Images, Audio & Video"
+copy,clipboard,,,`IDC_CONTENT_CONTEXT_COPYIMAGE`,Copy the image to the clipboard,Google Chrome,"Context Menu — Images, Audio & Video"
+open,tab,,,`IDC_CONTENT_CONTEXT_OPENIMAGENEWTAB`,Open the image in a new tab,Google Chrome,"Context Menu — Images, Audio & Video"
+,,,,`IDC_CONTENT_CONTEXT_SEARCHWEBFORIMAGE`,Search the web for this image,Google Chrome,"Context Menu — Images, Audio & Video"
+,,,,`IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE`,Search this image with Google Lens,Google Chrome,"Context Menu — Images, Audio & Video"
+save,file,,,`IDC_CONTENT_CONTEXT_SAVEVIDEOFRAMEAS`,Save the current video frame as an image,Google Chrome,"Context Menu — Images, Audio & Video"
+save,file,,,`IDC_CONTENT_CONTEXT_SAVEAVAS`,Save the audio/video file as,Google Chrome,"Context Menu — Images, Audio & Video"
+,,,,`IDC_CONTENT_CONTEXT_PICTUREINPICTURE`,Open the video in Picture-in-Picture,Google Chrome,"Context Menu — Images, Audio & Video"
+copy,clipboard,,,`IDC_CONTENT_CONTEXT_COPY`,Copy selected content,Google Chrome,Context Menu — Edit
+cut,clipboard,,,`IDC_CONTENT_CONTEXT_CUT`,Cut selected content,Google Chrome,Context Menu — Edit
+paste,clipboard,,,`IDC_CONTENT_CONTEXT_PASTE`,Paste clipboard content,Google Chrome,Context Menu — Edit
+paste,clipboard,,,`IDC_CONTENT_CONTEXT_PASTE_AND_MATCH_STYLE`,Paste without formatting,Google Chrome,Context Menu — Edit
+delete,selection,,,`IDC_CONTENT_CONTEXT_DELETE`,Delete the selected content,Google Chrome,Context Menu — Edit
+undo,,,,`IDC_CONTENT_CONTEXT_UNDO`,Undo the last edit,Google Chrome,Context Menu — Edit
+redo,,,,`IDC_CONTENT_CONTEXT_REDO`,Redo the last undone edit,Google Chrome,Context Menu — Edit
+select,,,,`IDC_CONTENT_CONTEXT_SELECTALL`,Select all content,Google Chrome,Context Menu — Edit
+,,,,`IDC_CONTENT_CONTEXT_TRANSLATE`,Translate the selected text/page,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTENT_CONTEXT_PARTIAL_TRANSLATE`,Translate only the selected text,Google Chrome,Context Menu — Page & Frame
+open,setting,,,`IDC_CONTENT_CONTEXT_LANGUAGE_SETTINGS`,Open language settings,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTENT_CONTEXT_LOOK_UP`,Look up the selected word/phrase,Google Chrome,Context Menu — Page & Frame
+restart,,,,`IDC_CONTENT_CONTEXT_RELOADFRAME`,Reload just the clicked iframe,Google Chrome,Context Menu — Page & Frame
+show,document,,,`IDC_CONTENT_CONTEXT_VIEWFRAMESOURCE`,View the clicked iframe's source,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTENT_CONTEXT_SEARCHWEBFOR`,Search the web for the selected text,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTENT_CONTEXT_SEARCHWEBFORNEWTAB`,Search the web for the selected text in a new tab,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTENT_CONTEXT_LENS_OVERLAY`,Open the Lens overlay search,Google Chrome,Context Menu — Page & Frame
+toggle,screen,,,`IDC_CONTENT_CONTEXT_EXIT_FULLSCREEN`,Exit fullscreen (context menu),Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTENT_CONTEXT_EMOJI`,Open the emoji picker,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_CONTEXT_COMPOSE`,Open Compose (AI writing help) for this field,Google Chrome,Context Menu — Page & Frame
+,,,,`IDC_REPORT_UNSAFE_SITE`,Report the current site as unsafe,Google Chrome,Context Menu — Page & Frame
+minimize,application,,,`IDC_HIDE_APP`,(macOS only) Hide the Chrome application,Google Chrome,Platform-Specific
+close,window,,Alt+F4,`org.gnome.desktop.wm.keybindings close`,Close the focused window,Linux (GNOME),Window Management — Basic Actions
+toggle,window,,Alt+F10,`org.gnome.desktop.wm.keybindings toggle-maximized`,Toggle maximize/restore,Linux (GNOME),Window Management — Basic Actions
+maximize,window,,Super+Up,`org.gnome.desktop.wm.keybindings maximize`,Maximize window,Linux (GNOME),Window Management — Basic Actions
+restore,window,,Super+Down or Alt+F5,`org.gnome.desktop.wm.keybindings unmaximize`,Restore (un-maximize) window,Linux (GNOME),Window Management — Basic Actions
+minimize,window,,Super+H,`org.gnome.desktop.wm.keybindings minimize`,Minimize window,Linux (GNOME),Window Management — Basic Actions
+toggle,screen,,,`org.gnome.desktop.wm.keybindings toggle-fullscreen`,Toggle fullscreen mode,Linux (GNOME),Window Management — Basic Actions
+,,,,`org.gnome.desktop.wm.keybindings toggle-above`,"Toggle ""always on top""; appears to duplicate `always-on-top` below",Linux (GNOME),Window Management — Basic Actions
+,,,,`org.gnome.desktop.wm.keybindings always-on-top`,"Toggle window always-on-top (newer key, same effect as `toggle-above`)",Linux (GNOME),Window Management — Basic Actions
+move,window,,Alt+F7,`org.gnome.desktop.wm.keybindings begin-move`,Start interactive move (keyboard-driven),Linux (GNOME),Window Management — Basic Actions
+,,,Alt+F8,`org.gnome.desktop.wm.keybindings begin-resize`,Start interactive resize (keyboard-driven),Linux (GNOME),Window Management — Basic Actions
+,,,,`org.gnome.desktop.wm.keybindings raise`,Raise window above others,Linux (GNOME),Window Management — Basic Actions
+,,,,`org.gnome.desktop.wm.keybindings lower`,Lower window below others,Linux (GNOME),Window Management — Basic Actions
+,,,,`org.gnome.desktop.wm.keybindings raise-or-lower`,"Raise if covered, else lower",Linux (GNOME),Window Management — Basic Actions
+maximize,window,,,`org.gnome.desktop.wm.keybindings maximize-vertically`,Maximize only vertically,Linux (GNOME),Window Management — Basic Actions
+maximize,window,,,`org.gnome.desktop.wm.keybindings maximize-horizontally`,Maximize only horizontally,Linux (GNOME),Window Management — Basic Actions
+,,,,`org.gnome.desktop.wm.keybindings toggle-on-all-workspaces`,Pin window to all workspaces / unpin,Linux (GNOME),Window Management — Basic Actions
+activate,window,,Alt+Space,`org.gnome.desktop.wm.keybindings activate-window-menu`,Open the window's title-bar menu,Linux (GNOME),Window Management — Basic Actions
+show,desktop,,,`org.gnome.desktop.wm.keybindings show-desktop`,Minimize all normal windows,Linux (GNOME),Window Management — Basic Actions
+,,,Alt+F2,`org.gnome.desktop.wm.keybindings panel-run-dialog`,"Show the ""run a command"" prompt",Linux (GNOME),Window Management — Basic Actions
+move,left,,Super+Left,`org.gnome.mutter.keybindings toggle-tiled-left`,Tile window to left half of screen,Linux (GNOME),Window Tiling & Snapping
+move,right,,Super+Right,`org.gnome.mutter.keybindings toggle-tiled-right`,Tile window to right half of screen,Linux (GNOME),Window Tiling & Snapping
+move,corner,,,`org.gnome.desktop.wm.keybindings move-to-corner-nw`,Snap window to top-left corner (quarter-tile),Linux (GNOME),Window Tiling & Snapping
+move,corner,,,`org.gnome.desktop.wm.keybindings move-to-corner-ne`,Snap window to top-right corner,Linux (GNOME),Window Tiling & Snapping
+move,corner,,,`org.gnome.desktop.wm.keybindings move-to-corner-sw`,Snap window to bottom-left corner,Linux (GNOME),Window Tiling & Snapping
+move,corner,,,`org.gnome.desktop.wm.keybindings move-to-corner-se`,Snap window to bottom-right corner,Linux (GNOME),Window Tiling & Snapping
+move,side,,,`org.gnome.desktop.wm.keybindings move-to-side-n`,Snap window to top half (full-width),Linux (GNOME),Window Tiling & Snapping
+move,side,,,`org.gnome.desktop.wm.keybindings move-to-side-s`,Snap window to bottom half,Linux (GNOME),Window Tiling & Snapping
+move,side,,,`org.gnome.desktop.wm.keybindings move-to-side-e`,Snap window to right half,Linux (GNOME),Window Tiling & Snapping
+move,side,,,`org.gnome.desktop.wm.keybindings move-to-side-w`,Snap window to left half,Linux (GNOME),Window Tiling & Snapping
+move,,,,`org.gnome.desktop.wm.keybindings move-to-center`,Center window on screen without resizing,Linux (GNOME),Window Tiling & Snapping
+previous,workspace,,Super+Page_Up or Super+Alt+Left or Ctrl+Alt+Left,`org.gnome.desktop.wm.keybindings switch-to-workspace-left`,Switch to the workspace to the left,Linux (GNOME),Workspace Switching
+next,workspace,,Super+Page_Down or Super+Alt+Right or Ctrl+Alt+Right,`org.gnome.desktop.wm.keybindings switch-to-workspace-right`,Switch to the workspace to the right,Linux (GNOME),Workspace Switching
+previous,workspace,,Ctrl+Alt+Up,`org.gnome.desktop.wm.keybindings switch-to-workspace-up`,Switch to the workspace above (vertical workspace layout),Linux (GNOME),Workspace Switching
+next,workspace,,Ctrl+Alt+Down,`org.gnome.desktop.wm.keybindings switch-to-workspace-down`,Switch to the workspace below,Linux (GNOME),Workspace Switching
+go_to,workspace,,Super+End,`org.gnome.desktop.wm.keybindings switch-to-workspace-last`,Jump to the last workspace,Linux (GNOME),Workspace Switching
+Move focused window to numbered workspace,move,workspace,workspace 1: Super+Shift+Home,`org.gnome.desktop.wm.keybindings move-to-workspace-{1..12}`, 2–12: none,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,workspace,,Super+Shift+Page_Up or Super+Shift+Alt+Left or Ctrl+Shift+Alt+Left,`org.gnome.desktop.wm.keybindings move-to-workspace-left`,Move window to workspace on the left,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,workspace,,Super+Shift+Page_Down or Super+Shift+Alt+Right or Ctrl+Shift+Alt+Right,`org.gnome.desktop.wm.keybindings move-to-workspace-right`,Move window to workspace on the right,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,workspace,,Ctrl+Shift+Alt+Up,`org.gnome.desktop.wm.keybindings move-to-workspace-up`,Move window one workspace up,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,workspace,,Ctrl+Shift+Alt+Down,`org.gnome.desktop.wm.keybindings move-to-workspace-down`,Move window one workspace down,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,workspace,,Super+Shift+End,`org.gnome.desktop.wm.keybindings move-to-workspace-last`,Move window to the last workspace,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,monitor,,Super+Shift+Left,`org.gnome.desktop.wm.keybindings move-to-monitor-left`,Move window to the next monitor on the left,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,monitor,,Super+Shift+Right,`org.gnome.desktop.wm.keybindings move-to-monitor-right`,Move window to the next monitor on the right,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,monitor,,Super+Shift+Up,`org.gnome.desktop.wm.keybindings move-to-monitor-up`,Move window to the monitor above,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+move,monitor,,Super+Shift+Down,`org.gnome.desktop.wm.keybindings move-to-monitor-down`,Move window to the monitor below,Linux (GNOME),Moving Windows Between Workspaces & Monitors
+next,application,,Super+Tab or Alt+Tab,`org.gnome.desktop.wm.keybindings switch-applications`,Switch between applications (Alt-Tab switcher),Linux (GNOME),Application & Window Switching
+previous,application,,Shift+Super+Tab or Shift+Alt+Tab,`org.gnome.desktop.wm.keybindings switch-applications-backward`,Reverse-direction app switch,Linux (GNOME),Application & Window Switching
+ distinct from `switch-applications`),next,window,,`org.gnome.desktop.wm.keybindings switch-windows`,Switch between individual windows (no default,Linux (GNOME),Application & Window Switching
+previous,window,,,`org.gnome.desktop.wm.keybindings switch-windows-backward`,Reverse-direction window switch,Linux (GNOME),Application & Window Switching
+next,window,,Super+` or Alt+`,`org.gnome.desktop.wm.keybindings switch-group`,Switch between windows of the *current* application only,Linux (GNOME),Application & Window Switching
+previous,window,,Shift+Super+` or Shift+Alt+`,`org.gnome.desktop.wm.keybindings switch-group-backward`,Reverse-direction same-app window switch,Linux (GNOME),Application & Window Switching
+next,pane,,Ctrl+Alt+Tab,`org.gnome.desktop.wm.keybindings switch-panels`,"Switch between panels/system controls (a11y-style switcher, shows icons)",Linux (GNOME),Application & Window Switching
+previous,pane,,Shift+Ctrl+Alt+Tab,`org.gnome.desktop.wm.keybindings switch-panels-backward`,Reverse-direction panel switch,Linux (GNOME),Application & Window Switching
+next,window,,Alt+Escape,`org.gnome.desktop.wm.keybindings cycle-windows`,"Switch windows directly, no popup switcher",Linux (GNOME),Application & Window Switching
+previous,window,,Shift+Alt+Escape,`org.gnome.desktop.wm.keybindings cycle-windows-backward`,"Reverse-direction, no popup",Linux (GNOME),Application & Window Switching
+next,window,,Alt+F6,`org.gnome.desktop.wm.keybindings cycle-group`,"Switch same-app windows directly, no popup",Linux (GNOME),Application & Window Switching
+previous,window,,Shift+Alt+F6,`org.gnome.desktop.wm.keybindings cycle-group-backward`,"Reverse-direction, no popup",Linux (GNOME),Application & Window Switching
+next,pane,,Ctrl+Alt+Escape,`org.gnome.desktop.wm.keybindings cycle-panels`,"Switch panels directly, no popup",Linux (GNOME),Application & Window Switching
+previous,pane,,Shift+Ctrl+Alt+Escape,`org.gnome.desktop.wm.keybindings cycle-panels-backward`,"Reverse-direction, no popup",Linux (GNOME),Application & Window Switching
+show,application,,Super+A,`org.gnome.shell.keybindings toggle-application-view`,"Open the ""Show Applications"" app grid",Linux (GNOME),"GNOME Shell — Overview, Search & App Launching"
+,,,Super+Alt+Up,`org.gnome.shell.keybindings shift-overview-up`,Shift between overview states (windows ↔ app grid),Linux (GNOME),"GNOME Shell — Overview, Search & App Launching"
+,,,Super+Alt+Down,`org.gnome.shell.keybindings shift-overview-down`,"Shift between overview states, opposite direction",Linux (GNOME),"GNOME Shell — Overview, Search & App Launching"
+activate,application,,Super+1 … Super+9,`org.gnome.shell.keybindings switch-to-application-{1..9}`,Activate/launch the Nth favorite/running app on the dash,Linux (GNOME),"GNOME Shell — Overview, Search & App Launching"
+new,window,,Ctrl+Super+1 … Ctrl+Super+9,`org.gnome.shell.keybindings open-new-window-application-{1..9}`,Open a new window of the Nth dash app,Linux (GNOME),"GNOME Shell — Overview, Search & App Launching"
+new,screenshot,,Print,`org.gnome.shell.keybindings show-screenshot-ui`,Open the interactive screenshot tool (GNOME 42+),Linux (GNOME),Screenshots & Screen Recording
+new,screenshot,,Alt+Print,`org.gnome.shell.keybindings screenshot-window`,Screenshot the focused window directly (no UI),Linux (GNOME),Screenshots & Screen Recording
+new,screenshot,,Shift+Print,`org.gnome.shell.keybindings screenshot`,Screenshot the whole screen directly (no UI),Linux (GNOME),Screenshots & Screen Recording
+toggle,notification,,Super+V or Super+M,`org.gnome.shell.keybindings toggle-message-tray`,Open/close the notification list (Super+M is a legacy alias kept alongside Super+V),Linux (GNOME),Notifications
+toggle,quick_settings,,Super+S,`org.gnome.shell.keybindings toggle-quick-settings`,Open/close the Quick Settings menu (Wi-Fi/volume/power panel),Linux (GNOME),Notifications
+activate,notification,,Super+N,`org.gnome.shell.keybindings focus-active-notification`,Move keyboard focus to the currently showing notification banner,Linux (GNOME),Notifications
+next,monitor,,Super+P or XF86Display,`org.gnome.mutter.keybindings switch-monitor`,"Cycle display/monitor configuration (mirror, extend, single)",Linux (GNOME),Mutter / Compositor & Session-Level
+,,,XF86RotateWindows,`org.gnome.mutter.keybindings rotate-monitor`,Rotate the built-in display (tablet/convertible hardware key),Linux (GNOME),Mutter / Compositor & Session-Level
+,,,Super+Shift+Escape,`org.gnome.mutter.keybindings cancel-input-capture`,Cancel an active remote-desktop input-capture session (GNOME 46+),Linux (GNOME),Mutter / Compositor & Session-Level
+,,,Ctrl_L (double-tap),`org.gnome.mutter locate-pointer-key`,"Single string modifier key, not an array — double-tapping it flashes a locator ring around the mouse pointer",Linux (GNOME),Mutter / Compositor & Session-Level
+restore,keybinding,,Super+Escape,`org.gnome.mutter.wayland.keybindings restore-shortcuts`,Re-enable shortcuts after an app has grabbed them (e.g. a VM or remote-desktop session),Linux (GNOME),Mutter / Compositor & Session-Level
+,,,Ctrl+Alt+F1 … Ctrl+Alt+F12,`org.gnome.mutter.wayland.keybindings switch-to-session-{1..12}`,"Switch virtual terminal/session (X11 VT-switch equivalent); Wayland/X11-server-level, not app-facing",Linux (GNOME),Mutter / Compositor & Session-Level
+toggle,magnifier,,Alt+Super+8,`org.gnome.settings-daemon.plugins.media-keys magnifier`,Toggle the full-screen magnifier (zoom),Linux (GNOME),Accessibility
+more,zoom,,Alt+Super+=,`org.gnome.settings-daemon.plugins.media-keys magnifier-zoom-in`,Increase magnifier zoom level,Linux (GNOME),Accessibility
+less,zoom,,Alt+Super+-,`org.gnome.settings-daemon.plugins.media-keys magnifier-zoom-out`,Decrease magnifier zoom level,Linux (GNOME),Accessibility
+toggle,screen_reader,,Alt+Super+S,`org.gnome.settings-daemon.plugins.media-keys screenreader`,Toggle Orca screen reader,Linux (GNOME),Accessibility
+toggle,keyboard,,,`org.gnome.settings-daemon.plugins.media-keys on-screen-keyboard`,Toggle the on-screen keyboard,Linux (GNOME),Accessibility
+,,,,`org.gnome.settings-daemon.plugins.media-keys increase-text-size`,Increase system-wide text size,Linux (GNOME),Accessibility
+,,,,`org.gnome.settings-daemon.plugins.media-keys decrease-text-size`,Decrease system-wide text size,Linux (GNOME),Accessibility
+toggle,contrast,,,`org.gnome.settings-daemon.plugins.media-keys toggle-contrast`,Toggle high-contrast theme,Linux (GNOME),Accessibility
+more,volume,,XF86AudioRaiseVolume or Ctrl+XF86AudioRaiseVolume,`org.gnome.settings-daemon.plugins.media-keys volume-up`,Raise system volume,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+less,volume,,XF86AudioLowerVolume or Ctrl+XF86AudioLowerVolume,`org.gnome.settings-daemon.plugins.media-keys volume-down`,Lower system volume,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+mute,volume,,XF86AudioMute,`org.gnome.settings-daemon.plugins.media-keys volume-mute`,Mute/unmute system volume,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+more,volume,,Alt+XF86AudioRaiseVolume or Alt+Ctrl+XF86AudioRaiseVolume,`org.gnome.settings-daemon.plugins.media-keys volume-up-quiet`,Raise volume in smaller/quiet increments,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+less,volume,,Alt+XF86AudioLowerVolume or Alt+Ctrl+XF86AudioLowerVolume,`org.gnome.settings-daemon.plugins.media-keys volume-down-quiet`,Lower volume in smaller/quiet increments,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+mute,volume,,Alt+XF86AudioMute,`org.gnome.settings-daemon.plugins.media-keys volume-mute-quiet`,Quiet-variant mute toggle,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+more,volume,,Shift+XF86AudioRaiseVolume or Ctrl+Shift+XF86AudioRaiseVolume,`org.gnome.settings-daemon.plugins.media-keys volume-up-precise`,Raise volume in fine (1%) increments,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+less,volume,,Shift+XF86AudioLowerVolume or Ctrl+Shift+XF86AudioLowerVolume,`org.gnome.settings-daemon.plugins.media-keys volume-down-precise`,Lower volume in fine (1%) increments,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+mute,microphone,,XF86AudioMicMute,`org.gnome.settings-daemon.plugins.media-keys mic-mute`,Mute/unmute microphone,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+run,track,,XF86AudioPlay or Ctrl+XF86AudioPlay,`org.gnome.settings-daemon.plugins.media-keys play`,Play / play-pause current track,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+pause,track,,XF86AudioPause,`org.gnome.settings-daemon.plugins.media-keys pause`,Pause playback,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+stop,track,,XF86AudioStop,`org.gnome.settings-daemon.plugins.media-keys stop`,Stop playback,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+next,track,,XF86AudioNext or Ctrl+XF86AudioNext,`org.gnome.settings-daemon.plugins.media-keys next`,Next track,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+previous,track,,XF86AudioPrev or Ctrl+XF86AudioPrev,`org.gnome.settings-daemon.plugins.media-keys previous`,Previous track,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+,,,XF86AudioRewind,`org.gnome.settings-daemon.plugins.media-keys playback-rewind`,Skip backward within current track,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+,,,XF86AudioForward,`org.gnome.settings-daemon.plugins.media-keys playback-forward`,Skip forward within current track,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+,,,XF86AudioRepeat,`org.gnome.settings-daemon.plugins.media-keys playback-repeat`,Toggle repeat playback mode,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+,,,XF86AudioRandomPlay,`org.gnome.settings-daemon.plugins.media-keys playback-random`,Toggle shuffle/random playback mode,Linux (GNOME),"Media Keys — Volume, Microphone & Playback"
+ GNOME Shell's copy is authoritative as of GNOME 42+),more,brightness,XF86MonBrightnessUp,`org.gnome.shell.keybindings screen-brightness-up`,Increase screen brightness (also mirrored in the `media-keys` schema for backward compatibility,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+more,brightness,,Shift+XF86MonBrightnessUp,`org.gnome.shell.keybindings screen-brightness-up-monitor`,Increase brightness of only the currently-focused monitor (multi-monitor),Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+less,brightness,,XF86MonBrightnessDown,`org.gnome.shell.keybindings screen-brightness-down`,Decrease screen brightness,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+less,brightness,,Shift+XF86MonBrightnessDown,`org.gnome.shell.keybindings screen-brightness-down-monitor`,Decrease brightness of only the focused monitor,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+next,brightness,,XF86MonBrightnessCycle,`org.gnome.shell.keybindings screen-brightness-cycle`,Cycle through brightness presets,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+next,brightness,,Shift+XF86MonBrightnessCycle,`org.gnome.shell.keybindings screen-brightness-cycle-monitor`,Cycle brightness presets on the focused monitor only,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+more,brightness,,XF86KbdBrightnessUp,`org.gnome.settings-daemon.plugins.media-keys keyboard-brightness-up`,Increase keyboard backlight brightness,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+less,brightness,,XF86KbdBrightnessDown,`org.gnome.settings-daemon.plugins.media-keys keyboard-brightness-down`,Decrease keyboard backlight brightness,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+toggle,brightness,,XF86KbdLightOnOff,`org.gnome.settings-daemon.plugins.media-keys keyboard-brightness-toggle`,Toggle keyboard backlight on/off,Linux (GNOME),Media Keys — Screen & Keyboard Brightness
+run,application,,XF86Calculator,`org.gnome.settings-daemon.plugins.media-keys calculator`,Launch the calculator app,Linux (GNOME),Launch Applications
+open,setting,,XF86Tools,`org.gnome.settings-daemon.plugins.media-keys control-center`,Launch Settings (control center),Linux (GNOME),Launch Applications
+run,application,,XF86Mail,`org.gnome.settings-daemon.plugins.media-keys email`,Launch the default email client,Linux (GNOME),Launch Applications
+,,,XF86Eject,`org.gnome.settings-daemon.plugins.media-keys eject`,Eject removable media,Linux (GNOME),Launch Applications
+manual,,,Super+F1,`org.gnome.settings-daemon.plugins.media-keys help`,"Launch the help browser (default lives directly on the plain key, not a `-static` twin)",Linux (GNOME),Launch Applications
+open,folder,,XF86Explorer,`org.gnome.settings-daemon.plugins.media-keys home`,Open the file manager at the home folder,Linux (GNOME),Launch Applications
+run,application,,XF86AudioMedia,`org.gnome.settings-daemon.plugins.media-keys media`,Launch the default media player,Linux (GNOME),Launch Applications
+run,application,,XF86Search,`org.gnome.settings-daemon.plugins.media-keys search`,Launch the default search app,Linux (GNOME),Launch Applications
+run,application,,XF86WWW,`org.gnome.settings-daemon.plugins.media-keys www`,Launch the default web browser,Linux (GNOME),Launch Applications
+toggle,touchpad,,XF86TouchpadToggle or Ctrl+Super+XF86TouchpadToggle,`org.gnome.settings-daemon.plugins.media-keys touchpad-toggle`,Toggle touchpad on/off,Linux (GNOME),Launch Applications
+enable,touchpad,,XF86TouchpadOn,`org.gnome.settings-daemon.plugins.media-keys touchpad-on`,Switch touchpad on,Linux (GNOME),Launch Applications
+disable,touchpad,,XF86TouchpadOff,`org.gnome.settings-daemon.plugins.media-keys touchpad-off`,Switch touchpad off,Linux (GNOME),Launch Applications
+lock,screen,,Super+L or XF86ScreenSaver,`org.gnome.settings-daemon.plugins.media-keys screensaver`,Lock the screen (both a real key default and a `-static` hardware-key twin are active simultaneously here),Linux (GNOME),"Power, Lock & Session"
+logout,,,Ctrl+Alt+Delete,`org.gnome.settings-daemon.plugins.media-keys logout`,Log out of the session,Linux (GNOME),"Power, Lock & Session"
+reboot,,,,`org.gnome.settings-daemon.plugins.media-keys reboot`,Reboot the machine (no default binding),Linux (GNOME),"Power, Lock & Session"
+shutdown,,,,`org.gnome.settings-daemon.plugins.media-keys shutdown`,Shut down the machine (no default binding),Linux (GNOME),"Power, Lock & Session"
+shutdown,,,XF86PowerOff,`org.gnome.settings-daemon.plugins.media-keys power`,Trigger the power button action (usually shows the power-off dialog),Linux (GNOME),"Power, Lock & Session"
+suspend,,,XF86Sleep,`org.gnome.settings-daemon.plugins.media-keys suspend`,Suspend the machine,Linux (GNOME),"Power, Lock & Session"
+hibernate,,,XF86Suspend or XF86Hibernate,`org.gnome.settings-daemon.plugins.media-keys hibernate`,"Hibernate the machine (hardware ""sleep"" keys often map here too)",Linux (GNOME),"Power, Lock & Session"
+next,input_source,,Super+Space or XF86Keyboard,`org.gnome.desktop.wm.keybindings switch-input-source`,Switch to the next keyboard layout/input method,Linux (GNOME),Input Source Switching
+previous,input_source,,Shift+Super+Space or Shift+XF86Keyboard,`org.gnome.desktop.wm.keybindings switch-input-source-backward`,Switch to the previous keyboard layout/input method,Linux (GNOME),Input Source Switching
+,,,Super+O or XF86RotationLockToggle,`org.gnome.settings-daemon.plugins.media-keys rotate-video-lock`,Toggle automatic screen-orientation rotation (tablets/convertibles),Linux (GNOME),Hardware & Misc Toggles
+show,battery,,XF86Battery,`org.gnome.settings-daemon.plugins.media-keys battery-status`,Show battery status,Linux (GNOME),Hardware & Misc Toggles
+,,,XF86WLAN or XF86UWB or XF86RFKill,`org.gnome.settings-daemon.plugins.media-keys rfkill`,Toggle all radios (airplane mode),Linux (GNOME),Hardware & Misc Toggles
+toggle,bluetooth,,XF86Bluetooth,`org.gnome.settings-daemon.plugins.media-keys rfkill-bluetooth`,Toggle Bluetooth radio only,Linux (GNOME),Hardware & Misc Toggles
+go_to,file,,`:b`,`:buffer`,Go to buffer by number or name **[Ex-only]**,Neovim,Buffers
+next,file,,`:bn`,`:bnext`,Go to next buffer in the buffer list **[Ex-only]**,Neovim,Buffers
+previous,file,,`:bp`,`:bprevious`,Go to previous buffer in the buffer list **[Ex-only]**,Neovim,Buffers
+previous,file,,`:bN`,`:bNext`,Same as `:bprevious` **[Ex-only]**,Neovim,Buffers
+go_to,file,,`:bf`,`:bfirst`,Go to first buffer in the list **[Ex-only]**,Neovim,Buffers
+go_to,file,,`:bl`,`:blast`,Go to last buffer in the list **[Ex-only]**,Neovim,Buffers
+go_to,file,,`:br`,`:brewind`,Go to first buffer in the list **[Ex-only]**,Neovim,Buffers
+next,file,,`:bm`,`:bmodified`,Go to next modified buffer **[Ex-only]**,Neovim,Buffers
+show,file,,`:ls`,`:buffers`,List all buffers **[Ex-only]**,Neovim,Buffers
+,,,`:bad`,`:badd`,Add a buffer to the buffer list without loading it **[Ex-only]**,Neovim,Buffers
+,,,`:balt`,`:balt`,Like `:badd` but also sets the alternate file **[Ex-only]**,Neovim,Buffers
+,,,`:ba`,`:ball`,Open a window for every buffer in the list **[Ex-only]**,Neovim,Buffers
+,,,`:sba`,`:sball`,Split window for every buffer in the list **[Ex-only]**,Neovim,Buffers
+,,,`:bun`,`:bunload`,"Unload a buffer, keep it in the buffer list **[Ex-only]**",Neovim,Buffers
+delete,file,,`:bd`,`:bdelete`,Remove a buffer from the buffer list **[Ex-only]**,Neovim,Buffers
+delete,file,,`:bw`,`:bwipeout`,Completely delete a buffer and its info **[Ex-only]**,Neovim,Buffers
+,,,`:bufdo`,`:bufdo`,Execute a command in every listed buffer **[Ex-only]**,Neovim,Buffers
+new,file,,`:ene`,`:enew`,"Edit a new, unnamed buffer **[Ex-only]**",Neovim,Buffers
+next,file,,`]b`,Go to next buffer,vim-unimpaired-style next buffer (built-in default),Neovim,Buffers
+previous,file,,`[b`,Go to previous buffer,vim-unimpaired-style previous buffer (built-in default),Neovim,Buffers
+ `:brewind` unless a count is given,go_to,file,`[B`,Go to first buffer,Built-in default,Neovim,Buffers
+ `:blast` unless a count is given,go_to,file,`]B`,Go to last buffer,Built-in default,Neovim,Buffers
+go_to,file,,`Ctrl-^`,Edit alternate file,"Switch to the alternate (`#`) buffer, `N` selects alternate file N",Neovim,Buffers
+new,split,,`:sp`,`:split`,Split window horizontally **[Ex-only]**,Neovim,Windows / Splits
+new,split,,`:vs`,`:vsplit`,Split window vertically **[Ex-only]**,Neovim,Windows / Splits
+new,pane,,`:new`,`:new`,Create a new empty window (horizontal) **[Ex-only]**,Neovim,Windows / Splits
+new,pane,,`:vne`,`:vnew`,Create a new empty window (vertical) **[Ex-only]**,Neovim,Windows / Splits
+close,pane,,`:clo`,`:close`,Close the current window **[Ex-only]**,Neovim,Windows / Splits
+close,pane,,`:hid`,`:hide`,Hide the current window/buffer **[Ex-only]**,Neovim,Windows / Splits
+close,pane,,`:on`,`:only`,Close all windows except the current one **[Ex-only]**,Neovim,Windows / Splits
+close,pane,,`:q`,`:quit`,Quit the current window **[Ex-only]**,Neovim,Windows / Splits
+,,,`:res`,`:resize`,Change current window height **[Ex-only]**,Neovim,Windows / Splits
+,,,`:winc`,`:wincmd`,Execute a `Ctrl-W` window command by letter **[Ex-only]**,Neovim,Windows / Splits
+new,split,,`Ctrl-W s`,Split window,Same as `:split`,Neovim,Windows / Splits
+new,split,,`Ctrl-W v`,Split window vertically,Same as `:vsplit`,Neovim,Windows / Splits
+close,pane,,`Ctrl-W c`,Close window,Same as `:close`,Neovim,Windows / Splits
+close,pane,,`Ctrl-W o`,Close other windows,Same as `:only`,Neovim,Windows / Splits
+close,pane,,`Ctrl-W q`,Quit window,Same as `:quit`,Neovim,Windows / Splits
+next,pane,,`Ctrl-W w`,Go to next window,"Cycle to next window, wraps around",Neovim,Windows / Splits
+previous,pane,,`Ctrl-W W`,Go to previous window,"Cycle to previous window, wraps around",Neovim,Windows / Splits
+go_to,pane,,`Ctrl-W p`,Go to last-accessed window,Jump to the previously focused window,Neovim,Windows / Splits
+,,,`Ctrl-W h/j/k/l`,Go to window left/down/up/right,Directional window navigation,Neovim,Windows / Splits
+go_to,pane,,`Ctrl-W t`,Go to top window,Move to topmost window,Neovim,Windows / Splits
+go_to,pane,,`Ctrl-W b`,Go to bottom window,Move to bottommost window,Neovim,Windows / Splits
+move,pane,,`Ctrl-W H/J/K/L`,Move window far left/bottom/top/right,Relocate current window to a screen edge,Neovim,Windows / Splits
+move,tab,,`Ctrl-W T`,Move window to new tab page,Break window out into its own tab,Neovim,Windows / Splits
+,,,`Ctrl-W r`,Rotate windows downwards,Rotate window layout,Neovim,Windows / Splits
+,,,`Ctrl-W R`,Rotate windows upwards,"Rotate window layout, reverse",Neovim,Windows / Splits
+,,,`Ctrl-W x`,Exchange windows,Swap current window with another,Neovim,Windows / Splits
+reset,pane,,`Ctrl-W =`,Equalize window sizes,Make all windows equal height/width,Neovim,Windows / Splits
+,,,`Ctrl-W +` / `Ctrl-W -`,Increase/decrease window height,Resize by N lines,Neovim,Windows / Splits
+,,,`Ctrl-W >` / `Ctrl-W <`,Increase/decrease window width,Resize by N columns,Neovim,Windows / Splits
+,,,`Ctrl-W _`,Set window height,Max height (or N),Neovim,Windows / Splits
+,,,`Ctrl-W |`,Set window width,Max width (or N),Neovim,Windows / Splits
+new,pane,,`Ctrl-W n`,Open new window,"New window, N lines high",Neovim,Windows / Splits
+close,pane,,`Ctrl-W z`,Close preview window,Same as `:pclose`,Neovim,Windows / Splits
+go_to,pane,,`Ctrl-W P`,Go to preview window,Jump into the preview window,Neovim,Windows / Splits
+open,file,,`Ctrl-W f`,Split and edit file under cursor,Opens `<cfile>` in a new split,Neovim,Windows / Splits
+go_to,tag,,`Ctrl-W ]`,"Split, jump to tag under cursor",Split window and follow tag,Neovim,Windows / Splits
+open,file,,`Ctrl-W ^`,Split and edit alternate file,Split with alternate buffer N,Neovim,Windows / Splits
+,,,`Ctrl-W d`,Show diagnostic under cursor,Built-in default (see LSP section),Neovim,Windows / Splits
+new,tab,,`:tabnew` / `:tabe`,`:tabnew` / `:tabedit`,Open a file in a new tab page **[Ex-only]**,Neovim,Tabs
+close,tab,,`:tabc`,`:tabclose`,Close the current tab page **[Ex-only]**,Neovim,Tabs
+close,tab,,`:tabo`,`:tabonly`,Close all tab pages except the current one **[Ex-only]**,Neovim,Tabs
+next,tab,,`:tabn`,`:tabnext`,Go to next tab page **[Ex-only]**,Neovim,Tabs
+previous,tab,,`:tabp`,`:tabprevious`,Go to previous tab page **[Ex-only]**,Neovim,Tabs
+previous,tab,,`:tabN`,`:tabNext`,Same as `:tabprevious` **[Ex-only]**,Neovim,Tabs
+go_to,tab,,`:tabfir`,`:tabfirst`,Go to first tab page **[Ex-only]**,Neovim,Tabs
+go_to,tab,,`:tabl`,`:tablast`,Go to last tab page **[Ex-only]**,Neovim,Tabs
+move,tab,,`:tabm`,`:tabmove`,Move tab page to another position **[Ex-only]**,Neovim,Tabs
+show,tab,,`:tabs`,`:tabs`,List tab pages and their windows **[Ex-only]**,Neovim,Tabs
+,,,`:tabd`,`:tabdo`,Execute a command in every tab page **[Ex-only]**,Neovim,Tabs
+open,file,,`:tabf`,`:tabfind`,"Find file in `'path'`, edit in a new tab **[Ex-only]**",Neovim,Tabs
+next,tab,,`gt`,Go to next tab page,Also `{count}gt` for a specific tab,Neovim,Tabs
+previous,tab,,`gT`,Go to previous tab page,Also `{count}gT`,Neovim,Tabs
+go_to,tab,,`g<Tab>`,Go to last-accessed tab page,Also `Ctrl-W g<Tab>` / `Ctrl-<Tab>`,Neovim,Tabs
+save,file,,`:w`,`:write`,Write buffer to file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:w!`,`:write!`,"Force write, overriding checks **[Ex-only]**",Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:wa`,`:wall`,Write all changed buffers **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:wq`,`:wq`,Write and quit window/Vim **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:wqa`,`:wqall`,Write all buffers and quit Vim **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:xa`,`:xall`,Same as `:wqall` **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:x`,`:xit`,"Write if modified, then close window **[Ex-only]**",Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:up`,`:update`,Write buffer only if modified **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+open,file,,`:e`,`:edit`,Edit a file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+open,file,,`:e!`,`:edit!`,"Re-edit file, discarding changes **[Ex-only]**",Neovim,"File / Session (write, read, edit, source)"
+insert,file,,`:r`,`:read`,Read a file into the current buffer **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save_as,file,,`:sav`,`:saveas`,Save the buffer under a new name **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+run,file,,`:so`,`:source`,Read and execute Vimscript/Lua from a file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+open,file,,`:bro`,`:browse`,Use a file-selection dialog for the next command **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+restore,file,,`:rec`,`:recover`,Recover a file from its swap file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+save,file,,`:pre`,`:preserve`,Force-write the swap file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+new,file,,`:mks`,`:mksession`,Write current session to a file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+new,file,,`:mkvie`,`:mkview`,Save the view of the current window **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+open,file,,`:lo`,`:loadview`,Load a previously saved view **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+,,,`:checkt`,`:checktime`,Check if any buffer changed on disk **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+go_to,folder,,`:cd`,`:cd`,Change the global working directory **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+go_to,folder,,`:lc`,`:lcd`,Change working directory for current window only **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+go_to,folder,,`:tc`,`:tcd`,Change working directory for current tab page only **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+show,folder,,`:pw`,`:pwd`,Print current working directory **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+open,file,,`:fin`,`:find`,Find a file on `'path'` and edit it **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+show,file,,`:ar`,`:args`,Print/list the argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+new,file,,`:arga`,`:argadd`,Add files to the argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+delete,file,,`:argd`,`:argdelete`,Remove files from the argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+next,file,,`:n`,`:next`,Go to next file in argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+previous,file,,`:prev`,`:previous`,Go to previous file in argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+go_to,file,,`:fir`,`:first`,Go to first file in argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+go_to,file,,`:la`,`:last`,Go to last file in argument list **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+,,,`:argdo`,`:argdo`,Execute a command on every argument-list file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+show,recent,,`:ol`,`:oldfiles`,List files with marks in the ShaDa file **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+,,,`:che`,`:checkhealth`,Run built-in healthchecks **[Ex-only]**,Neovim,"File / Session (write, read, edit, source)"
+delete,character,,`x`,Delete character,Delete N characters under/after cursor,Neovim,"Editing — Delete, Yank & Put"
+delete,character,,`X`,Delete character before cursor,Delete N characters before cursor,Neovim,"Editing — Delete, Yank & Put"
+,,,`d{motion}`,Delete `{motion}`,Delete text covered by a motion into a register,Neovim,"Editing — Delete, Yank & Put"
+delete,line,,`dd`,Delete N lines,Delete N whole lines,Neovim,"Editing — Delete, Yank & Put"
+delete,line,,`D`,Delete to end of line,Synonym for `d$`,Neovim,"Editing — Delete, Yank & Put"
+,,,`y{motion}`,Yank `{motion}`,Yank (copy) text covered by a motion,Neovim,"Editing — Delete, Yank & Put"
+copy,line,,`yy`,Yank N lines,Also `Y` (default mapped to `y$`... actually `yy`),Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`p`,Put after cursor,Put register contents after cursor/line,Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`P`,Put before cursor,Put register contents before cursor/line,Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`gp`,"Put after, leave cursor after",Like `p` but cursor moves past the new text,Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`gP`,"Put before, leave cursor after",Like `P` but cursor moves past the new text,Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`]p` / `[p`,"Put, adjusting indent",Like `p`/`P` but re-indents to current line,Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`zp` / `zP`,Put block without trailing spaces,"Blockwise paste, strips trailing whitespace",Neovim,"Editing — Delete, Yank & Put"
+copy,,,`zy`,Yank without trailing spaces,"Blockwise yank, strips trailing whitespace",Neovim,"Editing — Delete, Yank & Put"
+,,,`r{char}`,Replace char(s),Replace N characters with `{char}`,Neovim,"Editing — Delete, Yank & Put"
+,,,`s`,Substitute character,Delete N chars and start Insert (`c` + `l`),Neovim,"Editing — Delete, Yank & Put"
+,,,`S`,Substitute line(s),Delete N lines and start Insert (synonym for `cc`),Neovim,"Editing — Delete, Yank & Put"
+delete,line,,`:d`,`:delete`,Delete lines by range **[Ex-only]**,Neovim,"Editing — Delete, Yank & Put"
+copy,line,,`:y`,`:yank`,Yank lines by range into a register **[Ex-only]**,Neovim,"Editing — Delete, Yank & Put"
+paste,clipboard,,`:pu`,`:put`,Insert register contents as new lines **[Ex-only]**,Neovim,"Editing — Delete, Yank & Put"
+copy,line,,`:co` (also `:t`),`:copy`,Copy lines to another location **[Ex-only]**,Neovim,"Editing — Delete, Yank & Put"
+move,line,,`:m`,`:move`,Move lines to another location **[Ex-only]**,Neovim,"Editing — Delete, Yank & Put"
+,,,`c{motion}`,Change `{motion}`,"Delete text covered by motion, start Insert",Neovim,"Editing — Change, Undo, Redo, Repeat"
+replace,line,,`cc`,Change N lines,"Delete N lines, start Insert",Neovim,"Editing — Change, Undo, Redo, Repeat"
+replace,line,,`C`,Change to end of line,Synonym for `c$`,Neovim,"Editing — Change, Undo, Redo, Repeat"
+undo,,,`u`,Undo,Undo latest changes,Neovim,"Editing — Change, Undo, Redo, Repeat"
+undo,line,,`U`,Undo line,Undo all latest changes on one line,Neovim,"Editing — Change, Undo, Redo, Repeat"
+redo,,,`Ctrl-R`,Redo,Redo changes undone with `u`,Neovim,"Editing — Change, Undo, Redo, Repeat"
+,,,`.`,Repeat last change,"Repeat last change, count can be replaced",Neovim,"Editing — Change, Undo, Redo, Repeat"
+,,,`&`,Repeat last `:substitute`,Also `:&&` default (keeps flags),Neovim,"Editing — Change, Undo, Redo, Repeat"
+,,,`g&`,"Repeat last `:substitute`, all lines",Repeat `:s` on every line,Neovim,"Editing — Change, Undo, Redo, Repeat"
+previous,,,`g-`,Go to older text state,Step backward through undo tree by time,Neovim,"Editing — Change, Undo, Redo, Repeat"
+next,,,`g+`,Go to newer text state,Step forward through undo tree by time,Neovim,"Editing — Change, Undo, Redo, Repeat"
+undo,,,`:u`,`:undo`,Undo N changes **[Ex-only]**,Neovim,"Editing — Change, Undo, Redo, Repeat"
+redo,,,`:red`,`:redo`,Redo one undone change **[Ex-only]**,Neovim,"Editing — Change, Undo, Redo, Repeat"
+previous,,,`:ea`,`:earlier`,Go to an older text state **[Ex-only]**,Neovim,"Editing — Change, Undo, Redo, Repeat"
+next,,,`:lat`,`:later`,Go to a newer text state **[Ex-only]**,Neovim,"Editing — Change, Undo, Redo, Repeat"
+,,,`:undol`,`:undolist`,List leaves of the undo tree **[Ex-only]**,Neovim,"Editing — Change, Undo, Redo, Repeat"
+,,,`:undoj`,`:undojoin`,Join next change into previous undo block **[Ex-only]**,Neovim,"Editing — Change, Undo, Redo, Repeat"
+,,,`J`,Join lines,"Join N lines with a space, default 2",Neovim,"Editing — Join, Indent, Case, Format"
+,,,`gJ`,Join lines without space,Join without inserting a space,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`<{motion}` / `<<`,Shift left,Shift lines one `'shiftwidth'` left,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`>{motion}` / `>>`,Shift right,Shift lines one `'shiftwidth'` right,Neovim,"Editing — Join, Indent, Case, Format"
+format,line,,`={motion}` / `==`,Filter through `indent`,Auto-indent (`'equalprg'`/`'indentexpr'`) lines,Neovim,"Editing — Join, Indent, Case, Format"
+format,,,`gq{motion}`,Format text,Format lines to `'textwidth'`,Neovim,"Editing — Join, Indent, Case, Format"
+format,,,`gw{motion}`,"Format, keep cursor",Like `gq` but cursor doesn't move,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`~`,Swap case,Toggle case of N chars (or `{motion}` with `'tildeop'`),Neovim,"Editing — Join, Indent, Case, Format"
+,,,`g~{motion}`,"Swap case, operator",Swap case of a motion's text,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`gU{motion}`,Make uppercase,Uppercase a motion's text,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`gu{motion}`,Make lowercase,Lowercase a motion's text,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`g?{motion}`,Rot13 encode,Rot13-encode a motion's text,Neovim,"Editing — Join, Indent, Case, Format"
+more,,,`Ctrl-A`,Increment number,Add N to number at/after cursor,Neovim,"Editing — Join, Indent, Case, Format"
+less,,,`Ctrl-X`,Decrement number,Subtract N from number at/after cursor,Neovim,"Editing — Join, Indent, Case, Format"
+toggle,comment,,`gc{motion}` / `gcc`,Toggle comment,Built-in commenting (0.10+ default),Neovim,"Editing — Join, Indent, Case, Format"
+,,,`gc` (operator-pending),Comment text object,Select the surrounding comment block,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`!{motion}` / `!!`,Filter through external command,Pipe lines through a shell filter,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`:j`,`:join`,Join lines by range **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`:le` / `:ri` / `:ce`,`:left` / `:right` / `:center`,Align lines **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`:ret`,`:retab`,Convert tabs/spaces per `'tabstop'` **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+sort,,,`:sor`,`:sort`,Sort lines **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+run,,,`:norm`,`:normal`,Execute Normal-mode commands as an Ex command **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`:g`,`:global`,Execute a command on lines matching a pattern **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`:v`,`:vglobal`,Execute a command on lines *not* matching a pattern **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+replace,,,`:s`,`:substitute`,Find and replace text **[Ex-only]**,Neovim,"Editing — Join, Indent, Case, Format"
+,,,`i`,Insert before cursor,Enter Insert mode before the cursor,Neovim,Insert Mode
+,,,`I`,Insert at start of line,Insert before first non-blank char,Neovim,Insert Mode
+,,,`a`,Append after cursor,Enter Insert mode after the cursor,Neovim,Insert Mode
+,,,`A`,Append at end of line,Insert at end of line,Neovim,Insert Mode
+insert,line,,`o`,Open line below,"New line below, enter Insert",Neovim,Insert Mode
+insert,line,,`O`,Open line above,"New line above, enter Insert",Neovim,Insert Mode
+,,,`gi`,Insert at `'^` mark,"Like `i`, resumes at last insert position",Neovim,Insert Mode
+,,,`gI`,Insert always in column 1,Like `I` but ignores indent,Neovim,Insert Mode
+,,,`R`,Replace mode,Overtype existing characters,Neovim,Insert Mode
+,,,`gR`,Virtual Replace mode,Replace mode that accounts for tabs/width,Neovim,Insert Mode
+,,,`Ctrl-O`,"Execute one command, return to Insert","""Insert normal"" mode for one command",Neovim,Insert Mode
+paste,clipboard,,`Ctrl-R {reg}`,Insert register contents,Insert a register as if typed,Neovim,Insert Mode
+,,,`Ctrl-V {char}`,Insert char literally,Bypass mapping/special meaning,Neovim,Insert Mode
+delete,word,,`Ctrl-W`,Delete word before cursor,Delete the preceding word,Neovim,Insert Mode
+,,,`Ctrl-U`,Delete all entered chars on line,Clear back to start of insert on this line,Neovim,Insert Mode
+,,,`Ctrl-T`,Insert one shiftwidth of indent,Indent current line,Neovim,Insert Mode
+,,,`Ctrl-D`,Delete one shiftwidth of indent,Un-indent current line,Neovim,Insert Mode
+previous,match,,`Ctrl-P`,Complete previous match,"Keyword completion, previous match",Neovim,Insert Mode
+next,match,,`Ctrl-N`,Complete next match,"Keyword completion, next match",Neovim,Insert Mode
+,,,`Ctrl-X Ctrl-O`,Omni completion,Language/plugin-aware completion,Neovim,Insert Mode
+,,,`Ctrl-X Ctrl-F`,File name completion,Complete file paths,Neovim,Insert Mode
+,,,`Ctrl-X Ctrl-L`,Line completion,Complete whole lines,Neovim,Insert Mode
+,,,`Ctrl-X Ctrl-]`,Tag completion,Complete from the tags file,Neovim,Insert Mode
+,,,`Ctrl-K {c1}{c2}`,Enter digraph,Insert a digraph character,Neovim,Insert Mode
+,,,`<Esc>`,End Insert mode,Also `Ctrl-C` (skips abbreviation expansion),Neovim,Insert Mode
+,,,`:star`,`:startinsert`,Start Insert mode **[Ex-only]**,Neovim,Insert Mode
+,,,`:stopi`,`:stopinsert`,Stop Insert mode **[Ex-only]**,Neovim,Insert Mode
+,,,`h` / `j` / `k` / `l`,Left/down/up/right,"Basic cursor motion, N times",Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`0`,Start of line,First column,Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`^`,First non-blank,First non-blank character on the line,Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`$`,End of line,End of Nth next line,Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`g_`,Last non-blank,"Last non-blank char, N-1 lines lower",Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`_`,First non-blank of line N,"First CHAR, N-1 lines lower",Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`gg`,Go to line N,Default: first line,Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`G`,Go to line N (default last),Default: last line,Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,line,,`{count}%`,Go to N percent,Go to N percentage into the file,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`H`,Top of window,Cursor to line N from top of screen,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`M`,Middle of window,Cursor to middle line of screen,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`L`,Bottom of window,Cursor to line N from bottom of screen,Neovim,"Motion / Navigation — Character, Line, Word"
+next,word,,`w`,Word forward,Cursor N words forward,Neovim,"Motion / Navigation — Character, Line, Word"
+next,word,,`W`,WORD forward,Cursor N WORDS forward (whitespace-delimited),Neovim,"Motion / Navigation — Character, Line, Word"
+previous,word,,`b`,Word backward,Cursor N words backward,Neovim,"Motion / Navigation — Character, Line, Word"
+previous,word,,`B`,WORD backward,Cursor N WORDS backward,Neovim,"Motion / Navigation — Character, Line, Word"
+next,word,,`e`,End of word,Forward to end of word N,Neovim,"Motion / Navigation — Character, Line, Word"
+next,word,,`E`,End of WORD,Forward to end of WORD N,Neovim,"Motion / Navigation — Character, Line, Word"
+previous,word,,`ge`,Backward end of word,Backward to end of previous word,Neovim,"Motion / Navigation — Character, Line, Word"
+previous,word,,`gE`,Backward end of WORD,Backward to end of previous WORD,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`f{char}`,Find char forward,"To Nth occurrence of char, on it",Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`t{char}`,"Find char forward, before it","To Nth occurrence of char, just before it",Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`F{char}`,Find char backward,Same as `f` but backward,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`T{char}`,"Find char backward, after it",Same as `t` but backward,Neovim,"Motion / Navigation — Character, Line, Word"
+Repeat latest `f`/`t`/`F`/`T`,,,`,Repeat find,`,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,"`,`","Repeat find, reversed","Repeat latest `f`/`t`/`F`/`T`, opposite direction",Neovim,"Motion / Navigation — Character, Line, Word"
+go_to,bracket,,`%`,Go to matching bracket,Jump to matching `()[]{}`,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`|`,Go to column N,Cursor to column N,Neovim,"Motion / Navigation — Character, Line, Word"
+,,,`Ctrl-F`,Scroll forward a screen,Scroll N screens forward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`Ctrl-B`,Scroll backward a screen,Scroll N screens backward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`Ctrl-D`,Scroll down half screen,Scroll down N lines (default half screen),Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`Ctrl-U`,Scroll up half screen,Scroll up N lines (default half screen),Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`Ctrl-E`,Scroll down one line,"Keep cursor line, scroll view down",Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`Ctrl-Y`,Scroll up one line,"Keep cursor line, scroll view up",Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`z<CR>` / `zt`,"Redraw, cursor to top",Reposition current line to top of window,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`z.` / `zz`,"Redraw, cursor to center",Reposition current line to center,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`z-` / `zb`,"Redraw, cursor to bottom",Reposition current line to bottom,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+previous,paragraph,,`{`,Paragraph backward,Cursor N paragraphs backward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+next,paragraph,,`}`,Paragraph forward,Cursor N paragraphs forward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+previous,sentence,,`(`,Sentence backward,Cursor N sentences backward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+next,sentence,,`)`,Sentence forward,Cursor N sentences forward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`[[`,Section backward,Cursor N sections backward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`]]`,Section forward,Cursor N sections forward,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`[]`,Closing section backward,Cursor N sections backward (to `}`),Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`][`,Closing section forward,Cursor N sections forward (to `}`),Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+previous,,,`Ctrl-O`,Older jump-list entry,Go to N older position in jump list,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+next,,,`Ctrl-I` / `<Tab>`,Newer jump-list entry,Go to N newer position in jump list,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+Go to N older position in change list,previous,change,`g,Older change-list position,`,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+next,change,,"`g,`",Newer change-list position,Go to N newer position in change list,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`Ctrl-G`,Display file name/position,Show current file name and cursor position,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`g Ctrl-G`,Display cursor info (verbose),Show cursor byte/word/char counts,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+,,,`gj` / `gk`,Wrapped-line down/up,Like `j`/`k` but moves by screen line,Neovim,"Motion / Navigation — Screen, Paragraph, Jumps"
+open,search,,`/{pattern}<CR>`,Search forward,Search forward for Nth match,Neovim,Search
+open,search,,`?{pattern}<CR>`,Search backward,Search backward for Nth match,Neovim,Search
+next,match,,`n`,Repeat search,"Repeat latest `/` or `?`, same direction",Neovim,Search
+previous,match,,`N`,"Repeat search, reversed","Repeat latest `/` or `?`, opposite direction",Neovim,Search
+next,match,,`*`,Search word under cursor forward,Search forward for word under cursor,Neovim,Search
+previous,match,,`#`,Search word under cursor backward,Search backward for word under cursor,Neovim,Search
+next,match,,`g*`,Search word under cursor (no boundaries),Like `*` but without `\<`/`\>`,Neovim,Search
+previous,match,,`g#`,Search word under cursor backward (no boundaries),Like `#` but without `\<`/`\>`,Neovim,Search
+select,match,,`gn`,Find & select next match visually,Search forward and Visually select the match,Neovim,Search
+select,match,,`gN`,Find & select previous match visually,Search backward and Visually select the match,Neovim,Search
+,,,`:noh`,`:nohlsearch`,Suspend search highlighting **[Ex-only]**,Neovim,Search
+,,,`:g/pat/cmd`,`:global` (search-driven),Execute a command on matching lines **[Ex-only]**,Neovim,Search
+new,mark,,`m{a-zA-Z}`,Set mark,Set a named mark at cursor position,Neovim,Marks & Jumps
+go_to,mark,,`'{mark}`,"Go to mark, line-wise",First non-blank of the marked line,Neovim,Marks & Jumps
+go_to,mark,,`` `{mark} ``,"Go to mark, exact position",Exact cursor position of the mark,Neovim,Marks & Jumps
+go_to,mark,,`g'{mark}` / `` g`{mark} ``,Go to mark without jump-list,Like `'`/`` ` `` but doesn't alter jump list,Neovim,Marks & Jumps
+,,,`` `` ``,Back to previous jump position,Cursor to position before latest jump,Neovim,Marks & Jumps
+,,,`''`,"Back to previous jump, line-wise",Line of cursor before latest jump,Neovim,Marks & Jumps
+,,,`` `[ ``,Start of last change/put,Also `'[` for line-wise,Neovim,Marks & Jumps
+,,,`` `] ``,End of last change/put,Also `']` for line-wise,Neovim,Marks & Jumps
+,,,`` `< ``,Start of Visual area,Also `'<` for line-wise,Neovim,Marks & Jumps
+,,,`` `> ``,End of Visual area,Also `'>` for line-wise,Neovim,Marks & Jumps
+previous,mark,,`` [` ``,Previous lowercase mark,Also `['` for line-wise,Neovim,Marks & Jumps
+next,mark,,`` ]` ``,Next lowercase mark,Also `]'` for line-wise,Neovim,Marks & Jumps
+show,mark,,`:marks`,`:marks`,List all marks **[Ex-only]**,Neovim,Marks & Jumps
+delete,mark,,`:delm`,`:delmarks`,Delete one or more marks **[Ex-only]**,Neovim,Marks & Jumps
+,,,`:ju`,`:jumps`,Print the jump list **[Ex-only]**,Neovim,Marks & Jumps
+show,change,,`:changes`,`:changes`,Print the change list **[Ex-only]**,Neovim,Marks & Jumps
+,,,`:cle`,`:clearjumps`,Clear the jump list **[Ex-only]**,Neovim,Marks & Jumps
+select,,,`v`,Start charwise Visual mode,Also toggles it off,Neovim,Visual Mode
+select,line,,`V`,Start linewise Visual mode,Also toggles it off,Neovim,Visual Mode
+select,block,,`Ctrl-V`,Start blockwise Visual mode,Also toggles it off,Neovim,Visual Mode
+select,selection,,`gv`,Reselect previous Visual area,Restore last Visual selection,Neovim,Visual Mode
+,,,`gv` (while active),Exchange current/previous area,Swap the two ends of history,Neovim,Visual Mode
+,,,`<Esc>`,Stop Visual mode,Also `Ctrl-C`,Neovim,Visual Mode
+,,,`o`,Move to other corner,Swap cursor to the other end of the selection,Neovim,Visual Mode
+,,,`O`,Move to other corner (block),Blockwise: swap horizontally,Neovim,Visual Mode
+,,,`Ctrl-G`,Toggle Visual/Select mode,Switch between Visual and Select,Neovim,Visual Mode
+delete,selection,,`d` / `x`,Delete selection,Delete highlighted text,Neovim,Visual Mode
+delete,selection,,`D` / `X`,Delete lines,Delete highlighted lines (linewise),Neovim,Visual Mode
+replace,selection,,`c` / `s`,Change selection,"Delete selection, start Insert",Neovim,Visual Mode
+replace,selection,,`C` / `R` / `S`,Change lines,"Delete highlighted lines, start Insert",Neovim,Visual Mode
+copy,selection,,`y`,Yank selection,Yank highlighted text,Neovim,Visual Mode
+copy,selection,,`Y`,Yank lines,Yank highlighted lines,Neovim,Visual Mode
+paste,selection,,`p`,Replace with register,Replace selection with register contents,Neovim,Visual Mode
+paste,selection,,`P`,"Replace, keep registers",Like `p` but doesn't change registers,Neovim,Visual Mode
+,,,`r{char}`,Replace with a character,Replace every selected char with `{char}`,Neovim,Visual Mode
+,,,`J`,Join selected lines,Join with spaces,Neovim,Visual Mode
+,,,`gJ`,Join without space,Join without inserting spaces,Neovim,Visual Mode
+,,,`U` / `u`,Uppercase / lowercase,Case-convert selection,Neovim,Visual Mode
+,,,`~`,Swap case,Toggle case of selection,Neovim,Visual Mode
+,,,`<` / `>`,Shift left / right,Shift selection by `'shiftwidth'`,Neovim,Visual Mode
+,,,`!{filter}`,Filter selection,Pipe through external command,Neovim,Visual Mode
+format,selection,,`gq`,Format selection,Format highlighted lines,Neovim,Visual Mode
+,,,`:`,Start a `:` range command,"Prefills `:'<,'>`",Neovim,Visual Mode
+,,,`Ctrl-A` / `Ctrl-X`,Increment/decrement numbers in area,Add/subtract from every number in selection,Neovim,Visual Mode
+,,,`g Ctrl-A`,Increment sequentially,Increment as an arithmetic sequence,Neovim,Visual Mode
+,,,`A` (block mode),Block append,Append same text to every line's end,Neovim,Visual Mode
+,,,`I` (block mode),Block insert,Insert same text before every line,Neovim,Visual Mode
+select,selection,,`a{obj}` / `i{obj}`,Extend selection with text object,"e.g. `aw`, `iw`, `ap`, `ip`, `a""`, `i""`, `at`, `it`, `ab`/`aB`, `ib`/`iB`",Neovim,Visual Mode
+select,word,,`aw`,A word,Word plus trailing whitespace,Neovim,Text Objects (operator-pending & Visual)
+select,word,,`iw`,Inner word,Word only,Neovim,Text Objects (operator-pending & Visual)
+select,word,,`aW`,A WORD,WORD plus trailing whitespace,Neovim,Text Objects (operator-pending & Visual)
+select,word,,`iW`,Inner WORD,WORD only,Neovim,Text Objects (operator-pending & Visual)
+select,sentence,,`as`,A sentence,Sentence plus whitespace,Neovim,Text Objects (operator-pending & Visual)
+select,sentence,,`is`,Inner sentence,Sentence only,Neovim,Text Objects (operator-pending & Visual)
+select,paragraph,,`ap`,A paragraph,Paragraph plus whitespace,Neovim,Text Objects (operator-pending & Visual)
+select,paragraph,,`ip`,Inner paragraph,Paragraph only,Neovim,Text Objects (operator-pending & Visual)
+select,block,,`ab` / `a(` / `a)`,A `()` block,"From `(` to matching `)`, inclusive",Neovim,Text Objects (operator-pending & Visual)
+select,block,,`ib` / `i(` / `i)`,Inner `()` block,Contents only,Neovim,Text Objects (operator-pending & Visual)
+select,block,,`aB` / `a{` / `a}`,A `{}` block,"From `{` to matching `}`, inclusive",Neovim,Text Objects (operator-pending & Visual)
+select,block,,`iB` / `i{` / `i}`,Inner `{}` block,Contents only,Neovim,Text Objects (operator-pending & Visual)
+select,block,,`a[` / `a]`,A `[]` block,"From `[` to matching `]`, inclusive",Neovim,Text Objects (operator-pending & Visual)
+select,block,,`i[` / `i]`,Inner `[]` block,Contents only,Neovim,Text Objects (operator-pending & Visual)
+select,block,,`a<` / `a>`,A `<>` block,"From `<` to matching `>`, inclusive",Neovim,Text Objects (operator-pending & Visual)
+select,block,,`i<` / `i>`,Inner `<>` block,Contents only,Neovim,Text Objects (operator-pending & Visual)
+select,quote,,"`a""` / `a'` / `` a` ``",A quoted string,Quotes plus the quoted text,Neovim,Text Objects (operator-pending & Visual)
+select,quote,,"`i""` / `i'` / `` i` ``",Inner quoted string,Text without the quotes,Neovim,Text Objects (operator-pending & Visual)
+select,tag,,`at`,A tag block,"XML/HTML tag pair, inclusive",Neovim,Text Objects (operator-pending & Visual)
+select,tag,,`it`,Inner tag block,Contents between the tags,Neovim,Text Objects (operator-pending & Visual)
+,,,`v` (op-pending),Force operator charwise,Override motion to charwise,Neovim,Text Objects (operator-pending & Visual)
+,,,`V` (op-pending),Force operator linewise,Override motion to linewise,Neovim,Text Objects (operator-pending & Visual)
+,,,`Ctrl-V` (op-pending),Force operator blockwise,Override motion to blockwise,Neovim,Text Objects (operator-pending & Visual)
+,,,"`""{reg}`",Select register,Prefix for next delete/yank/put,Neovim,Registers
+,,,"`""""`",Unnamed register,Default register for unqualified yank/delete,Neovim,Registers
+,,,"`""0`",Yank register,Holds most recent yank (not delete),Neovim,Registers
+,,,"`""-`",Small-delete register,Holds deletes under one line,Neovim,Registers
+,,,"`""_`",Black-hole register,"Discards text, doesn't affect other registers",Neovim,Registers
+,,,"`"".`",Last-inserted-text register,"Read-only, holds last inserted text",Neovim,Registers
+,,,"`""%`",Filename register,"Read-only, current file name",Neovim,Registers
+,,,"`""#`",Alternate-filename register,"Read-only, alternate file name",Neovim,Registers
+,,,"`"":`",Last-command register,"Read-only, last Ex command",Neovim,Registers
+,,,"`""/`",Last-search-pattern register,"Read-only, last search pattern",Neovim,Registers
+,,,"`""=`",Expression register,Evaluates an expression on insert,Neovim,Registers
+show,clipboard,,`:reg` (also `:display`/`:di`),`:registers`,Display contents of registers **[Ex-only]**,Neovim,Registers
+new,,,"`q{0-9a-zA-Z""}`",Record macro,Start/stop recording into a register,Neovim,Macros
+run,,,`@{a-z}`,Execute macro,"Run register contents as commands, N times",Neovim,Macros
+run,,,`@@`,Repeat last macro,Repeat the previous `@{reg}`,Neovim,Macros
+run,,,`@:`,Repeat last `:` command,Repeat previous Ex command N times,Neovim,Macros
+run,,,`Q`,Replay last recorded register,Executes the last-used `@{reg}` (Visual mode: runs it per line),Neovim,Macros
+open,,,`q:` / `q/` / `q?`,Edit command-line in cmdwin,Open the command-line window to edit history,Neovim,Macros
+new,region,,`zf{motion}`,Create fold for motion,Manually create a fold,Neovim,Folding
+delete,region,,`zd`,Delete fold,Delete fold at cursor,Neovim,Folding
+delete,region,,`zD`,Delete folds recursively,Delete fold and all nested folds,Neovim,Folding
+delete,region,,`zE`,Eliminate all folds,Remove every fold in the window,Neovim,Folding
+expand,region,,`zo`,Open fold,Open one fold level,Neovim,Folding
+expand,region,,`zO`,Open folds recursively,Open fold and all nested folds,Neovim,Folding
+collapse,region,,`zc`,Close fold,Close one fold level,Neovim,Folding
+collapse,region,,`zC`,Close folds recursively,Close fold and all nested folds,Neovim,Folding
+toggle,region,,`za`,Toggle fold,"Open if closed, close if open",Neovim,Folding
+toggle,region,,`zA`,Toggle fold recursively,Recursive version of `za`,Neovim,Folding
+collapse,region,,`zM`,Set foldlevel to 0,Close all folds,Neovim,Folding
+expand,region,,`zR`,Set foldlevel to deepest,Open all folds,Neovim,Folding
+expand,region,,`zr`,Increase foldlevel,Add one to `'foldlevel'`,Neovim,Folding
+collapse,region,,`zm`,Decrease foldlevel,Subtract one from `'foldlevel'`,Neovim,Folding
+toggle,region,,`zi`,Toggle `'foldenable'`,Enable/disable folding entirely,Neovim,Folding
+expand,region,,`zv`,View cursor line,Open just enough folds to reveal cursor,Neovim,Folding
+next,region,,`zj`,Move to start of next fold,Jump to next fold boundary,Neovim,Folding
+previous,region,,`zk`,Move to end of previous fold,Jump to previous fold boundary,Neovim,Folding
+go_to,region,,`[z`,Move to start of open fold,Go to the start of the current open fold,Neovim,Folding
+go_to,region,,`]z`,Move to end of open fold,Go to the end of the current open fold,Neovim,Folding
+expand,region,,`:foldo`,`:foldopen`,Open folds by range **[Ex-only]**,Neovim,Folding
+collapse,region,,`:foldc`,`:foldclose`,Close folds by range **[Ex-only]**,Neovim,Folding
+run,,,`:mak`,`:make`,"Run `'makeprg'`, populate quickfix list **[Ex-only]**",Neovim,Quickfix List
+open,search,,`:gr`,`:grep`,"Run `'grepprg'`, jump to first match **[Ex-only]**",Neovim,Quickfix List
+open,search,,`:vim`,`:vimgrep`,Search patterns in files using Vim's regex **[Ex-only]**,Neovim,Quickfix List
+,,,`:cex`,`:cexpr`,Load quickfix list from an expression **[Ex-only]**,Neovim,Quickfix List
+open,file,,`:cf`,`:cfile`,Read errors from a file **[Ex-only]**,Neovim,Quickfix List
+show,problem,,`:cope`,`:copen`,Open the quickfix window **[Ex-only]**,Neovim,Quickfix List
+close,problem,,`:ccl`,`:cclose`,Close the quickfix window **[Ex-only]**,Neovim,Quickfix List
+show,problem,,`:cw`,`:cwindow`,Open quickfix window only if there are errors **[Ex-only]**,Neovim,Quickfix List
+next,problem,,`:cn`,`:cnext`,Go to next error **[Ex-only]**,Neovim,Quickfix List
+previous,problem,,`:cp`,`:cprevious`,Go to previous error **[Ex-only]**,Neovim,Quickfix List
+go_to,problem,,`:cfir`,`:cfirst`,Go to first error **[Ex-only]**,Neovim,Quickfix List
+go_to,problem,,`:cla`,`:clast`,Go to last error **[Ex-only]**,Neovim,Quickfix List
+go_to,problem,,`:cc`,`:cc`,Go to a specific error by number **[Ex-only]**,Neovim,Quickfix List
+,,,`:cdo`,`:cdo`,Execute a command on every quickfix entry **[Ex-only]**,Neovim,Quickfix List
+,,,`:col` / `:cnew`,`:colder` / `:cnewer`,Switch to older/newer quickfix list **[Ex-only]**,Neovim,Quickfix List
+next,problem,,`]q`,Go to next error,"vim-unimpaired-style, same as `:cnext`",Neovim,Quickfix List
+previous,problem,,`[q`,Go to previous error,"vim-unimpaired-style, same as `:cprevious`",Neovim,Quickfix List
+go_to,problem,,`[Q`,Go to first error,Same as `:crewind`,Neovim,Quickfix List
+go_to,problem,,`]Q`,Go to last error,Same as `:clast`,Neovim,Quickfix List
+show,problem,,`:lop`,`:lopen`,Open the location window **[Ex-only]**,Neovim,Location List
+close,problem,,`:lcl`,`:lclose`,Close the location window **[Ex-only]**,Neovim,Location List
+next,problem,,`:lne`,`:lnext`,Go to next location **[Ex-only]**,Neovim,Location List
+previous,problem,,`:lp`,`:lprevious`,Go to previous location **[Ex-only]**,Neovim,Location List
+go_to,problem,,`:lfir`,`:lfirst`,Go to first location **[Ex-only]**,Neovim,Location List
+go_to,problem,,`:lla`,`:llast`,Go to last location **[Ex-only]**,Neovim,Location List
+go_to,problem,,`:ll`,`:ll`,Go to a specific location by number **[Ex-only]**,Neovim,Location List
+open,search,,`:lgr`,`:lgrep`,Like `:grep` but fills the location list **[Ex-only]**,Neovim,Location List
+,,,`:lmak`,`:lmake`,Like `:make` but fills the location list **[Ex-only]**,Neovim,Location List
+next,problem,,`]l`,Go to next location,"vim-unimpaired-style, same as `:lnext`",Neovim,Location List
+previous,problem,,`[l`,Go to previous location,"vim-unimpaired-style, same as `:lprevious`",Neovim,Location List
+,,,`[L` / `]L`,Go to first/last location,Same as `:lrewind` / `:llast`,Neovim,Location List
+new,terminal,,`:te`,`:terminal`,Open a terminal buffer **[Ex-only]**,Neovim,Terminal Mode
+,,,`Ctrl-\ Ctrl-N`,Go to Normal mode from terminal,"Exit terminal-job input, keep buffer",Neovim,Terminal Mode
+,,,`Ctrl-\ Ctrl-O`,Run one Normal command from terminal,"Execute one Normal command, return to terminal",Neovim,Terminal Mode
+,,,`i` / `a`,Enter terminal mode,"From Normal mode in a terminal buffer, resumes job input",Neovim,Terminal Mode
+,,,`:difft`,`:diffthis`,Make current window a diff window **[Ex-only]**,Neovim,Diffs
+,,,`:diffo`,`:diffoff`,Switch off diff mode for a window **[Ex-only]**,Neovim,Diffs
+,,,`:dif`,`:diffupdate`,Recompute diff highlighting **[Ex-only]**,Neovim,Diffs
+new,split,,`:diffs`,`:diffsplit`,Split window and diff with another file **[Ex-only]**,Neovim,Diffs
+,,,`:diffp`,`:diffpatch`,Apply a patch and view differences **[Ex-only]**,Neovim,Diffs
+pull,change,,`:diffg`,`:diffget`,Pull changes from the other diff buffer **[Ex-only]**,Neovim,Diffs
+push,change,,`:diffpu`,`:diffput`,Push changes to the other diff buffer **[Ex-only]**,Neovim,Diffs
+pull,change,,`do`,Obtain diff hunk,Normal-mode alias for `:diffget`,Neovim,Diffs
+push,change,,`dp`,Put diff hunk,Normal-mode alias for `:diffput`,Neovim,Diffs
+previous,change,,`[c`,Previous change/hunk,Move to start of previous diff change,Neovim,Diffs
+next,change,,`]c`,Next change/hunk,Move to start of next diff change,Neovim,Diffs
+next,word,,`]s`,Next misspelled word,Move forward to a flagged word,Neovim,Spelling
+previous,word,,`[s`,Previous misspelled word,Move backward to a flagged word,Neovim,Spelling
+show,word,,`z=`,Spelling suggestions,List suggestions for word under cursor,Neovim,Spelling
+,,,`zg`,Mark word correct (permanent),Add to the spellfile,Neovim,Spelling
+,,,`zw`,Mark word incorrect (permanent),Mark as a spelling mistake in the spellfile,Neovim,Spelling
+,,,`zG`,Mark word correct (session-only),"Temporary, doesn't touch the spellfile",Neovim,Spelling
+,,,`zW`,Mark word incorrect (session-only),"Temporary, doesn't touch the spellfile",Neovim,Spelling
+,,,`zug` / `zuw` / `zuG` / `zuW`,Undo `zg` / `zw` / `zG` / `zW`,Remove a good/bad-word mark,Neovim,Spelling
+,,,`Ctrl-X Ctrl-S`,Suggest replacement (Insert mode),Spelling suggestions while typing,Neovim,Spelling
+,,,`:setl spell`,`:setlocal spell`,Turn on spell-checking **[Ex-only]**,Neovim,Spelling
+,,,`:spe`,`:spellgood`,Add a good word to the spellfile **[Ex-only]**,Neovim,Spelling
+,,,`:spellw`,`:spellwrong`,Add a wrong word to the spellfile **[Ex-only]**,Neovim,Spelling
+,,,`:spellu`,`:spellundo`,Remove a word from the spellfile **[Ex-only]**,Neovim,Spelling
+replace,word,,`:spellr`,`:spellrepall`,Replace all instances like the last `z=` fix **[Ex-only]**,Neovim,Spelling
+,,,`:mksp`,`:mkspell`,Compile a `.spl` spell file **[Ex-only]**,Neovim,Spelling
+rename,symbol,,`grn`,LSP rename,"Calls `vim.lsp.buf.rename()`, unconditional global default",Neovim,LSP-Adjacent & Diagnostics Built-ins
+,,,`gra`,LSP code action,Calls `vim.lsp.buf.code_action()` (Normal & Visual),Neovim,LSP-Adjacent & Diagnostics Built-ins
+go_to,reference,,`grr`,LSP references,Calls `vim.lsp.buf.references()`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+go_to,implementation,,`gri`,LSP go to implementation,Calls `vim.lsp.buf.implementation()`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+go_to,type_definition,,`grt`,LSP go to type definition,Calls `vim.lsp.buf.type_definition()`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+show,symbol,,`gO`,LSP document symbols,Calls `vim.lsp.buf.document_symbol()`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+,,,`Ctrl-S` (Insert/Select mode),LSP signature help,Calls `vim.lsp.buf.signature_help()`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+ LSP sets this to `vim.lsp.buf.hover()` on attach if the server supports it,show,definition,`K`,Keyword lookup / LSP hover,Runs `'keywordprg'`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+next,problem,,`]d`,Next diagnostic,Calls `vim.diagnostic.jump()` forward,Neovim,LSP-Adjacent & Diagnostics Built-ins
+previous,problem,,`[d`,Previous diagnostic,Calls `vim.diagnostic.jump()` backward,Neovim,LSP-Adjacent & Diagnostics Built-ins
+go_to,problem,,`]D`,Last diagnostic,"Jump to the last diagnostic, no wrap",Neovim,LSP-Adjacent & Diagnostics Built-ins
+go_to,problem,,`[D`,First diagnostic,"Jump to the first diagnostic, no wrap",Neovim,LSP-Adjacent & Diagnostics Built-ins
+ opens `vim.diagnostic.open_float()`,show,problem,`Ctrl-W d`,Show diagnostic float,Also `Ctrl-W Ctrl-D`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+,,,`:che`,`:checkhealth`,"Run healthchecks, including LSP client health **[Ex-only]**",Neovim,LSP-Adjacent & Diagnostics Built-ins
+next,snippet,,"`Tab` (Insert/Select, when snippet active)",Snippet jump forward,Calls `vim.snippet.jump(1)`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+previous,snippet,,"`Shift-Tab` (Insert/Select, when snippet active)",Snippet jump backward,Calls `vim.snippet.jump(-1)`,Neovim,LSP-Adjacent & Diagnostics Built-ins
+,,,`:`,Enter Ex command-line,Also `{count}:` prefills a range,Neovim,Command-line (Ex Command-line) Editing
+,,,`!{motion}`,Enter filter command-line,Prompts `:{range}!`,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-B`,Cursor to start of command-line,Also `Home`,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-E`,Cursor to end of command-line,Also `End`,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-A`,"Do completion, insert all matches",Completes and inserts every match,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-D`,List matching completions,Shows possible completions without inserting,Neovim,Command-line (Ex Command-line) Editing
+ cycles matches,,,`Tab`,Do completion (wildchar),Default `'wildchar'`,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-L`,"Do completion, longest common part",Complete only the unambiguous portion,Neovim,Command-line (Ex Command-line) Editing
+previous,history,,`Ctrl-P` (also `Up`),Older command-line from history,Recall previous history entry,Neovim,Command-line (Ex Command-line) Editing
+next,history,,`Ctrl-N` (also `Down`),Newer command-line from history,Recall next history entry,Neovim,Command-line (Ex Command-line) Editing
+paste,clipboard,,`Ctrl-R {reg}`,Insert register contents,Insert a register into the command-line,Neovim,Command-line (Ex Command-line) Editing
+delete,word,,`Ctrl-W`,Delete word before cursor,Delete the preceding word,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-U`,Delete entire command-line,Clear the line,Neovim,Command-line (Ex Command-line) Editing
+,,,`q:` (also `Ctrl-F` / `'cedit'`),Open command-line window,Edit `:`-history in a buffer,Neovim,Command-line (Ex Command-line) Editing
+open,search,,`q/` / `q?`,Open search-history window,Edit `/`- or `?`-history in a buffer,Neovim,Command-line (Ex Command-line) Editing
+,,,`<Esc>`,Abandon command-line,Also `Ctrl-C`,Neovim,Command-line (Ex Command-line) Editing
+,,,`Ctrl-\ e {expr}`,Replace command-line via expression,Set the command-line to an expression's result,Neovim,Command-line (Ex Command-line) Editing
+manual,,,`:h`,`:help`,Open a help window **[Ex-only]**,Neovim,Miscellaneous / General
+close,pane,,`:q`,`:quit`,Quit current window (quits Vim if last one) **[Ex-only]**,Neovim,Miscellaneous / General
+close,application,,`:qa`,`:quitall`,Quit all windows and exit Vim **[Ex-only]**,Neovim,Miscellaneous / General
+close,application,,`:cq`,`:cquit`,Quit Vim returning a non-zero exit code **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`:ve`,`:version`,Print version and build info **[Ex-only]**,Neovim,Miscellaneous / General
+open,setting,,`:se`,`:set`,Show or set options **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`:redi`,`:redir`,Redirect messages to a file/register/variable **[Ex-only]**,Neovim,Miscellaneous / General
+show,output,,`:mes`,`:messages`,Show previously displayed messages **[Ex-only]**,Neovim,Miscellaneous / General
+show,history,,`:his`,`:history`,Print a history list (cmd/search/etc.) **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`:au`,`:autocmd`,Define or show autocommands **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`:com`,`:command`,Define a user command **[Ex-only]**,Neovim,Miscellaneous / General
+open,keybinding,,`:map` / `:no`,`:map` / `:noremap`,Show or create a key mapping **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`:lua`,`:lua`,Execute a Lua command **[Ex-only]**,Neovim,Miscellaneous / General
+run,file,,`:luaf`,`:luafile`,Execute a Lua script file **[Ex-only]**,Neovim,Miscellaneous / General
+save,file,,`ZZ`,Write and close window,"Write buffer if changed, then close window",Neovim,Miscellaneous / General
+close,pane,,`ZQ`,Close window without writing,Discard changes and close window (like `:q!`),Neovim,Miscellaneous / General
+open,file,,`gx`,Open file/URL under cursor,Calls `vim.ui.open()` on the URL/path at cursor,Neovim,Miscellaneous / General
+,,,`Ctrl-L`,Redraw screen,Also clears search highlight & updates diffs (0.9+ default),Neovim,Miscellaneous / General
+,,,`Ctrl-Z`,Suspend Nvim,Suspend to shell (also `:stop`/`:suspend`),Neovim,Miscellaneous / General
+,,,`:!{cmd}`,Execute one shell command,Run an external command **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`:!!`,Repeat last shell command,Re-run the previous `:!` command **[Ex-only]**,Neovim,Miscellaneous / General
+,,,`g8`,Print hex of char under cursor,Show UTF-8 byte breakdown,Neovim,Miscellaneous / General
+,,,`ga`,Print ASCII value of char,Show decimal/hex/octal value,Neovim,Miscellaneous / General
+new,document,,Ctrl+N,New Design,Creates a new empty design document,Autodesk Fusion 360,File
+open,document,,Ctrl+O,Open,Opens a design from the Data Panel,Autodesk Fusion 360,File
+save,document,,Ctrl+S,Save,Saves the active design to the cloud,Autodesk Fusion 360,File
+save_as,document,,,Save As,Saves a copy of the design under a new name/location,Autodesk Fusion 360,File
+save_as,document,,,Save a Copy,Saves an unlinked copy of the current design,Autodesk Fusion 360,File
+,,,,`ExportCommand`,"Confirmed internal ID. Exports the design/body to STEP, STL, IGES, F3D, etc.",Autodesk Fusion 360,File
+,,,,3D Print,Sends the model to the 3D Print utility,Autodesk Fusion 360,File
+,,,,Upload,Uploads local CAD files into the Data Panel,Autodesk Fusion 360,File
+open,document,,,Open From Local Drive,"Opens a non-cloud file (e.g. STEP, IGES) directly",Autodesk Fusion 360,File
+close,document,,,Close,Closes the active document tab,Autodesk Fusion 360,File
+undo,,,Ctrl+Z,Undo,Steps back one action,Autodesk Fusion 360,Edit
+redo,,,Ctrl+Y,Redo,Re-applies an undone action,Autodesk Fusion 360,Edit
+cut,clipboard,,Ctrl+X,Cut,Cuts the selection,Autodesk Fusion 360,Edit
+copy,clipboard,,Ctrl+C,Copy,Copies the selection,Autodesk Fusion 360,Edit
+paste,clipboard,,Ctrl+V,Paste,Pastes the clipboard contents,Autodesk Fusion 360,Edit
+paste,component,,,`FusionPasteNewCommand`,Confirmed internal ID. Pastes the clipboard contents as a new independent component,Autodesk Fusion 360,Edit
+open,search,,Ctrl+F,Find,Searches for an item in the browser tree,Autodesk Fusion 360,Edit
+select,,,Ctrl+A,Select All,Selects all visible objects in context,Autodesk Fusion 360,Edit
+delete,,,Delete,Delete,Deletes the selected entities,Autodesk Fusion 360,Edit
+,,,Esc,Cancel,Cancels the active command/tool,Autodesk Fusion 360,Edit
+open,search,,S,Command Search,Opens the type-ahead command search box,Autodesk Fusion 360,"View, Display & Navigation"
+,,,L,Look At,Orients the view normal to the selected face/sketch,Autodesk Fusion 360,"View, Display & Navigation"
+,,,Scroll wheel,Zoom,Zooms the 3D view in/out,Autodesk Fusion 360,"View, Display & Navigation"
+,,,Shift+MMB drag,Pan,Pans the 3D view,Autodesk Fusion 360,"View, Display & Navigation"
+,,,MMB drag,Orbit (Free Orbit),Rotates the 3D view around the model,Autodesk Fusion 360,"View, Display & Navigation"
+,,,,Home View,Returns to the default isometric orientation,Autodesk Fusion 360,"View, Display & Navigation"
+,,,,Fit,Zooms to fit all visible geometry in the window,Autodesk Fusion 360,"View, Display & Navigation"
+,,,Ctrl+4,Shaded,"Visual style: shaded, no edges",Autodesk Fusion 360,"View, Display & Navigation"
+,,,Ctrl+5,Shaded with Hidden Edges,"Visual style: shaded, hidden edges dimmed",Autodesk Fusion 360,"View, Display & Navigation"
+,,,Ctrl+6,Shaded with Visible Edges Only,"Visual style: shaded, hidden edges suppressed",Autodesk Fusion 360,"View, Display & Navigation"
+,,,Ctrl+7,Wireframe,"Visual style: edges only, no shading",Autodesk Fusion 360,"View, Display & Navigation"
+,,,Ctrl+8,Wireframe with Hidden Edges,Visual style: wireframe with hidden lines shown,Autodesk Fusion 360,"View, Display & Navigation"
+,,,Ctrl+9,Wireframe with Visible Edges Only,"Visual style: wireframe, hidden lines suppressed",Autodesk Fusion 360,"View, Display & Navigation"
+toggle,body,,V,Toggle Visibility,Shows/hides the selected component or body,Autodesk Fusion 360,"View, Display & Navigation"
+,,,I,Measure,Opens the Inspect > Measure tool,Autodesk Fusion 360,"View, Display & Navigation"
+,,,,Section Analysis,Cuts a temporary cross-section through the model for inspection,Autodesk Fusion 360,"View, Display & Navigation"
+,,,,Interference Check,Detects clashes between selected bodies/components,Autodesk Fusion 360,"View, Display & Navigation"
+next,workspace,,Ctrl+],Next Workspace,Switches to the next workspace in the switcher order,Autodesk Fusion 360,Panels & Workspace Layout
+previous,workspace,,Ctrl+[,Previous Workspace,Switches to the previous workspace in the switcher order,Autodesk Fusion 360,Panels & Workspace Layout
+toggle,viewcube,,Ctrl+Alt+V,Show/Hide ViewCube,Toggles the navigation ViewCube,Autodesk Fusion 360,Panels & Workspace Layout
+toggle,sidebar,,Ctrl+Alt+B,Show/Hide Browser,Toggles the design browser tree panel,Autodesk Fusion 360,Panels & Workspace Layout
+toggle,comment_thread,,Ctrl+Alt+A,Show/Hide Comments,Toggles the comments panel,Autodesk Fusion 360,Panels & Workspace Layout
+toggle,output,,Ctrl+Alt+C,Show/Hide Text Commands,Toggles the Text Commands debug console,Autodesk Fusion 360,Panels & Workspace Layout
+,,,Ctrl+Alt+N,Show/Hide Navigation Bar,Toggles the navigation bar,Autodesk Fusion 360,Panels & Workspace Layout
+toggle,data_panel,,Ctrl+Alt+P,Show/Hide Data Panel,Toggles the Data Panel,Autodesk Fusion 360,Panels & Workspace Layout
+reset,,,Ctrl+Alt+R,Reset to Default Layout,Restores the default UI panel layout,Autodesk Fusion 360,Panels & Workspace Layout
+,,,L,Line,Draws a line or connected line/arc chain,Autodesk Fusion 360,Sketch — Draw
+,,,R,Rectangle (2-Point),Draws a rectangle from two corners,Autodesk Fusion 360,Sketch — Draw
+,,,,Center Rectangle,Draws a rectangle from its center point,Autodesk Fusion 360,Sketch — Draw
+,,,C,Circle (Center Diameter),Draws a circle from center and diameter,Autodesk Fusion 360,Sketch — Draw
+,,,A,Arc (3-Point),Draws an arc through three points,Autodesk Fusion 360,Sketch — Draw
+,,,,Ellipse,Draws an ellipse from center and two axes,Autodesk Fusion 360,Sketch — Draw
+,,,,Polygon,Draws a regular polygon,Autodesk Fusion 360,Sketch — Draw
+,,,,Slot,Draws a slot profile,Autodesk Fusion 360,Sketch — Draw
+,,,,Spline (Fit Point),Draws a smooth curve through fit points,Autodesk Fusion 360,Sketch — Draw
+,,,,Conic Curve,Draws a conic-section curve,Autodesk Fusion 360,Sketch — Draw
+new,sketch,,,Sketch Point,Places a reference point in the sketch,Autodesk Fusion 360,Sketch — Draw
+new,sketch,,,Sketch Text,Adds text geometry to the sketch,Autodesk Fusion 360,Sketch — Draw
+,,,T,Trim,Trims sketch geometry to the nearest intersection,Autodesk Fusion 360,Sketch — Modify
+,,,,Extend,Extends a curve to the next intersection,Autodesk Fusion 360,Sketch — Modify
+,,,O,Offset,Offsets selected sketch curves by a distance,Autodesk Fusion 360,Sketch — Modify
+,,,M,Mirror (Sketch),Mirrors sketch geometry about a line,Autodesk Fusion 360,Sketch — Modify
+move,,,,Move/Copy (Sketch),"Moves, rotates, or copies sketch geometry",Autodesk Fusion 360,Sketch — Modify
+,,,,Scale (Sketch),Scales sketch geometry from a point,Autodesk Fusion 360,Sketch — Modify
+toggle,,,X,Toggle Construction,Toggles selected geometry between normal and construction,Autodesk Fusion 360,Sketch — Modify
+,,,,Fillet (Sketch),Rounds a corner between two sketch curves,Autodesk Fusion 360,Sketch — Modify
+,,,,Break,Splits a curve at a point,Autodesk Fusion 360,Sketch — Modify
+,,,,Project,Projects existing geometry onto the active sketch,Autodesk Fusion 360,Sketch — Modify
+,,,,Include 3D Geometry,Projects 3D edges/points into the sketch as sketch curves,Autodesk Fusion 360,Sketch — Modify
+new,dimension,,D,Sketch Dimension,Applies a driving dimension to selected geometry,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+rename,dimension,,,`SketchEditDimensionCmdDef`,Confirmed internal ID. Edits an existing sketch dimension's value,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Coincident Constraint,Constrains two points to coincide,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Collinear Constraint,Constrains two lines to lie on the same line,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Concentric Constraint,Constrains two circles/arcs to share a center,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Tangent Constraint,Constrains a curve to be tangent to another,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Parallel Constraint,Constrains two lines to stay parallel,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Perpendicular Constraint,Constrains two lines to stay perpendicular,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Horizontal/Vertical Constraint,Constrains a line to horizontal or vertical,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Equal Constraint,Constrains two curves to equal length/radius,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,constraint,,,Symmetry Constraint,Constrains two entities symmetric about a line,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+lock,,,,Fix/Unfix,Locks or unlocks a sketch entity's position,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+close,sketch,,,Finish Sketch,Exits sketch edit mode back to the 3D model,Autodesk Fusion 360,Sketch — Constraints & Dimensions
+new,feature,,E,Extrude,Extrudes a profile into a solid or surface,Autodesk Fusion 360,Solid — Create
+new,feature,,,Revolve,Revolves a profile around an axis,Autodesk Fusion 360,Solid — Create
+new,feature,,,Sweep,Sweeps a profile along a path,Autodesk Fusion 360,Solid — Create
+new,feature,,,Loft,Blends between two or more profiles,Autodesk Fusion 360,Solid — Create
+new,feature,,,Rib,Creates a thin structural rib from an open profile,Autodesk Fusion 360,Solid — Create
+new,feature,,,Web,Creates a network of ribs from sketch lines,Autodesk Fusion 360,Solid — Create
+new,feature,,,Emboss,Raises or recesses sketch geometry on a face,Autodesk Fusion 360,Solid — Create
+new,feature,,,Boundary Fill,Creates solids/surfaces from enclosed regions,Autodesk Fusion 360,Solid — Create
+new,feature,,,Coil,Creates a helical coil feature,Autodesk Fusion 360,Solid — Create
+new,feature,,,Pipe,Creates a solid pipe along a path,Autodesk Fusion 360,Solid — Create
+new,feature,,,Create Base Feature,Starts an editable base feature (non-parametric),Autodesk Fusion 360,Solid — Create
+new,feature,,F,Fillet,Rounds selected edges,Autodesk Fusion 360,Solid — Modify
+new,feature,,,Chamfer,Bevels selected edges,Autodesk Fusion 360,Solid — Modify
+new,feature,,,Shell,"Hollows a solid, leaving selected faces open",Autodesk Fusion 360,Solid — Modify
+new,feature,,,Draft,Adds a taper angle to faces for molding/casting,Autodesk Fusion 360,Solid — Modify
+new,feature,,,Thread,Adds cosmetic or modeled thread to a cylindrical face,Autodesk Fusion 360,Solid — Modify
+new,feature,,Q,Press Pull,Extrudes/offsets a face or profile interactively,Autodesk Fusion 360,Solid — Modify
+move,,,M,Move/Copy,"Moves, rotates, or copies bodies/components",Autodesk Fusion 360,Solid — Modify
+new,feature,,,Combine,Boolean joins/cuts/intersects bodies,Autodesk Fusion 360,Solid — Modify
+new,body,,,Split Body,Splits a body using a plane/face/sketch curve,Autodesk Fusion 360,Solid — Modify
+new,feature,,,Split Face,Splits a face using a plane/sketch curve,Autodesk Fusion 360,Solid — Modify
+replace,feature,,,Replace Face,Replaces a face with another surface,Autodesk Fusion 360,Solid — Modify
+delete,feature,,,Delete Face,Removes a face and heals or leaves the gap,Autodesk Fusion 360,Solid — Modify
+,,,,Scale,Scales a body uniformly or non-uniformly,Autodesk Fusion 360,Solid — Modify
+open,setting,,,`ChangeParameterCommand`,Confirmed internal ID. Opens the Change Parameter / user-parameter edit dialog,Autodesk Fusion 360,Solid — Modify
+rename,,,,`RenameCommand`,"Confirmed internal ID. Renames the selected component, body, sketch, or feature",Autodesk Fusion 360,Solid — Modify
+,,,,Physical Material,Assigns a physical (density/mass) material to a body,Autodesk Fusion 360,Solid — Modify
+,,,,Appearance,Assigns a visual appearance/material to a body or face,Autodesk Fusion 360,Solid — Modify
+new,feature,,,Rectangular Pattern,Patterns features/bodies along one or two directions,Autodesk Fusion 360,"Solid — Pattern, Mirror & Combine"
+new,feature,,,Circular Pattern,Patterns features/bodies around an axis,Autodesk Fusion 360,"Solid — Pattern, Mirror & Combine"
+new,feature,,,Path Pattern,Patterns features/bodies along a curve,Autodesk Fusion 360,"Solid — Pattern, Mirror & Combine"
+new,feature,,,Mirror (Feature),Mirrors solid features/bodies about a plane,Autodesk Fusion 360,"Solid — Pattern, Mirror & Combine"
+new,feature,,,Pattern on Path,Alternate name for Path Pattern in some UI versions,Autodesk Fusion 360,"Solid — Pattern, Mirror & Combine"
+new,component,,,Component Pattern,Patterns whole occurrences (not just features),Autodesk Fusion 360,"Solid — Pattern, Mirror & Combine"
+new,surface,,,Patch,Fills a closed boundary loop with a surface,Autodesk Fusion 360,Surface
+,,,,Extend (Surface),Extends a surface edge,Autodesk Fusion 360,Surface
+,,,,Trim (Surface),Trims a surface against a cutting tool,Autodesk Fusion 360,Surface
+new,surface,,,Stitch,Stitches adjacent surfaces into one surface or a solid,Autodesk Fusion 360,Surface
+,,,,Unstitch,Separates a stitched surface/solid back into faces,Autodesk Fusion 360,Surface
+new,feature,,,Thicken,Converts a surface into a solid of given thickness,Autodesk Fusion 360,Surface
+new,surface,,,Ruled Surface,Creates a ruled surface from an edge/curve,Autodesk Fusion 360,Surface
+,,,,Offset (Surface),Offsets a surface by a distance,Autodesk Fusion 360,Surface
+new,body,,,Create Form,Enters the Sculpt (T-Spline) editing environment,Autodesk Fusion 360,Sculpt / T-Spline
+new,body,,,Sculpt Box,Creates a primitive box T-Spline body,Autodesk Fusion 360,Sculpt / T-Spline
+new,body,,,Sculpt Sphere,Creates a primitive sphere T-Spline body,Autodesk Fusion 360,Sculpt / T-Spline
+new,body,,,Sculpt Cylinder,Creates a primitive cylinder T-Spline body,Autodesk Fusion 360,Sculpt / T-Spline
+new,body,,,Sculpt Plane,Creates a primitive flat T-Spline body,Autodesk Fusion 360,Sculpt / T-Spline
+new,body,,,Revolve (Sculpt),Creates a T-Spline body by revolving a profile,Autodesk Fusion 360,Sculpt / T-Spline
+,,,,Edit Form,Free-form moves/rotates/scales T-Spline control points,Autodesk Fusion 360,Sculpt / T-Spline
+,,,,Bridge (Sculpt),Connects two open edges/faces with new geometry,Autodesk Fusion 360,Sculpt / T-Spline
+,,,,Fill Hole (Sculpt),Caps an open edge loop,Autodesk Fusion 360,Sculpt / T-Spline
+,,,,Crease,Sharpens an edge on a smoothed T-Spline body,Autodesk Fusion 360,Sculpt / T-Spline
+new,joint,,J,Joint,Creates a joint defining relative motion between components,Autodesk Fusion 360,Assembly / Joints
+new,joint,,Shift+J,As-Built Joint,Creates a joint that preserves the components' current position,Autodesk Fusion 360,Assembly / Joints
+new,joint,,,Joint Origin,Places a reusable joint reference point,Autodesk Fusion 360,Assembly / Joints
+,,,,Rigid Group,Locks a set of components together as one rigid body,Autodesk Fusion 360,Assembly / Joints
+new,component,,,New Component,Creates a new empty component in the assembly,Autodesk Fusion 360,Assembly / Joints
+lock,component,,,Ground,Fixes a component in place relative to the assembly origin,Autodesk Fusion 360,Assembly / Joints
+,,,,Align,Aligns two components' faces/points/axes,Autodesk Fusion 360,Assembly / Joints
+new,study,,,Motion Study,Opens a study for previewing joint-driven motion,Autodesk Fusion 360,Assembly / Joints
+,,,,Contact Sets,Enables collision detection between selected components,Autodesk Fusion 360,Assembly / Joints
+insert,component,,,Insert Derive,Inserts another design as a linked/derived component,Autodesk Fusion 360,Assembly / Joints
+new,feature,,,Flange,"Adds a sheet-metal flange from a sketch, edge, or face",Autodesk Fusion 360,Sheet Metal
+new,feature,,,Contour Flange,Extrudes a sheet-metal profile with bend allowances,Autodesk Fusion 360,Sheet Metal
+new,feature,,,Lofted Flange,Lofts a sheet-metal wall between two open profiles,Autodesk Fusion 360,Sheet Metal
+,,,,Convert to Sheet Metal,Converts an existing solid body to sheet metal rules,Autodesk Fusion 360,Sheet Metal
+expand,,,,Unfold,Temporarily unfolds bent walls for editing,Autodesk Fusion 360,Sheet Metal
+collapse,,,,Refold,Re-folds walls unfolded by Unfold,Autodesk Fusion 360,Sheet Metal
+new,feature,,,Flat Pattern,Generates the flattened manufacturing pattern,Autodesk Fusion 360,Sheet Metal
+new,feature,,,Bend,Adds a bend feature at a sketch line,Autodesk Fusion 360,Sheet Metal
+new,feature,,,Corner Round,Rounds a sheet-metal corner,Autodesk Fusion 360,Sheet Metal
+new,feature,,,Corner Chamfer,Chamfers a sheet-metal corner,Autodesk Fusion 360,Sheet Metal
+new,feature,,,Rip,Splits a face to allow it to bend or unfold,Autodesk Fusion 360,Sheet Metal
+insert,mesh,,,Insert Mesh,"Imports a mesh file (STL, OBJ, etc.) into the design",Autodesk Fusion 360,Mesh
+,,,,Mesh to BRep,Converts a mesh body to a solid B-Rep body,Autodesk Fusion 360,Mesh
+,,,,Remesh,Re-triangulates a mesh to a new resolution,Autodesk Fusion 360,Mesh
+less,mesh,,,Reduce,Reduces a mesh's triangle count,Autodesk Fusion 360,Mesh
+,,,,Prepare Mesh,Repairs/cleans a mesh before further editing,Autodesk Fusion 360,Mesh
+,,,,Modify Mesh,"Smooths, offsets, or otherwise edits mesh geometry",Autodesk Fusion 360,Mesh
+new,sketch,,,Mesh Section Sketch,Creates a sketch from a mesh cross-section,Autodesk Fusion 360,Mesh
+,,,,Watertight Analysis,Checks a mesh body for gaps/non-manifold errors,Autodesk Fusion 360,Mesh
+new,study,,,New Study,Creates a new simulation study and selects a study type,Autodesk Fusion 360,Simulation
+,,,,Loads,"Applies forces, pressures, or torques to the model",Autodesk Fusion 360,Simulation
+new,constraint,,,Constraints (Simulation),Fixes or restrains geometry for the study,Autodesk Fusion 360,Simulation
+,,,,Contacts,Defines how bodies interact/touch in the study,Autodesk Fusion 360,Simulation
+,,,,Study Materials,Assigns simulation material properties,Autodesk Fusion 360,Simulation
+open,setting,,,Mesh Settings,Controls the finite-element mesh density,Autodesk Fusion 360,Simulation
+run,study,,,Simulate,Runs the solve for the active study,Autodesk Fusion 360,Simulation
+show,study,,,Results,Displays stress/displacement/factor-of-safety results,Autodesk Fusion 360,Simulation
+,,,,In-Canvas Render,Toggles progressive photorealistic rendering in the viewport,Autodesk Fusion 360,Render
+run,,,,Render (Cloud/Local Gallery),Sends the scene to a full offline render job,Autodesk Fusion 360,Render
+,,,,Appearance (Render),Opens the appearance library for material assignment,Autodesk Fusion 360,Render
+,,,,Decal,Applies an image decal to a face,Autodesk Fusion 360,Render
+open,setting,,,Scene Settings,Configures environment lighting/backdrop for rendering,Autodesk Fusion 360,Render
+,,,,Ground Plane,Adds/adjusts a render ground plane and shadow catcher,Autodesk Fusion 360,Render
+new,drawing,,,Base View,Places the first view of a model on a drawing sheet,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Projected View,Creates an orthographic view projected from a base view,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Section View,Creates a cross-sectional drawing view,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Detail View,Creates a magnified callout of part of a view,Autodesk Fusion 360,Drawing / Documentation
+,,,,Break View,Shortens a long view with a break,Autodesk Fusion 360,Drawing / Documentation
+new,dimension,,,General Dimension,Adds a linear/angular/radial dimension to a drawing,Autodesk Fusion 360,Drawing / Documentation
+new,dimension,,,Ordinate Dimension,Adds a baseline (ordinate) dimension set,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Center Mark,Marks the center of a circular edge,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Centerline,Adds a centerline between two edges/points,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Surface Finish Symbol,Adds a surface-texture callout,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Geometric Tolerance,Adds a GD&T feature control frame,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Balloon,Adds a BOM item-number balloon,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Parts List,Inserts a bill-of-materials table,Autodesk Fusion 360,Drawing / Documentation
+new,drawing,,,Hole Table,Inserts a table listing hole positions/sizes,Autodesk Fusion 360,Drawing / Documentation
+new,sheet,,,New Sheet,Adds a new drawing sheet,Autodesk Fusion 360,Drawing / Documentation
+new,toolpath,,,New Setup,"Defines stock, WCS, and post configuration for a job",Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,2D Adaptive Clearing,Roughs a pocket with adaptive-clearing toolpaths,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,2D Pocket,Clears material from a closed 2D boundary,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,2D Contour,Cuts along a 2D profile boundary,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,2D Face,Faces the top of the stock flat,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,Drill,Cycles a drilling toolpath on selected holes,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,3D Adaptive Clearing,Roughs a 3D solid with adaptive-clearing toolpaths,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,3D Parallel,Finishes a 3D surface with parallel passes,Autodesk Fusion 360,Manufacture / CAM
+new,toolpath,,,3D Contour,Finishes a 3D surface following contour lines,Autodesk Fusion 360,Manufacture / CAM
+restart,toolpath,,G,Regenerate Toolpath,Recomputes the selected/out-of-date toolpaths,Autodesk Fusion 360,Manufacture / CAM
+run,toolpath,,,Simulate (CAM),Simulates material removal for the selected toolpaths,Autodesk Fusion 360,Manufacture / CAM
+run,toolpath,,,Post Process,Generates NC code from the selected toolpaths,Autodesk Fusion 360,Manufacture / CAM
+new,sheet,,,Setup Sheet,Generates a documentation sheet for a setup,Autodesk Fusion 360,Manufacture / CAM
+show,toolpath,,,Backplot,Steps through toolpath motion move-by-move,Autodesk Fusion 360,Manufacture / CAM
+go_to,timeline,,,Roll History Marker Here,Moves the timeline playhead to just after a feature,Autodesk Fusion 360,Timeline / History
+disable,feature,,,Suppress Features,Temporarily disables selected timeline features,Autodesk Fusion 360,Timeline / History
+disable,feature,,,Skip,Excludes selected features from the design without deleting them,Autodesk Fusion 360,Timeline / History
+open,feature,,,Edit Feature,Reopens a timeline feature's dialog for editing,Autodesk Fusion 360,Timeline / History
+,,,,Group,Groups consecutive timeline features together,Autodesk Fusion 360,Timeline / History
+restart,timeline,,,`FusionComputeAllCommand`,Confirmed internal ID. Forces a full recompute of the design,Autodesk Fusion 360,Timeline / History
+rename,feature,,,`FusionRenameTimelineEntryCommand`,Confirmed internal ID. Renames a timeline feature entry,Autodesk Fusion 360,Timeline / History
+,,,,Insert (Timeline Position),Sets where new features are inserted into history,Autodesk Fusion 360,Timeline / History
+new,project,,,New Project,Creates a new project folder in the Data Panel,Autodesk Fusion 360,Data Panel / Project
+new,folder,,,New Folder,Creates a subfolder within a project,Autodesk Fusion 360,Data Panel / Project
+,,,,Upload (Data Panel),Uploads local files into the current project,Autodesk Fusion 360,Data Panel / Project
+move,file,,,Move,Moves a file/folder to another project or folder,Autodesk Fusion 360,Data Panel / Project
+copy,file,,,Copy,Copies a file to another project or folder,Autodesk Fusion 360,Data Panel / Project
+delete,file,,,Delete (Data Panel),Deletes a file or folder (moves to Recycle Bin),Autodesk Fusion 360,Data Panel / Project
+show,history,,,Version History,Lists and restores prior saved versions of a file,Autodesk Fusion 360,Data Panel / Project
+open,setting,,,Manage Access,Sets sharing/collaborator permissions on a project,Autodesk Fusion 360,Data Panel / Project
+show,document,,,`FusionPropertiesCommand`,Confirmed internal ID. Opens the document properties dialog,Autodesk Fusion 360,Data Panel / Project
+,,,,`DesignConfigurationActivateRowCmd`,Confirmed internal ID. Activates a row in the design's Configurations table,Autodesk Fusion 360,Data Panel / Project

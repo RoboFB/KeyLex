@@ -43,7 +43,7 @@ below) — Linux and Windows are the only supported platforms for now.
 cargo build              # compiles the daemon (Linux backend on this machine)
 cargo run                 # real capture loop, blocks (needs evdev/uinput perms)
 cargo run -- --demo        # two hardcoded dispatches, no capture/hardware needed
-cargo run -- --config-dir <path>  # load actions.toml/targets.toml/vocabulary.toml from elsewhere
+cargo run -- --config-dir <path>  # load actions.toml/targets.toml/hotkeys-reference.csv from elsewhere
 
 cargo test                # unit tests (src/config.rs) + integration tests (tests/dispatch.rs)
 cargo test <name>          # single test by substring
@@ -53,17 +53,32 @@ There is no separate lint step configured beyond `cargo clippy`.
 
 ## Architecture
 
-### Three config layers (`config/*.toml` + per-extension `capabilities.toml`), loaded by `Registry` (`src/config.rs`)
+### Three config layers (`config/*.toml`, `config/hotkeys-reference.csv` + per-extension `capabilities.toml`), loaded by `Registry` (`src/config.rs`)
 
-1. **`vocabulary.toml`** — the one authoritative word list: a `modifiers`
-   array (verbs, e.g. `close`, `save`, `move`) and a `locations` array
-   (objects, e.g. `tab`, `sidebar`, `left`). Every action id in
-   `actions.toml` is built only from these words; `Registry::load` refuses
-   to start if it isn't.
+1. **`hotkeys-reference.csv`** — a per-app command catalog (`application`,
+   `group`, `command_id`, `default_hotkey`, `comment` columns, one row per
+   command each app's own documentation lists — VS Code, Chrome, GNOME,
+   Neovim, Fusion 360) annotated with Keylex's own `modifier`, `location`,
+   and `condition` columns wherever a row has been mapped onto the action
+   grammar; left blank on rows that haven't (most Neovim motions and CAD
+   tool names never will be). It doubles as the vocabulary source: every
+   *non-empty* value that appears anywhere in the `modifier` column is a
+   valid modifier, every non-empty `location` value a valid location, and
+   the same for the condition names embedded in `condition` cells (which
+   may chain them with `&& || () !` — see `condition_names` in
+   `src/config.rs`). `actions.toml` entries are built only from these
+   words; `Registry::load` refuses to start if one isn't. Unlike the
+   hand-curated `vocabulary.toml` this replaced, there is no separate
+   curation step — whatever shows up as a `modifier`/`location` value
+   anywhere in the CSV's ~1600 rows is live vocabulary, so growing it is as
+   easy as annotating one more row. That's a deliberate tradeoff (see
+   `src/config.rs`'s `Vocabulary` doc comment), not an oversight, but it
+   does mean the old design goal of a small, mnemonic-collision-free
+   modifier set no longer has any enforcement behind it.
 2. **`actions.toml`** — the action vocabulary itself: one `[[action]]`
    entry per action, declaring a `modifier` and an optional `location`
-   (each checked against `vocabulary.toml`) instead of a hand-typed id —
-   the id itself is derived as `modifier` alone (e.g. `save`) or
+   (each checked against `hotkeys-reference.csv`) instead of a hand-typed
+   id — the id itself is derived as `modifier` alone (e.g. `save`) or
    `modifier.location` (e.g. `close.tab`), a real enforced grammar, not
    just a naming convention. Also an optional `key` field (a `"ctrl+w"`-
    style combo — the same syntax used for `fallback_keycode`) that binds

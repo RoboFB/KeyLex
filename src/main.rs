@@ -4,7 +4,10 @@
 //! `keylex` starts the real, blocking capture loop (Linux: evdev/uinput,
 //! Windows: WH_KEYBOARD_LL hook). `--demo` skips capture entirely and
 //! dispatches two example actions once -- useful for a quick smoke test
-//! with no real hardware/permissions needed.
+//! with no real hardware/permissions needed. `--send <action_id>` is the
+//! general form of the same thing: a one-shot terminal client for manually
+//! trying out any action against a target (e.g. the VS Code extension)
+//! before real key capture is wired up to trigger it.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -71,12 +74,28 @@ fn run_demo(registry: &Registry, token: &str) {
 
 fn main() -> ExitCode {
     let mut demo = false;
+    let mut send_action: Option<String> = None;
+    let mut process_name = "code".to_string();
     let mut config_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("config");
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--demo" => demo = true,
+            "--send" => {
+                let Some(action_id) = args.next() else {
+                    eprintln!("keylex: --send requires an action id, e.g. --send close.tab");
+                    return ExitCode::FAILURE;
+                };
+                send_action = Some(action_id);
+            }
+            "--process" => {
+                let Some(name) = args.next() else {
+                    eprintln!("keylex: --process requires a value, e.g. --process code");
+                    return ExitCode::FAILURE;
+                };
+                process_name = name;
+            }
             "--config-dir" => {
                 let Some(dir) = args.next() else {
                     eprintln!("keylex: --config-dir requires a path");
@@ -109,6 +128,17 @@ fn main() -> ExitCode {
 
     if demo {
         run_demo(&registry, &token);
+        return ExitCode::SUCCESS;
+    }
+
+    if let Some(action_id) = send_action {
+        let router = Router {
+            registry: &registry,
+            adapters: build_adapters(&token, None),
+            notifier: Box::new(LogNotifier),
+            fallback_sender: Box::new(LogFallbackSender),
+        };
+        println!("{action_id} -> {}", router.dispatch(&action_id, &process_name));
         return ExitCode::SUCCESS;
     }
 

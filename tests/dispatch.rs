@@ -15,15 +15,17 @@ fn temp_config_dir(name: &str) -> PathBuf {
 }
 
 /// Covers every modifier/location these fixture tests bind an action to.
-const TEST_VOCABULARY: &str = r#"
-modifiers = ["close", "save", "duplicate", "go_to", "move"]
-locations = ["tab", "line", "definition", "left"]
-"#;
+const TEST_VOCABULARY: &str = "application,group,command_id,default_hotkey,comment,modifier,location,condition\n\
+    Test,Test,x,x,x,close,tab,\n\
+    Test,Test,x,x,x,save,line,\n\
+    Test,Test,x,x,x,duplicate,definition,\n\
+    Test,Test,x,x,x,go_to,left,\n\
+    Test,Test,x,x,x,move,,\n";
 
 fn write_config(actions_toml: &str, targets_toml: &str, name: &str) -> PathBuf {
     let dir = temp_config_dir(name);
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
+    std::fs::write(dir.join("hotkeys-reference.csv"), TEST_VOCABULARY).unwrap();
     std::fs::write(dir.join("actions.toml"), actions_toml).unwrap();
     std::fs::write(dir.join("targets.toml"), targets_toml).unwrap();
     dir

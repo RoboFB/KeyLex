@@ -6,32 +6,17 @@
 // Every message must also carry the shared secret from config/secret.token
 // (../../docs/protocol.md#trust-model--authentication) -- without it, any local
 // process able to open a TCP connection to this port could otherwise drive
-// arbitrary VS Code commands. The allowlist below is a second, independent
-// layer: even a correctly-tokened message can only trigger a command this
-// extension already knows about, since some VS Code commands (e.g. running
-// text in an open terminal) are far more dangerous than "close tab".
+// arbitrary VS Code commands. There is deliberately no second allowlist layer
+// here: any correctly-tokened message can invoke any VS Code command,
+// including ones far more dangerous than "close tab" (e.g. sending text into
+// an open terminal). Fine for local dev/testing; revisit before this is used
+// anywhere the token can leak.
 const vscode = require("vscode");
 const net = require("net");
 const fs = require("fs");
 
 const HOST = "127.0.0.1";
 const PORT = 7777;
-
-// Mirrors this folder's capabilities.toml `[supports]` map. Kept as an
-// explicit allowlist here (rather than trusting the token alone) so a
-// compromised/rogue local client holding the token still can't invoke a
-// command this extension wasn't built to expect.
-const ALLOWED_COMMANDS = new Set([
-  "workbench.action.closeActiveEditor",
-  "workbench.action.closeWindow",
-  "workbench.action.closeSidebar",
-  "workbench.action.closePanel",
-  "workbench.action.terminal.kill",
-  "editor.action.copyLinesDownAction",
-  "editor.action.revealDefinition",
-  "editor.action.commentLine",
-  "workbench.action.files.save",
-]);
 
 function loadToken() {
   const tokenPath = vscode.workspace.getConfiguration("keylex").get("tokenPath");
@@ -75,10 +60,6 @@ function activate(context) {
     }
     if (message.token !== token) {
       console.error("keylex: rejected message with invalid/missing token:", message.command);
-      return;
-    }
-    if (!ALLOWED_COMMANDS.has(message.command)) {
-      console.error("keylex: rejected non-allowlisted command:", message.command);
       return;
     }
     console.log("keylex: executing command:", message.command);

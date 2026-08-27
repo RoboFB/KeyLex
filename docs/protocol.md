@@ -138,13 +138,15 @@ loopback-only certificate wouldn't stop either.
 ### Action IDs
 
 Action IDs are **not** free-form strings — they're built from two
-validated word lists in [config/vocabulary.toml](../config/vocabulary.toml),
-a `modifiers` list (verbs, e.g. `close`, `save`, `move`) and a `locations`
-list (objects, e.g. `tab`, `sidebar`, `left`). Every `[[action]]` in
-[config/actions.toml](../config/actions.toml) declares a `modifier` and an
-optional `location`; `Registry::load` (`src/config.rs`) rejects the whole
-config at startup if either word isn't in `vocabulary.toml`, and derives
-the actual id from them:
+validated word lists derived from
+[config/hotkeys-reference.csv](../config/hotkeys-reference.csv): every
+non-empty value in its `modifier` column is a valid modifier (verbs, e.g.
+`close`, `save`, `move`), every non-empty value in its `location` column a
+valid location (objects, e.g. `tab`, `sidebar`, `left`). Every `[[action]]`
+in [config/actions.toml](../config/actions.toml) declares a `modifier` and
+an optional `location`; `Registry::load` (`src/config.rs`) rejects the
+whole config at startup if either word doesn't appear in
+`hotkeys-reference.csv`, and derives the actual id from them:
 
 - `modifier` alone, e.g. `save`, `shutdown` — for actions with no natural
   object.

@@ -119,3 +119,35 @@ Für einen End-to-End-Test ohne die echte VS-Code-Extension:
 node scripts/fake-vscode-listener.js   # simuliert die Extension-Socket-Seite
 cargo run                               # in einem zweiten Terminal
 ```
+
+## VS-Code-Adapter testen
+
+`./run <vscode-command-id>` (im Repo-Root) ist ein minimaler, von der
+Rust-Registry unabhängiger Test-Client: er liest `config/secret.token` und
+schickt genau diesen einen Befehl über den `keylex/v0`-Socket an die
+Extension — z. B. `./run workbench.action.closeActiveEditor`. Siehe
+[docs/protocol.md](docs/protocol.md) für das Wire-Format.
+
+Damit `./run` überhaupt etwas erreicht, muss
+`extensions/vscode-extension/extension.js` erst irgendwo laufen. Zwei
+Wege, in aufsteigender Dauerhaftigkeit:
+
+1. **Extension Development Host (zum Testen, Wegwerf-Fenster)** —
+   `extensions/vscode-extension/` als Ordner in VS Code öffnen, dann im
+   "Run and Debug"-Panel ("Run Keylex Extension") starten. Öffnet ein
+   zweites Fenster mit Titel `[Extension Development Host]`, in dem die
+   Extension aktiv ist — nur in diesem einen Fenster, nicht in den
+   normalen VS-Code-Fenstern.
+2. **Dauerhaft installiert (läuft in jedem normalen Fenster)** — die
+   Extension ist noch nicht als echtes `.vsix` gepackt; am schnellsten
+   für lokale Entwicklung ist ein Symlink nach
+   `~/.vscode/extensions/keylex-vscode-adapter` (Ziel:
+   `extensions/vscode-extension/` in diesem Repo), danach VS Code neu
+   starten. Damit läuft ab dann in **jedem** VS-Code-Fenster ein
+   Socket-Server auf Port 7777 im Hintergrund — nicht nur projektbezogen.
+
+`extension.js` hat aktuell **keine** Befehls-Allowlist (bewusst entfernt
+für lokales Testen) — jeder Befehl mit gültigem Token wird ausgeführt,
+nicht nur die in `capabilities.toml` deklarierten. Vor jedem Einsatz
+außerhalb der eigenen Maschine sollte das wieder eingeschränkt werden
+(siehe Kommentar am Dateianfang).
