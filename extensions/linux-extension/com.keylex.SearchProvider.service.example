@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=com.keylex.SearchProvider
+Exec=/usr/bin/node /REPLACE/WITH/ABSOLUTE/PATH/TO/KeyLex/extensions/linux-extension/search-provider.js

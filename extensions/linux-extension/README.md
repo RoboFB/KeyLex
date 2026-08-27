@@ -39,3 +39,53 @@ target's `address` in `config/targets.toml`.
 | `os.desktop.show`       | `show.desktop`  | `wmctrl -k on`                                      |
 | `os.window.move_left`   | `move.left`     | un-maximize + `wmctrl -r :ACTIVE: -e` to left half   |
 | `os.window.move_right`  | `move.right`    | un-maximize + `wmctrl -r :ACTIVE: -e` to right half  |
+
+## GNOME Shell search provider (`search-provider.js`)
+
+**Untested outside a real GNOME Shell session** -- this was written against
+the documented `org.gnome.Shell.SearchProvider2` D-Bus interface and its
+class setup/method signatures were checked to load correctly against the
+real `dbus-next` library, but there's no GNOME Shell (or even a session
+D-Bus bus) available in this project's dev/CI environment to actually
+register against and click through. Same caveat this repo already carries
+for `src/capture/windows.rs` -- see [CLAUDE.md](../../CLAUDE.md)'s "Known
+gaps".
+
+Unlike `listener.js` (which speaks `keylex/v0` over a socket to receive
+dispatches *from* the daemon), this is the other direction: it lets GNOME
+Shell's own Activities search bar fuzzy-search and run Keylex actions,
+without Keylex needing to build its own always-on-top launcher window --
+"talking nicely to the window manager" instead of fighting it. It does this
+by shelling out to the `keylex` binary itself (`--spotlight-query` /
+`--spotlight-run`, see `src/spotlight.rs` and `src/main.rs`) for every
+search and activation, so the ranking is always the one real (pure-Rust,
+`nucleo-matcher`) fuzzy engine -- this file is just D-Bus glue, not a second
+search implementation.
+
+### Setup
+
+1. `cargo build --release` from the repo root (the search provider shells
+   out to `target/release/keylex` by default; set `KEYLEX_BIN` in the
+   `.service` file below to point elsewhere, e.g. a debug build, if you'd
+   rather use one).
+2. `npm install` in this directory (pulls in `dbus-next`, a pure-JS D-Bus
+   client/service library -- no native build step).
+3. Copy the two registration files GNOME Shell needs into your user data
+   dirs and adjust paths:
+   ```bash
+   mkdir -p ~/.local/share/applications ~/.local/share/gnome-shell/search-providers ~/.local/share/dbus-1/services
+   cp com.keylex.Spotlight.desktop ~/.local/share/applications/
+   cp com.keylex.Spotlight.search-provider.ini ~/.local/share/gnome-shell/search-providers/
+   sed "s#/REPLACE/WITH/ABSOLUTE/PATH/TO/KeyLex#$(cd ../.. && pwd)#" \
+     com.keylex.SearchProvider.service.example > ~/.local/share/dbus-1/services/com.keylex.SearchProvider.service
+   ```
+4. Log out and back in (GNOME Shell only rescans these directories on
+   startup). GNOME Shell then D-Bus-activates `search-provider.js`
+   on-demand the first time you type in Activities search -- there's
+   nothing to keep running manually.
+
+If it doesn't show up: `busctl --user list | grep keylex` should show
+`com.keylex.SearchProvider` once GNOME Shell has tried to activate it, and
+`journalctl --user -f` while typing in Activities search will show this
+script's `console.error` output (stdio from a D-Bus-activated process is
+captured by the systemd user journal, not a visible terminal).

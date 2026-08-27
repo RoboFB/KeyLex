@@ -184,6 +184,62 @@ forwards them, it doesn't get to rename them. A target can opt out of the
 grammar check with `exempt_command_grammar = true` in `targets.toml` for
 exactly this reason; `vscode` and `neovim` are the only two that set it.
 
+## Action-catalog handshake (`list_actions`)
+
+`keylex/v0`'s original message is one-directional and fire-and-forget: the
+daemon sends `command`s, nothing ever replies. The spotlight action search
+(`keylex --spotlight`, `src/spotlight.rs`) needs the opposite direction too:
+it wants to know, at query time, exactly which actions a target can *actually*
+carry out right now -- not a copy of that list baked into a config file that
+can drift out of sync with what the target really has installed/enabled.
+
+This adds one small request/response exchange to the TCP-socket transport
+(the only transport where the daemon is already the connecting party, so a
+synchronous "write request, read one response line, close" round trip fits
+naturally into the existing per-`send()` connection lifecycle):
+
+**Request** (daemon -> target, same line format as a `command` message):
+
+```json
+{"type": "list_actions", "token": "9f2c...ab"}
+```
+
+**Response** (target -> daemon, one line, same connection, before it closes):
+
+```json
+{
+  "actions": [
+    {
+      "id": "close.tab",
+      "native_command": "workbench.action.closeActiveEditor",
+      "title": "Close Editor"
+    }
+  ]
+}
+```
+
+| Field            | Type   | Meaning                                                                                   |
+|------------------|--------|---------------------------------------------------------------------------------------------|
+| `id`             | string | The Keylex action id this entry answers for (must be a key in the target's `capabilities.toml` `[supports]` map). |
+| `native_command` | string | The same native command string `supports` already maps `id` to -- echoed back so the daemon doesn't have to cross-reference `targets.toml` to show it. |
+| `title`          | string | A human-readable label for the spotlight list (e.g. "Close Editor"), the target's own choosing. |
+
+A target should only report an entry here if it just verified, live, that
+the underlying native command still exists/works in the running instance
+(e.g. `vscode-extension/extension.js` cross-checks each candidate against
+`vscode.commands.getCommands(true)` before including it) -- that's the whole
+point of the handshake: the spotlight catalog reflects what's *actually*
+available in the target right now, not a static snapshot.
+
+This is best-effort and non-fatal: a target that doesn't implement
+`list_actions` at all (older extension version, or a target that hasn't
+added support yet) simply won't answer, the connection attempt times out or
+the response fails to parse, and `spotlight::Index::refresh_from_targets`
+falls back to the action ids already known from `actions.toml`/`targets.toml`
+alone. `SocketAdapter::fetch_actions` (`src/adapters/socket.rs`) is the
+reference client for this exchange; it's not implemented for the WebSocket
+transport yet (no target using it needs a spotlight catalog today).
+
 ## Versioning
 
 No version field exists on the wire yet — `v0` is implicit, now shared by

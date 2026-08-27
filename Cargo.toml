@@ -14,6 +14,13 @@ tungstenite = { version = "0.30.0", default-features = false, features = ["hands
 # and the websocket Origin check, no new supply-chain surface added.
 rand = "0.10"
 http = "1"
+# Pure computation, no OS bindings -- the same fuzzy-ranking logic behind
+# the `nucleo`/helix fuzzy finder, used here for the spotlight action
+# search (src/spotlight.rs). Works identically on Linux/macOS/Windows.
+nucleo-matcher = "0.3"
+# Cross-platform terminal input/render for the interactive spotlight
+# launcher (`keylex --spotlight`) -- same crate, no cfg(target_os) needed.
+crossterm = "0.29"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 evdev = "0.12"

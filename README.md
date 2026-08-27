@@ -59,6 +59,22 @@ Zusätzlich gibt es **System-Aktionen** (`[[system_action]]` in
 (z. B. Grafiktreiber-Reset unter Windows), die nicht von der
 fokussierten App abhängen.
 
+## Spotlight-Suche
+
+`keylex --spotlight` öffnet eine fuzzy-durchsuchbare Liste aller
+konfigurierten Aktionen im Terminal (Enter dispatcht die gewählte Aktion
+genau wie ein echter Tastendruck) — plattformunabhängig, da sowohl das
+Fuzzy-Matching (`nucleo-matcher`) als auch die Terminal-UI (`crossterm`)
+reine Rust-Bibliotheken ohne OS-spezifischen Code sind. Die "gültigen
+Optionen" kommen dabei nie aus einer statischen Liste, sondern per
+Handshake live vom jeweiligen Ziel (z. B. der VS-Code-Extension, die dafür
+ihren eigenen `keylex.spotlight`-Befehl mitbringt) — siehe
+[docs/protocol.md](docs/protocol.md#action-catalog-handshake-list_actions)
+und [CLAUDE.md](CLAUDE.md) für Details, inklusive optionalem
+Zoxide-artigem "zuletzt verwendet"-Tracking und der (in diesem
+Entwicklungsumfeld ungetesteten) GNOME-Shell-Suchanbieter-Integration unter
+`extensions/linux-extension/`.
+
 ## Status
 
 Früher Prototyp. Die Rust-Dispatch-Pipeline (Registry, Router, Capture)
@@ -111,6 +127,7 @@ cargo build
 
 cargo run -- --demo   # Smoke-Test: zwei Beispiel-Dispatches, keine Hardware nötig
 cargo run              # echte, blockierende Keyboard-Interception
+cargo run -- --spotlight   # interaktive Fuzzy-Suche über alle Aktionen
 ```
 
 Für einen End-to-End-Test ohne die echte VS-Code-Extension:

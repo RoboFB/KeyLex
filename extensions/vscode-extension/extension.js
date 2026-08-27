@@ -17,21 +17,64 @@ const fs = require("fs");
 const HOST = "127.0.0.1";
 const PORT = 7777;
 
-// Mirrors this folder's capabilities.toml `[supports]` map. Kept as an
-// explicit allowlist here (rather than trusting the token alone) so a
-// compromised/rogue local client holding the token still can't invoke a
-// command this extension wasn't built to expect.
-const ALLOWED_COMMANDS = new Set([
-  "workbench.action.closeActiveEditor",
-  "workbench.action.closeWindow",
-  "workbench.action.closeSidebar",
-  "workbench.action.closePanel",
-  "workbench.action.terminal.kill",
-  "editor.action.copyLinesDownAction",
-  "editor.action.revealDefinition",
-  "editor.action.commentLine",
-  "workbench.action.files.save",
-]);
+// Mirrors this folder's capabilities.toml `[supports]` map -- an
+// independent, hardcoded copy on purpose (see
+// ../../docs/protocol.md#native-command-strings), so a compromised/rogue
+// local client holding the token still can't invoke a command this
+// extension wasn't built to expect. This is also the *only* source of
+// "valid options" for both the `list_actions` handshake
+// (../../docs/protocol.md#action-catalog-handshake-list_actions) and the
+// `keylex.spotlight` QuickPick below -- neither reads a config/CSV file of
+// commands, and both live-filter this list against
+// `vscode.commands.getCommands()` before trusting an entry, so a command
+// that's no longer actually registered (extension disabled, VS Code
+// version drift) silently drops out instead of being offered.
+const ACTION_CATALOG = [
+  { id: "close.tab", command: "workbench.action.closeActiveEditor", title: "Close Editor" },
+  { id: "close.window", command: "workbench.action.closeWindow", title: "Close Window" },
+  { id: "close.sidebar", command: "workbench.action.closeSidebar", title: "Close Sidebar" },
+  { id: "close.pane", command: "workbench.action.closePanel", title: "Close Panel" },
+  { id: "close.terminal", command: "workbench.action.terminal.kill", title: "Kill Terminal" },
+  { id: "duplicate.line", command: "editor.action.copyLinesDownAction", title: "Duplicate Line" },
+  { id: "go_to.definition", command: "editor.action.revealDefinition", title: "Go to Definition" },
+  { id: "comment.line", command: "editor.action.commentLine", title: "Toggle Line Comment" },
+  { id: "save", command: "workbench.action.files.save", title: "Save File" },
+];
+
+const ALLOWED_COMMANDS = new Set(ACTION_CATALOG.map((entry) => entry.command));
+
+// The daemon-facing catalog, live-checked against this running VS Code
+// instance's actual command registry -- see the ACTION_CATALOG comment
+// above for why this (never a static file) is the source of truth for
+// "what can Keylex actually search/dispatch right now".
+async function liveActionCatalog() {
+  const registered = new Set(await vscode.commands.getCommands(true));
+  return ACTION_CATALOG.filter((entry) => registered.has(entry.command));
+}
+
+// `keylex.spotlight`: a fuzzy-searchable QuickPick over the same live
+// catalog the daemon gets via the list_actions handshake -- VS Code's
+// built-in QuickPick already does fuzzy matching on label/description, so
+// no separate matching logic is needed on this side.
+async function runSpotlight() {
+  const catalog = await liveActionCatalog();
+  const items = catalog.map((entry) => ({
+    label: entry.title,
+    description: entry.id,
+    detail: entry.command,
+    command: entry.command,
+  }));
+  const picked = await vscode.window.showQuickPick(items, {
+    placeHolder: "Keylex spotlight: search actions by name",
+    matchOnDescription: true,
+  });
+  if (!picked) {
+    return;
+  }
+  vscode.commands.executeCommand(picked.command).then(undefined, (err) => {
+    vscode.window.showErrorMessage(`keylex: command '${picked.command}' failed: ${err}`);
+  });
+}
 
 function loadToken() {
   const tokenPath = vscode.workspace.getConfiguration("keylex").get("tokenPath");
@@ -56,12 +99,12 @@ function activate(context) {
         const line = buffer.slice(0, newlineIndex).trim();
         buffer = buffer.slice(newlineIndex + 1);
         if (!line) continue;
-        handleLine(line);
+        handleLine(line, socket);
       }
     });
   });
 
-  function handleLine(line) {
+  function handleLine(line, socket) {
     let message;
     try {
       message = JSON.parse(line);
@@ -69,12 +112,28 @@ function activate(context) {
       console.error("keylex: could not parse message:", line, err);
       return;
     }
-    if (!message.command) {
-      console.error("keylex: message has no 'command' field:", message);
+    if (message.token !== token) {
+      console.error("keylex: rejected message with invalid/missing token:", message.command || message.type);
       return;
     }
-    if (message.token !== token) {
-      console.error("keylex: rejected message with invalid/missing token:", message.command);
+
+    // The list_actions handshake (../../docs/protocol.md#action-catalog-handshake-list_actions):
+    // respond once, on this same connection, with the live catalog, then
+    // close -- it's a request/response exchange, not the fire-and-forget
+    // `command` messages below.
+    if (message.type === "list_actions") {
+      liveActionCatalog().then((catalog) => {
+        const response =
+          JSON.stringify({
+            actions: catalog.map(({ id, command, title }) => ({ id, native_command: command, title })),
+          }) + "\n";
+        socket.end(response);
+      });
+      return;
+    }
+
+    if (!message.command) {
+      console.error("keylex: message has no 'command' field:", message);
       return;
     }
     if (!ALLOWED_COMMANDS.has(message.command)) {
@@ -94,6 +153,8 @@ function activate(context) {
   server.listen(PORT, HOST, () => {
     console.log(`keylex: listening on ${HOST}:${PORT}`);
   });
+
+  context.subscriptions.push(vscode.commands.registerCommand("keylex.spotlight", runSpotlight));
 
   context.subscriptions.push({ dispose: () => server.close() });
 }
