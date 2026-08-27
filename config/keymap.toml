@@ -1,0 +1,146 @@
+# Skeleton input-device keymap: every physical key on a standard US
+# (en-US) 104/105-key keyboard, left column being evdev's own native key
+# name (the same `evdev::Key::KEY_*` constants `src/capture/linux.rs`
+# already uses internally) mapped to an empty Keylex "nice name" -- the
+# short token that would appear in `actions.toml`'s `key`/`chord`/
+# `fallback_keycode` fields and `targets.toml`, once a name is chosen.
+#
+# Not wired into the loader yet -- `token_to_key`/`key_to_token` in
+# `src/capture/linux.rs` currently only resolve a-z, 0-9, and `prtsc`
+# ("Prototype scope ... full layout support is a later step", per that
+# file's own comment), plus `ctrl`/`shift`/`alt`/`win` for modifiers
+# (`MODIFIER_NAMES` in `src/config.rs`). Those four modifier names and the
+# existing single-character a-z/0-9 convention are worth keeping for
+# whatever naming scheme goes in the values below, so the existing
+# `actions.toml` entries (`"ctrl+w"`, `"win+left"`, etc.) don't need
+# renaming.
+#
+# This file is en-US only. A different physical layout (or a second
+# input device) would get its own file alongside this one, not a column
+# added here.
+
+[keys]
+
+# --- Letters ---
+KEY_A = ""
+KEY_B = ""
+KEY_C = ""
+KEY_D = ""
+KEY_E = ""
+KEY_F = ""
+KEY_G = ""
+KEY_H = ""
+KEY_I = ""
+KEY_J = ""
+KEY_K = ""
+KEY_L = ""
+KEY_M = ""
+KEY_N = ""
+KEY_O = ""
+KEY_P = ""
+KEY_Q = ""
+KEY_R = ""
+KEY_S = ""
+KEY_T = ""
+KEY_U = ""
+KEY_V = ""
+KEY_W = ""
+KEY_X = ""
+KEY_Y = ""
+KEY_Z = ""
+
+# --- Top-row digits ---
+KEY_1 = ""
+KEY_2 = ""
+KEY_3 = ""
+KEY_4 = ""
+KEY_5 = ""
+KEY_6 = ""
+KEY_7 = ""
+KEY_8 = ""
+KEY_9 = ""
+KEY_0 = ""
+
+# --- Function keys ---
+KEY_F1 = ""
+KEY_F2 = ""
+KEY_F3 = ""
+KEY_F4 = ""
+KEY_F5 = ""
+KEY_F6 = ""
+KEY_F7 = ""
+KEY_F8 = ""
+KEY_F9 = ""
+KEY_F10 = ""
+KEY_F11 = ""
+KEY_F12 = ""
+
+# --- Whitespace / editing ---
+KEY_SPACE = ""
+KEY_ENTER = ""
+KEY_TAB = ""
+KEY_BACKSPACE = ""
+KEY_ESC = ""
+KEY_CAPSLOCK = ""
+
+# --- Modifiers ---
+KEY_LEFTCTRL = ""
+KEY_RIGHTCTRL = ""
+KEY_LEFTSHIFT = ""
+KEY_RIGHTSHIFT = ""
+KEY_LEFTALT = ""
+KEY_RIGHTALT = ""
+KEY_LEFTMETA = ""
+KEY_RIGHTMETA = ""
+
+# --- Navigation ---
+KEY_INSERT = ""
+KEY_DELETE = ""
+KEY_HOME = ""
+KEY_END = ""
+KEY_PAGEUP = ""
+KEY_PAGEDOWN = ""
+KEY_UP = ""
+KEY_DOWN = ""
+KEY_LEFT = ""
+KEY_RIGHT = ""
+
+# --- Punctuation / symbols (US layout) ---
+KEY_MINUS = ""       # -
+KEY_EQUAL = ""        # =
+KEY_LEFTBRACE = ""    # [
+KEY_RIGHTBRACE = ""   # ]
+KEY_SEMICOLON = ""    # ;
+KEY_APOSTROPHE = ""   # '
+KEY_GRAVE = ""         # `
+KEY_BACKSLASH = ""    # \
+KEY_COMMA = ""         # ,
+KEY_DOT = ""           # .
+KEY_SLASH = ""         # /
+
+# --- Numpad ---
+KEY_NUMLOCK = ""
+KEY_KP0 = ""
+KEY_KP1 = ""
+KEY_KP2 = ""
+KEY_KP3 = ""
+KEY_KP4 = ""
+KEY_KP5 = ""
+KEY_KP6 = ""
+KEY_KP7 = ""
+KEY_KP8 = ""
+KEY_KP9 = ""
+KEY_KPDOT = ""
+KEY_KPPLUS = ""
+KEY_KPMINUS = ""
+KEY_KPASTERISK = ""
+KEY_KPSLASH = ""
+KEY_KPENTER = ""
+KEY_KPEQUAL = ""
+
+# --- System / misc ---
+KEY_SYSRQ = ""         # Print Screen -- already used as "prtsc" today
+KEY_SCROLLLOCK = ""
+KEY_PAUSE = ""
+KEY_MENU = ""           # context-menu key
+KEY_COMPOSE = ""
