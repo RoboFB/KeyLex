@@ -1,135 +1,107 @@
-//! Windows capture: WH_KEYBOARD_LL hook, ported from the previous ctypes
-//! implementation. Untestable on this (Linux) dev machine -- same caveat
-//! the project already carried for the Python listener.
+//! Windows capture: a `WH_KEYBOARD_LL` hook. Never compiled or run on an
+//! actual Windows machine -- this dev environment is Linux-only -- so treat
+//! it as a careful port, not a tested backend.
 //!
-//! WH_KEYBOARD_LL's callback must be a plain `extern "system" fn`, not a
-//! closure, so the registry/router live in a thread-local for the
-//! duration of `run()` (single-threaded: the hook and the message loop
-//! that drives it run on the same thread that calls `run()`).
+//! Three constraints shape this file:
 //!
-//! Chords need a bounded debounce window (see `src/capture/linux.rs` for
-//! the shared rationale), but a low-level hook callback must return
-//! immediately -- it can't sleep or block waiting to see whether more keys
-//! join a chord. Unlike Linux, no second thread is needed for the timer:
-//! `run()` already pumps a `GetMessageW`/`DispatchMessageW` loop on the
-//! hook's own thread, and a `SetTimer`/`TIMERPROC` timer posts into that
-//! same queue, so `DispatchMessageW` invokes `timer_proc` directly without
-//! needing a real window. Because a suppressed key's original event can
-//! never be "let through" after the fact once the hook has returned,
-//! replaying a timed-out or broken chord candidate means synthesizing a
-//! fresh keystroke via `SendInput` rather than re-emitting the original
-//! event the way `src/capture/linux.rs`'s virtual uinput device can.
+//! - The hook callback must be a plain `extern "system" fn`, not a closure,
+//!   so the router and chord state are reached through a thread-local for
+//!   the duration of `run()`. Everything here is single-threaded: the hook
+//!   and the message loop driving it share the thread that called `run()`.
+//! - A low-level hook must return immediately, so a chord's debounce window
+//!   can't be a sleep. Unlike Linux, no second thread is needed either:
+//!   `run()` already pumps a message loop, and a `SetTimer` timer posts
+//!   into that same queue for `DispatchMessageW` to deliver.
+//! - A suppressed key can never be let through after the fact, so replaying
+//!   a broken or timed-out chord means synthesizing fresh keystrokes with
+//!   `SendInput` rather than re-emitting the originals the way the Linux
+//!   uinput device can.
 
-use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
+use std::cell::{Cell, RefCell};
+use std::io;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HMODULE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
-    VIRTUAL_KEY, VK_LWIN, VK_MENU, VK_SHIFT, VK_CONTROL,
-    VK_LCONTROL, VK_RCONTROL, VK_LSHIFT, VK_RSHIFT, VK_LMENU, VK_RMENU, VK_RWIN,
+    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
+    VIRTUAL_KEY, VK_CONTROL, VK_LCONTROL, VK_LMENU, VK_LSHIFT, VK_LWIN, VK_MENU, VK_RCONTROL,
+    VK_RMENU, VK_RSHIFT, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, DispatchMessageW, GetMessageW, KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG,
-    PostQuitMessage, SetTimer, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HHOOK,
-    HC_ACTION, KillTimer, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    CallNextHookEx, DispatchMessageW, GetMessageW, KillTimer, SetTimer, SetWindowsHookExW,
+    TranslateMessage, UnhookWindowsHookEx, HC_ACTION, HHOOK, KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG,
+    WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
-use crate::config::{KeyCombo, Registry};
-use crate::dispatch::{Adapter, FallbackSender, Notifier, Router};
+use super::chord::{Chords, Keyboard, Phase};
+use crate::config::{is_modifier, KeyCombo, Registry};
+use crate::dispatch::{Adapters, FallbackSender, Notifier, Router};
+use crate::focus;
 
-/// How long a chord stays "pending" after its most recent member key went
-/// down before giving up and replaying it as normal keystrokes. Matches
-/// `src/capture/linux.rs`'s `CHORD_DEBOUNCE_WINDOW`; not yet configurable.
-const CHORD_DEBOUNCE_MS: u32 = 35;
-
-fn vk_for_letter_digit(vk: u32) -> Option<char> {
-    match vk {
-        0x30..=0x39 => Some((b'0' + (vk - 0x30) as u8) as char), // '0'-'9'
-        0x41..=0x5A => Some((b'a' + (vk - 0x41) as u8) as char), // 'A'-'Z' (VK codes == ASCII)
-        _ => None,
-    }
-}
+/// Matches `src/capture/linux.rs`'s debounce window; not yet configurable.
+const DEBOUNCE_MS: u32 = 35;
 
 const VK_SNAPSHOT: u32 = 0x2C;
 
-fn key_token(vk: u32) -> Option<String> {
-    if vk == VK_SNAPSHOT {
-        return Some("prtsc".to_string());
-    }
-    vk_for_letter_digit(vk).map(|c| c.to_string())
-}
-
-/// Which modifier name (if any) a *specific* left/right virtual-key code
-/// names. Distinct from `pressed_modifiers()` below, which queries the
-/// generic (side-independent) VK codes live via `GetAsyncKeyState` -- this
-/// one is for recognizing an individual key-event's `vkCode` so a modifier
-/// can be tracked through the chord state machine the same way a plain key
-/// is, when (and only when) it's actually part of a configured chord.
-fn modifier_token(vk: u32) -> Option<&'static str> {
-    match vk {
-        v if v == VK_LCONTROL.0 as u32 || v == VK_RCONTROL.0 as u32 => Some("ctrl"),
-        v if v == VK_LSHIFT.0 as u32 || v == VK_RSHIFT.0 as u32 => Some("shift"),
-        v if v == VK_LMENU.0 as u32 || v == VK_RMENU.0 as u32 => Some("alt"),
-        v if v == VK_LWIN.0 as u32 || v == VK_RWIN.0 as u32 => Some("win"),
-        _ => None,
-    }
-}
-
-/// Live physical modifier state via `GetAsyncKeyState`, used by the
-/// existing single-key(+modifier) trigger path. Unlike
-/// `src/capture/linux.rs`'s self-tracked `pressed_modifiers` set, this
-/// always reflects true hardware state regardless of whether Keylex has
-/// suppressed that modifier's own key event -- there is no equivalent on
-/// Windows to Linux's "don't fold a still-pending chord modifier into the
-/// tracked set yet" behavior, since nothing here is tracked incrementally
-/// in the first place. A modifier that's mid-chord-decision (pending, or
-/// already consumed by a matched chord) will still read as "held" here.
-/// Documented as a deliberate, unavoidable platform difference rather than
-/// a bug: fixing it would mean replacing this OS query with Keylex's own
-/// tracked state, a much larger change to an already-untestable backend.
-fn pressed_modifiers() -> std::collections::BTreeSet<String> {
-    fn down(vk: VIRTUAL_KEY) -> bool {
-        unsafe { (GetAsyncKeyState(vk.0 as i32) as u16 & 0x8000) != 0 }
-    }
-    let mut mods = std::collections::BTreeSet::new();
-    if down(VK_CONTROL) {
-        mods.insert("ctrl".to_string());
-    }
-    if down(VK_SHIFT) {
-        mods.insert("shift".to_string());
-    }
-    if down(VK_MENU) {
-        mods.insert("alt".to_string());
-    }
-    if down(VK_LWIN) {
-        mods.insert("win".to_string());
-    }
-    mods
+/// The token a virtual-key code names, if Keylex knows one. Modifiers
+/// resolve from their *specific* left/right code, so a modifier can travel
+/// through the chord state machine like any other key when it is part of a
+/// configured chord.
+fn token(vk: u32) -> Option<String> {
+    let modifier = |a: VIRTUAL_KEY, b: VIRTUAL_KEY| vk == a.0 as u32 || vk == b.0 as u32;
+    let name = match vk {
+        VK_SNAPSHOT => "prtsc",
+        _ if modifier(VK_LCONTROL, VK_RCONTROL) => "ctrl",
+        _ if modifier(VK_LSHIFT, VK_RSHIFT) => "shift",
+        _ if modifier(VK_LMENU, VK_RMENU) => "alt",
+        _ if modifier(VK_LWIN, VK_RWIN) => "win",
+        // VK codes for letters and digits are their ASCII uppercase.
+        0x30..=0x39 | 0x41..=0x5A => {
+            return Some((vk as u8 as char).to_ascii_lowercase().to_string())
+        }
+        _ => return None,
+    };
+    Some(name.to_string())
 }
 
 fn vk_for_token(token: &str) -> Option<VIRTUAL_KEY> {
     match token {
-        "ctrl" | "control" => Some(VK_CONTROL),
+        "ctrl" => Some(VK_CONTROL),
         "shift" => Some(VK_SHIFT),
-        "alt" | "menu" => Some(VK_MENU),
-        "win" | "lwin" => Some(VK_LWIN),
-        "prtsc" | "printscreen" => Some(VIRTUAL_KEY(VK_SNAPSHOT as u16)),
+        "alt" => Some(VK_MENU),
+        "win" => Some(VK_LWIN),
+        "prtsc" => Some(VIRTUAL_KEY(VK_SNAPSHOT as u16)),
         _ => {
             let mut chars = token.chars();
-            let c = chars.next()?;
-            if chars.next().is_some() {
-                return None;
-            }
-            if c.is_ascii_alphanumeric() {
-                Some(VIRTUAL_KEY(c.to_ascii_uppercase() as u16))
-            } else {
-                None
-            }
+            let c = chars
+                .next()
+                .filter(|c| c.is_ascii_alphanumeric() && chars.next().is_none())?;
+            Some(VIRTUAL_KEY(c.to_ascii_uppercase() as u16))
         }
     }
+}
+
+/// Live physical modifier state, for the single-combo trigger path. Unlike
+/// Linux, which tracks its own set, this asks the OS -- so it stays right
+/// even for a modifier whose own event Keylex suppressed. The flip side is
+/// that a modifier mid-chord-decision still reads as held; fixing that
+/// would mean replacing this query with tracked state, a much larger change
+/// to a backend nothing here can test.
+fn pressed_modifiers() -> std::collections::BTreeSet<String> {
+    // SAFETY: GetAsyncKeyState only reads global keyboard state for a
+    // virtual-key code and touches no memory of ours.
+    let down = |vk: VIRTUAL_KEY| unsafe { GetAsyncKeyState(vk.0 as i32) as u16 & 0x8000 != 0 };
+    [
+        (VK_CONTROL, "ctrl"),
+        (VK_SHIFT, "shift"),
+        (VK_MENU, "alt"),
+        (VK_LWIN, "win"),
+    ]
+    .into_iter()
+    .filter(|(vk, _)| down(*vk))
+    .map(|(_, name)| name.to_string())
+    .collect()
 }
 
 fn key_input(vk: VIRTUAL_KEY, up: bool) -> INPUT {
@@ -139,7 +111,11 @@ fn key_input(vk: VIRTUAL_KEY, up: bool) -> INPUT {
             ki: KEYBDINPUT {
                 wVk: vk,
                 wScan: 0,
-                dwFlags: if up { KEYEVENTF_KEYUP } else { Default::default() },
+                dwFlags: if up {
+                    KEYEVENTF_KEYUP
+                } else {
+                    Default::default()
+                },
                 time: 0,
                 dwExtraInfo: 0,
             },
@@ -147,396 +123,284 @@ fn key_input(vk: VIRTUAL_KEY, up: bool) -> INPUT {
     }
 }
 
-fn send_keycode(keycode: &str) -> windows::core::Result<()> {
-    let combo = KeyCombo::parse(keycode);
-    let mut vks = Vec::new();
-    for modifier in &combo.modifiers {
-        match vk_for_token(modifier) {
-            Some(vk) => vks.push(vk),
-            None => {
-                eprintln!("keylex: unknown modifier {modifier:?} in fallback keycode {keycode:?}");
-                return Ok(());
+/// Injects keystrokes. They re-enter `hook_proc` flagged `LLKHF_INJECTED`,
+/// which is exactly why that function passes injected events straight
+/// through instead of matching on them again.
+fn send_inputs(inputs: &[INPUT]) {
+    // SAFETY: `inputs` is a live, fully initialized slice, and the size
+    // argument is the size of the very type it holds, as SendInput requires.
+    let sent = unsafe { SendInput(inputs, std::mem::size_of::<INPUT>() as i32) };
+    if sent as usize != inputs.len() {
+        eprintln!(
+            "keylex: SendInput only processed {sent}/{} events",
+            inputs.len()
+        );
+    }
+}
+
+/// Replays chord keys and runs the debounce timer. Holds the live timer's
+/// id together with the generation it was armed for, so `timer_proc` can
+/// tell its own window from one that was already resolved.
+#[derive(Default)]
+struct Emitter {
+    timer: Option<(usize, u64)>,
+}
+
+impl Emitter {
+    fn synthesize(&self, token: &str, up: bool) {
+        match vk_for_token(token) {
+            Some(vk) => send_inputs(&[key_input(vk, up)]),
+            None => eprintln!("keylex: chord replay: unknown key token {token:?}"),
+        }
+    }
+
+    /// The generation a fired timer was armed for, if it is still the live
+    /// one; `None` for a stale timer whose chord was already resolved.
+    fn fired(&mut self, id: usize) -> Option<u64> {
+        match self.timer {
+            Some((live, generation)) if live == id => {
+                self.timer = None;
+                Some(generation)
             }
-        }
-    }
-    match vk_for_token(&combo.key) {
-        Some(vk) => vks.push(vk),
-        None => {
-            eprintln!("keylex: unknown key {:?} in fallback keycode {keycode:?}", combo.key);
-            return Ok(());
-        }
-    }
-
-    let down: Vec<INPUT> = vks.iter().map(|vk| key_input(*vk, false)).collect();
-    let up: Vec<INPUT> = vks.iter().rev().map(|vk| key_input(*vk, true)).collect();
-
-    unsafe {
-        let sent_down = SendInput(&down, std::mem::size_of::<INPUT>() as i32);
-        let sent_up = SendInput(&up, std::mem::size_of::<INPUT>() as i32);
-        if sent_down as usize != down.len() || sent_up as usize != up.len() {
-            eprintln!(
-                "keylex: SendInput only processed {sent_down}/{} down, {sent_up}/{} up",
-                down.len(),
-                up.len()
-            );
-        }
-    }
-    Ok(())
-}
-
-/// Synthesize a single down or up event for a chord-member token via
-/// `SendInput`, used for chord replay (timeout/break) instead of a literal
-/// re-emit, since there's no virtual re-emit device on Windows the way
-/// `src/capture/linux.rs`'s uinput device provides. These synthetic events
-/// re-enter `hook_proc` marked `LLKHF_INJECTED`, which is why `hook_proc`
-/// unconditionally passes injected events straight through without
-/// re-running chord matching on them.
-fn synthesize_key(token: &str, up: bool) {
-    let Some(vk) = vk_for_token(token) else {
-        eprintln!("keylex: chord replay: unknown key token {token:?}");
-        return;
-    };
-    let input = [key_input(vk, up)];
-    unsafe {
-        let sent = SendInput(&input, std::mem::size_of::<INPUT>() as i32);
-        if sent as usize != input.len() {
-            eprintln!(
-                "keylex: chord replay: SendInput only processed {sent}/1 for {token:?} (up={up})"
-            );
+            _ => None,
         }
     }
 }
 
-/// What a chord-member key that's no longer "pending" (undecided) is
-/// currently doing, for the rest of its physical hold: still being
-/// swallowed as part of a matched chord, or passing through normally
-/// (via synthesized `SendInput` events) because the chord attempt broke or
-/// timed out. Mirrors `src/capture/linux.rs`'s `ChordKeyState`.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ChordKeyState {
-    ConsumedByChord,
-    ReplayedPassthrough,
-}
+impl Keyboard for Emitter {
+    /// Nothing: a suppressed event can't be re-emitted here, so replays are
+    /// synthesized from the token alone.
+    type Event = ();
 
-/// Chord-member keys currently held down and not yet resolved.
-struct PendingChord {
-    /// Insertion order, so a timeout/break replay reproduces the keys in
-    /// the order they were actually pressed.
-    order: Vec<String>,
-}
-
-/// All chord-related state, extending `HookState` alongside the existing
-/// `Router`. `current_timer_id` is the live Win32 timer (if any) backing
-/// the current `pending` window -- Win32's `SetTimer` is a *repeating*
-/// timer by default, so every firing of `timer_proc` must `KillTimer` it
-/// explicitly, whether or not it's still the one we care about.
-struct ChordState {
-    pending: Option<PendingChord>,
-    held: HashMap<String, ChordKeyState>,
-    current_timer_id: Option<usize>,
-}
-
-impl ChordState {
-    fn new() -> ChordState {
-        ChordState {
-            pending: None,
-            held: HashMap::new(),
-            current_timer_id: None,
-        }
-    }
-}
-
-fn kill_current_timer(state: &mut ChordState) {
-    if let Some(id) = state.current_timer_id.take() {
-        unsafe {
-            let _ = KillTimer(None, id);
-        }
-    }
-}
-
-fn arm_timer(state: &mut ChordState) {
-    kill_current_timer(state);
-    // hwnd = NULL: the timer isn't associated with any window, so the
-    // nIDEvent we pass is ignored by Win32 and a fresh id is minted and
-    // returned instead -- that returned id is what `timer_proc` later
-    // receives, letting us recognize which pending window fired.
-    let id = unsafe { SetTimer(None, 0, CHORD_DEBOUNCE_MS, Some(timer_proc)) };
-    if id == 0 {
-        eprintln!("keylex: chord debounce: SetTimer failed");
-        return;
-    }
-    state.current_timer_id = Some(id);
-}
-
-fn replay_pending(state: &mut ChordState) {
-    let Some(pending) = state.pending.take() else {
-        return;
-    };
-    for token in &pending.order {
-        synthesize_key(token, false);
-        state.held.insert(token.clone(), ChordKeyState::ReplayedPassthrough);
-    }
-}
-
-fn on_chord_key_down(state: &mut ChordState, token: String, registry: &Registry, router: &Router) {
-    let Some(mut pending) = state.pending.take() else {
-        state.pending = Some(PendingChord { order: vec![token] });
-        arm_timer(state);
-        return;
-    };
-
-    let mut candidate: BTreeSet<String> = pending.order.iter().cloned().collect();
-    candidate.insert(token.clone());
-
-    if let Some(action_id) = registry.action_for_chord(&candidate) {
-        let action_id = action_id.to_string();
-        for member in &pending.order {
-            state.held.insert(member.clone(), ChordKeyState::ConsumedByChord);
-        }
-        state.held.insert(token, ChordKeyState::ConsumedByChord);
-        kill_current_timer(state);
-
-        let focused = crate::focus::focused_process_name();
-        let result = router.dispatch(&action_id, &focused);
-        println!("{action_id} -> {result} (chord)");
-        return;
+    fn press(&mut self, token: &str, (): ()) -> io::Result<()> {
+        self.synthesize(token, false);
+        Ok(())
     }
 
-    if registry.is_chord_prefix(&candidate) {
-        pending.order.push(token);
-        state.pending = Some(pending);
-        arm_timer(state); // restart the window from this latest key
-        return;
+    fn release(&mut self, token: &str, (): ()) -> io::Result<()> {
+        self.synthesize(token, true);
+        Ok(())
     }
 
-    // This key breaks every chord the old pending set could have become:
-    // replay the old keys as normal keystrokes, then let this key start a
-    // fresh pending sequence of its own.
-    state.pending = Some(pending);
-    replay_pending(state);
-    kill_current_timer(state);
-    on_chord_key_down(state, token, registry, router);
-}
-
-fn on_chord_key_up(state: &mut ChordState, token: String) {
-    if let Some(pending) = &mut state.pending {
-        if let Some(pos) = pending.order.iter().position(|t| t == &token) {
-            pending.order.remove(pos);
-            let now_empty = pending.order.is_empty();
-            // Early resolution: released before the chord completed or
-            // timed out. Replay just this key's down+up immediately --
-            // faster feedback for plain typing than waiting out the rest
-            // of the window.
-            synthesize_key(&token, false);
-            synthesize_key(&token, true);
-            if now_empty {
-                state.pending = None;
-                kill_current_timer(state);
-            }
+    fn arm_timer(&mut self, generation: u64) {
+        // A null hwnd means Win32 ignores the id we pass and mints its own,
+        // returning it -- that is the id `timer_proc` will report back.
+        // SAFETY: `timer_proc` is a real TIMERPROC, and this thread pumps
+        // the message loop that delivers the callback.
+        let id = unsafe { SetTimer(None, 0, DEBOUNCE_MS, Some(timer_proc)) };
+        if id == 0 {
+            eprintln!("keylex: chord debounce: SetTimer failed");
             return;
         }
-    }
-
-    match state.held.remove(&token) {
-        Some(ChordKeyState::ConsumedByChord) => {} // matched trigger: fully consumed
-        Some(ChordKeyState::ReplayedPassthrough) => synthesize_key(&token, true),
-        None => {
-            // No tracked down for this token (shouldn't normally happen)
-            // -- fail safe by letting the up through so nothing is left
-            // stuck "down" at the OS level.
-            synthesize_key(&token, true);
-        }
+        self.timer = Some((id, generation));
     }
 }
 
-fn on_chord_key_repeat(state: &mut ChordState, token: String) {
-    if let Some(pending) = &state.pending {
-        if pending.order.contains(&token) {
-            return; // undecided: drop, don't extend the window on autorepeat
+struct Fallback;
+
+impl FallbackSender for Fallback {
+    fn send(&self, combo: &KeyCombo) {
+        let mut keys = Vec::with_capacity(combo.modifiers.len() + 1);
+        for token in combo.modifiers.iter().chain(std::iter::once(&combo.key)) {
+            match vk_for_token(token) {
+                Some(vk) => keys.push(vk),
+                None => {
+                    eprintln!("keylex: fallback keycode {combo}: unknown key {token:?}");
+                    return;
+                }
+            }
         }
-    }
-    if state.held.get(&token) == Some(&ChordKeyState::ReplayedPassthrough) {
-        synthesize_key(&token, false); // another synthetic down: mirrors real autorepeat
-    }
-    // ConsumedByChord (or untracked, which shouldn't happen for a repeat):
-    // swallow.
-}
 
-struct WindowsFallbackSender;
-
-impl FallbackSender for WindowsFallbackSender {
-    fn send(&self, keycode: &str) {
-        if let Err(e) = send_keycode(keycode) {
-            eprintln!("keylex: failed to send fallback keycode {keycode:?}: {e}");
-        }
+        let down: Vec<INPUT> = keys.iter().map(|vk| key_input(*vk, false)).collect();
+        let up: Vec<INPUT> = keys.iter().rev().map(|vk| key_input(*vk, true)).collect();
+        send_inputs(&down);
+        send_inputs(&up);
     }
-}
-
-thread_local! {
-    static HOOK_STATE: RefCell<Option<*const HookState>> = const { RefCell::new(None) };
 }
 
 struct HookState<'a> {
     router: Router<'a>,
-    chord_state: RefCell<ChordState>,
+    chords: RefCell<Chords<()>>,
+    emitter: RefCell<Emitter>,
 }
 
-unsafe extern "system" fn timer_proc(_hwnd: HWND, _msg: u32, id_event: usize, _time: u32) {
-    // SetTimer with hwnd=NULL is a *repeating* timer by default -- always
-    // kill this specific id so it doesn't keep firing every
-    // CHORD_DEBOUNCE_MS forever; a chord debounce is meant to be one-shot.
-    let _ = KillTimer(None, id_event);
+thread_local! {
+    /// Type-erased on purpose: `HookState` borrows the registry, but a
+    /// thread-local must be `'static`. `run()` is the only writer, and the
+    /// pointer is non-null only while the `HookState` it points at is alive
+    /// on this same thread.
+    static HOOK_STATE: Cell<*const ()> = const { Cell::new(std::ptr::null()) };
+}
 
-    HOOK_STATE.with(|state| {
-        let Some(ptr) = *state.borrow() else { return };
-        let hook_state = &*ptr;
-        let mut chord_state = hook_state.chord_state.borrow_mut();
-        if chord_state.current_timer_id == Some(id_event) {
-            chord_state.current_timer_id = None;
-            replay_pending(&mut chord_state);
+/// Runs `f` against the state `run()` installed, or reports `None` when no
+/// hook is active (a callback arriving before setup or after teardown).
+fn with_state<R>(f: impl FnOnce(&HookState) -> R) -> Option<R> {
+    let state = HOOK_STATE.get();
+    if state.is_null() {
+        return None;
+    }
+    // SAFETY: only `run()` ever writes this cell, on this same thread: it
+    // stores a pointer to a `HookState` local that outlives the message
+    // loop, and nulls it again before that local is dropped. So a non-null
+    // pointer here always refers to a live, immutably-borrowable value.
+    Some(f(unsafe { &*state.cast::<HookState>() }))
+}
+
+fn dispatch(action_id: &str, router: &Router) {
+    let focused = focus::focused_process_name();
+    println!(
+        "{action_id} -> {}",
+        router.dispatch(action_id, focused.as_deref())
+    );
+}
+
+/// Whether the key that produced this event still reaches the OS.
+enum Handled {
+    Suppress,
+    PassOn,
+}
+
+fn on_key(state: &HookState, token: &str, phase: Phase) -> Handled {
+    let registry = state.router.registry();
+
+    if registry.is_chord_member(token) {
+        let matched = {
+            let mut chords = state.chords.borrow_mut();
+            let mut emitter = state.emitter.borrow_mut();
+            // A genuine fresh press can't arrive twice without a release in
+            // between, so a down for an already-tracked key is autorepeat.
+            let phase = match phase {
+                Phase::Down if chords.is_tracked(token) => Phase::Repeat,
+                phase => phase,
+            };
+            chords.on_key(token, phase, (), registry, &mut *emitter)
+        };
+        match matched {
+            Ok(Some(action_id)) => dispatch(&action_id, &state.router),
+            Ok(None) => {}
+            Err(e) => eprintln!("keylex: chord handling failed: {e}"),
         }
-        // Otherwise: a stale timer for a pending window that was already
-        // resolved (matched, broken, or released early) some other way --
-        // already killed above, nothing left to do.
+        return Handled::Suppress; // chord members are always suppressed at the source
+    }
+
+    if is_modifier(token) {
+        // Not part of any chord, so it passes through untouched; the combo
+        // path below reads modifier state live from the OS anyway.
+        return Handled::PassOn;
+    }
+
+    let combo = KeyCombo {
+        key: token.to_string(),
+        modifiers: pressed_modifiers(),
+    };
+    let Some(action_id) = registry.action_for_trigger(&combo).map(str::to_string) else {
+        return Handled::PassOn;
+    };
+    if phase == Phase::Down {
+        dispatch(&action_id, &state.router);
+    }
+    Handled::Suppress
+}
+
+unsafe extern "system" fn timer_proc(_hwnd: HWND, _msg: u32, id: usize, _time: u32) {
+    // A `SetTimer` timer with a null hwnd repeats by default, so kill this
+    // id whatever happens next: a chord debounce is meant to fire once.
+    // SAFETY: `id` is the timer Win32 just reported as fired; killing an
+    // already-dead timer is defined (it fails) rather than unsound.
+    unsafe {
+        let _ = KillTimer(None, id);
+    }
+
+    with_state(|state| {
+        let mut emitter = state.emitter.borrow_mut();
+        let Some(generation) = emitter.fired(id) else {
+            return; // a window already resolved some other way
+        };
+        if let Err(e) = state
+            .chords
+            .borrow_mut()
+            .on_timeout(generation, &mut *emitter)
+        {
+            eprintln!("keylex: chord replay failed: {e}");
+        }
     });
 }
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if code as u32 != HC_ACTION {
-        return CallNextHookEx(None, code, wparam, lparam);
+    // SAFETY: passing the hook chain the very arguments it handed us is
+    // what the WH_KEYBOARD_LL contract asks of a hook that doesn't handle
+    // an event.
+    let pass_on = || unsafe { CallNextHookEx(None, code, wparam, lparam) };
+
+    if code != HC_ACTION as i32 {
+        return pass_on();
+    }
+    // SAFETY: for HC_ACTION, Win32 documents lparam as a pointer to a
+    // KBDLLHOOKSTRUCT that stays valid for this call.
+    let event = unsafe { &*(lparam.0 as *const KBDLLHOOKSTRUCT) };
+
+    // Never re-process our own injected events (chord replay, fallback
+    // keycodes): matching on one would corrupt chord state or loop forever.
+    if event.flags.0 & LLKHF_INJECTED.0 != 0 {
+        return pass_on();
     }
 
-    let info = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
-
-    // Never process our own SendInput-synthesized events (chord replay,
-    // fallback keycodes): re-running chord matching on an event we just
-    // injected ourselves would corrupt state or loop forever.
-    if (info.flags.0 & LLKHF_INJECTED.0) != 0 {
-        return CallNextHookEx(None, code, wparam, lparam);
-    }
-
-    let is_down = wparam.0 as u32 == WM_KEYDOWN || wparam.0 as u32 == WM_SYSKEYDOWN;
-    let is_up = wparam.0 as u32 == WM_KEYUP || wparam.0 as u32 == WM_SYSKEYUP;
-
-    let is_modifier_vk = modifier_token(info.vkCode).is_some();
-    let token = modifier_token(info.vkCode)
-        .map(str::to_string)
-        .or_else(|| key_token(info.vkCode));
-
-    let Some(token) = token else {
-        return CallNextHookEx(None, code, wparam, lparam);
+    let phase = match wparam.0 as u32 {
+        WM_KEYDOWN | WM_SYSKEYDOWN => Phase::Down,
+        WM_KEYUP | WM_SYSKEYUP => Phase::Up,
+        _ => return pass_on(),
+    };
+    let Some(token) = token(event.vkCode) else {
+        return pass_on();
     };
 
-    let hook_state_ptr = HOOK_STATE.with(|state| *state.borrow());
-    let Some(ptr) = hook_state_ptr else {
-        return CallNextHookEx(None, code, wparam, lparam);
-    };
-    let hook_state = &*ptr;
-
-    if hook_state.router.registry.is_chord_member(&token) {
-        let mut chord_state = hook_state.chord_state.borrow_mut();
-        // WH_KEYBOARD_LL carries no repeat-count: whether a WM_KEYDOWN is
-        // a fresh press or autorepeat is inferred from our own tracking --
-        // a genuine fresh key can't send WM_KEYDOWN again without a
-        // WM_KEYUP in between.
-        let already_tracked = chord_state
-            .pending
-            .as_ref()
-            .is_some_and(|p| p.order.contains(&token))
-            || chord_state.held.contains_key(&token);
-
-        if is_down {
-            if already_tracked {
-                on_chord_key_repeat(&mut chord_state, token);
-            } else {
-                on_chord_key_down(&mut chord_state, token, &hook_state.router.registry, &hook_state.router);
-            }
-        } else if is_up {
-            on_chord_key_up(&mut chord_state, token);
-        }
-        return LRESULT(1); // chord-member keys are always suppressed at the source
+    match with_state(|state| on_key(state, &token, phase)) {
+        Some(Handled::Suppress) => LRESULT(1),
+        Some(Handled::PassOn) | None => pass_on(),
     }
-
-    if is_modifier_vk {
-        // Not part of any configured chord: preserve the original,
-        // untouched-passthrough behavior. Modifier state for the
-        // single-key(+modifier) trigger path below is read live via
-        // GetAsyncKeyState in `pressed_modifiers()`, never tracked from
-        // individual key events.
-        return CallNextHookEx(None, code, wparam, lparam);
-    }
-
-    let combo = KeyCombo {
-        key: token,
-        modifiers: pressed_modifiers(),
-    };
-
-    let matched = hook_state
-        .router
-        .registry
-        .action_for_trigger(&combo)
-        .map(str::to_string);
-
-    if let Some(action_id) = matched {
-        if is_down {
-            let focused = crate::focus::focused_process_name();
-            let result = hook_state.router.dispatch(&action_id, &focused);
-            println!("{action_id} -> {result}");
-        }
-        if is_down || is_up {
-            return LRESULT(1); // suppress: OS/app never sees this key
-        }
-    }
-
-    CallNextHookEx(None, code, wparam, lparam)
 }
 
-pub fn run(
-    registry: &Registry,
-    adapters: HashMap<String, Box<dyn Adapter>>,
-    notifier: Box<dyn Notifier>,
-) -> std::io::Result<()> {
-    let hook_state = HookState {
-        router: Router {
-            registry,
-            adapters,
-            notifier,
-            fallback_sender: Box::new(WindowsFallbackSender),
-        },
-        chord_state: RefCell::new(ChordState::new()),
+pub fn run(registry: &Registry, adapters: Adapters, notifier: Box<dyn Notifier>) -> io::Result<()> {
+    let state = HookState {
+        router: Router::new(registry, adapters, notifier, Box::new(Fallback)),
+        chords: RefCell::new(Chords::default()),
+        emitter: RefCell::new(Emitter::default()),
     };
 
-    HOOK_STATE.with(|state| {
-        *state.borrow_mut() = Some(&hook_state as *const HookState);
-    });
-
-    let result = unsafe {
-        let hmodule: HMODULE = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
-        let hook: windows::core::Result<HHOOK> =
-            SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), hmodule, 0);
-        match hook {
-            Ok(hook) => {
-                println!("keylex: windows keyboard hook active");
-                let mut msg = MSG::default();
-                while GetMessageW(&mut msg, None, 0, 0).into() {
-                    let _ = TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
-                }
-                let _ = UnhookWindowsHookEx(hook);
-                Ok(())
-            }
-            Err(e) => Err(std::io::Error::other(format!("SetWindowsHookExW failed: {e}"))),
-        }
-    };
-
-    HOOK_STATE.with(|state| {
-        *state.borrow_mut() = None;
-    });
-
+    HOOK_STATE.set(std::ptr::from_ref(&state).cast());
+    let result = pump_messages();
+    HOOK_STATE.set(std::ptr::null());
     result
 }
 
-#[allow(dead_code)]
-fn request_stop() {
-    unsafe { PostQuitMessage(0) };
+/// Installs the hook and runs the message loop that both delivers its
+/// callbacks and drives the chord debounce timers, until the thread is
+/// asked to quit.
+fn pump_messages() -> io::Result<()> {
+    // SAFETY: a null module name asks for the handle of the current process
+    // image, which is what a global low-level hook needs.
+    let module: HMODULE = unsafe { GetModuleHandleW(PCWSTR::null()) }.unwrap_or_default();
+    // SAFETY: `hook_proc` is a real `extern "system"` hook procedure with
+    // the signature WH_KEYBOARD_LL requires, and thread id 0 asks for the
+    // global hook this needs to be.
+    let hook: HHOOK = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), module, 0) }
+        .map_err(|e| io::Error::other(format!("SetWindowsHookExW failed: {e}")))?;
+
+    println!("keylex: windows keyboard hook active");
+    let mut message = MSG::default();
+    // SAFETY: `message` is a valid, writable MSG for the whole loop, and
+    // each call only reads the message the previous one just filled in.
+    while unsafe { GetMessageW(&mut message, None, 0, 0) }.as_bool() {
+        unsafe {
+            let _ = TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+
+    // SAFETY: `hook` is the handle SetWindowsHookExW just returned and has
+    // not been unhooked before now.
+    unsafe {
+        let _ = UnhookWindowsHookEx(hook);
+    }
+    Ok(())
 }

@@ -131,7 +131,7 @@ const COMMANDS = {
 // Mirrors this folder's capabilities.toml -- action id, wire command, and a
 // human title for each, reported over the list_actions handshake
 // (../../docs/protocol.md#action-catalog-handshake-list_actions) so
-// spotlight search (../../src/spotlight.rs) shows something readable
+// spotlight search (../../src/spotlight/) shows something readable
 // instead of the raw command string. Unlike vscode-extension/extension.js,
 // there's no "installed extensions" style dynamic universe of commands
 // here to auto-discover -- this listener only ever does exactly these ten
