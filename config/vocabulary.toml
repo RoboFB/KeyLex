@@ -8,10 +8,11 @@
 
 modifiers = [
     "save", "close", "open", "duplicate", "comment", "toggle",
-    "go_to", "move", "show", "reset", "shutdown",
+    "go_to", "move", "show", "reset", "shutdown", "create", "send",
 ]
 
 locations = [
     "tab", "window", "sidebar", "pane", "terminal", "line",
     "definition", "desktop", "graphics_driver", "left", "right",
+    "next_desktop", "previous_desktop",
 ]

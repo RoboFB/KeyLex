@@ -1,0 +1,8 @@
+{
+  "name": "keylex-linux-extension",
+  "private": true,
+  "description": "OS-wide Linux system listener (listener.js) and GNOME Shell search provider (search-provider.js) for Keylex.",
+  "dependencies": {
+    "dbus-next": "^0.10.2"
+  }
+}

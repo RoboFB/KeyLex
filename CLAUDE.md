@@ -45,6 +45,10 @@ cargo run                 # real capture loop, blocks (needs evdev/uinput perms)
 cargo run -- --demo        # two hardcoded dispatches, no capture/hardware needed
 cargo run -- --config-dir <path>  # load actions.toml/targets.toml/vocabulary.toml from elsewhere
 
+cargo run -- --spotlight                    # interactive fuzzy action search/dispatch (src/spotlight.rs)
+cargo run -- --spotlight-query "<text>"      # non-interactive: print ranked matches as JSON, no dispatch
+cargo run -- --spotlight-run "<action-id>"   # non-interactive: dispatch one action id, record frecency
+
 cargo test                # unit tests (src/config.rs) + integration tests (tests/dispatch.rs)
 cargo test <name>          # single test by substring
 ```
@@ -153,6 +157,84 @@ per-target `allowed_origin` in `targets.toml`. See
 [docs/protocol.md](docs/protocol.md#trust-model--authentication) for the
 full wire-level contract and threat model.
 
+### Spotlight action search (`src/spotlight.rs`)
+
+A fuzzy-searchable catalog of actions, cross-platform by construction: the
+ranking engine (`nucleo-matcher`) and the interactive terminal launcher
+(`crossterm`) are both pure computation/terminal-I/O crates with no
+OS-specific code of their own, so `keylex --spotlight` behaves identically
+on Linux, macOS, and Windows terminals (macOS still has no focused-process
+resolution — see "macOS" below — so a dispatched action there always goes
+through the keycode fallback, same as an unknown focused process on any
+platform).
+
+`spotlight::Index` never gets its "valid options" from a hand-maintained
+file. It starts from every action id `Registry` already knows
+(`action_ids()`), then enriches (never replaces) that with whatever a
+socket-adapter target reports live via the `list_actions` handshake — a
+small request/response extension to `keylex/v0`
+(`SocketAdapter::fetch_actions`,
+[docs/protocol.md](docs/protocol.md#action-catalog-handshake-list_actions)):
+the daemon asks, a target answers with the commands it just verified still
+exist, and the spotlight catalog reflects that live state, not a stale
+snapshot. A target that doesn't answer (not running, doesn't implement the
+handshake yet) just means its entries keep whatever
+`actions.toml`/`targets.toml` already said.
+
+`vscode-extension/extension.js` answers with a genuinely complete catalog,
+not a hand-picked subset: `vscode.extensions.all` exposes every installed
+extension's own parsed `package.json`, and `contributes.commands` there is
+the exact same data VS Code's own Command Palette is built from, so a
+newly installed extension's commands show up in spotlight search
+automatically. Each candidate is still cross-checked live against
+`vscode.commands.getCommands()` before being reported, but there is
+deliberately **no allowlist** narrowing that down further any more — see
+[docs/protocol.md](docs/protocol.md#trust-model--authentication)'s "No
+per-command allowlist, by design" for the security trade-off that makes:
+the shared token is the only remaining gate, and it now grants the ability
+to run *any* command any installed VS Code extension contributes, not just
+a vetted safe set.
+
+An entry the handshake reports has no Keylex action id of its own for the
+vast majority of what it discovers (only a handful, like `close.tab`,
+happen to also be one of Keylex's curated cross-app actions). Those two
+kinds are dispatched differently (`spotlight::dispatch_entry`): a real
+Keylex action id goes through the normal focus-aware `Router::dispatch`
+(native adapter for whatever's focused, keycode fallback otherwise) exactly
+like a real key binding would; anything else is a raw native command with
+no cross-app abstraction, namespaced internally as `"<target-
+program>:<native-command>"` (`spotlight::Index::merge_remote`) and sent
+straight to the target that reported it, regardless of what's currently
+focused, since there is no abstract action to route by focus in the first
+place.
+
+Optional zoxide-style "last used" tracking (`spotlight::Frecency`) persists
+a small per-action-id count/recency score to
+`<config-dir>/spotlight_frecency.json` (git-ignored, runtime state) and adds
+a bounded ranking bonus on top of the fuzzy score — never enough to let a
+poor match outrank a strong one, only to break ties toward what's actually
+used. It's only recorded on the Rust-driven dispatch paths (the interactive
+launcher, `--spotlight-run`) — picking an action from the VS Code
+extension's own `keylex.spotlight` QuickPick doesn't round-trip back to the
+daemon to record a hit, since that would require the daemon to run a
+listening server for the vscode target instead of being its TCP client (see
+"Adapters" above); a known, deliberate scope cut, not an oversight.
+
+Three consumers currently exist, all reusing this one engine rather than
+reimplementing matching:
+- `cargo run -- --spotlight` — the interactive terminal launcher.
+- `extensions/vscode-extension/extension.js`'s `keylex.spotlight` command —
+  a native VS Code `QuickPick` (which already does its own fuzzy filtering)
+  populated from the *same* live, complete command catalog the
+  `list_actions` handshake reports, so both consumers agree on what's
+  "valid" for VS Code by construction, not by convention.
+- `extensions/linux-extension/search-provider.js` — a best-effort, untested
+  (no GNOME Shell in this dev environment) GNOME Shell search provider that
+  shells out to `keylex --spotlight-query`/`--spotlight-run` so
+  Activities search reuses the same Rust ranking instead of a JS
+  reimplementation. See that folder's README.md for registration/setup and
+  the exact untested caveat.
+
 ### Dispatch flow (`src/dispatch.rs`)
 
 `Router::dispatch(action_id, focused_process)`:
@@ -228,6 +310,31 @@ started.
 ## Known gaps / deliberately deferred (don't "fix" without discussion)
 
 - No real OS notification — `Notifier` just logs, on both platforms.
+- `vscode-extension/extension.js` has no per-command allowlist any more
+  (see "Spotlight action search" above and
+  [docs/protocol.md](docs/protocol.md#trust-model--authentication)'s "No
+  per-command allowlist, by design") — this is a deliberate trade for
+  complete, zero-maintenance command discovery, but it means
+  `config/secret.token` alone now gates *every* command any installed VS
+  Code extension contributes, not a vetted subset. Not a bug, but revisit
+  this if Keylex's threat model ever needs to change.
+- `extensions/linux-extension/search-provider.js` (the GNOME Shell search
+  provider for spotlight, see "Spotlight action search" above) is untested
+  outside a real GNOME Shell session, same caveat as the Windows capture
+  backend — this dev environment has no session D-Bus bus or GNOME Shell to
+  register against.
+- Spotlight frecency (`spotlight::Frecency`) is only recorded on the
+  Rust-driven dispatch paths (`--spotlight`, `--spotlight-run`) — an action
+  picked from VS Code's own `keylex.spotlight` QuickPick doesn't report
+  back to the daemon, since that would need the daemon to run a listening
+  server for the vscode target rather than being its client. Deliberate
+  scope cut for now, not a bug.
+- The spotlight terminal launcher's chosen fuzzy library/UI crates
+  (`nucleo-matcher`, `crossterm`) are pure computation/terminal-I/O with no
+  OS bindings, so they compile and *should* behave identically on macOS —
+  but macOS still has no focused-process resolution (see "macOS" below), so
+  a dispatched action there always falls through to the keycode fallback,
+  and this hasn't been run on an actual Mac either way.
 - No macOS capture backend at all (see "macOS" above) — Linux and Windows
   only, for now.
 - Neovim (msgpack-RPC) and a terminal-emulator adapter are unimplemented;
