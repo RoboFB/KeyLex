@@ -81,6 +81,17 @@ goal — a change that deletes more than it writes is usually the right one.
 See that document's "Keep it simple" section for what that means in
 review.
 
+## Coding guidelines
+
+Rust code in this repo (`src/`, `tests/`) follows
+[docs/rust-coding-guidelines.md](docs/rust-coding-guidelines.md) — naming,
+doc-comment style, error-handling conventions (when `expect()` is
+acceptable and what its message must say), where `unsafe` is allowed, and
+dependency-vetting practice, each grounded in this codebase's existing
+code with links to trusted external references (Rust API Guidelines, the
+Rustonomicon, ANSSI's Rust guidelines, etc.). Check new or touched Rust
+code against it.
+
 ## Architecture
 
 ### Module map (`src/`)
