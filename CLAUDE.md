@@ -51,6 +51,17 @@ cargo test <name>          # single test by substring
 
 There is no separate lint step configured beyond `cargo clippy`.
 
+## Coding guidelines
+
+Rust code in this repo (`src/`, `tests/`) follows
+[docs/rust-coding-guidelines.md](docs/rust-coding-guidelines.md) — naming,
+doc-comment style, error-handling conventions (when `expect()` is
+acceptable and what its message must say), where `unsafe` is allowed, and
+dependency-vetting practice, each grounded in this codebase's existing
+code with links to trusted external references (Rust API Guidelines, the
+Rustonomicon, ANSSI's Rust guidelines, etc.). Check new or touched Rust
+code against it.
+
 ## Architecture
 
 ### Three config layers (`config/*.toml` + per-extension `capabilities.toml`), loaded by `Registry` (`src/config.rs`)

@@ -4,7 +4,9 @@ Status: **draft, unstable.** This document exists so a target adapter (an
 editor extension, a browser extension host, a firmware author) can be
 implemented against a written spec instead of reading the Python daemon's
 source. Nothing here is a compatibility promise yet — expect breaking
-changes until `v1`.
+changes until `v1`. For the coding conventions the Rust reference
+implementations linked below (`src/adapters/`) follow, see
+[rust-coding-guidelines.md](rust-coding-guidelines.md).
 
 ## Why a written protocol at all
 

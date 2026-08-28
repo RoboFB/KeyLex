@@ -67,7 +67,8 @@ steht und ist auf Linux getestet. Der Windows-Capture-Backend
 einer echten Windows-Maschine ungetestet. Erster Zielarchitektur-
 Baustein: VS-Code-Adapter (offizielle Extension-API, klar dokumentierte
 Commands). Details zur Architektur: [CLAUDE.md](CLAUDE.md), zum
-Adapter-Wire-Format: [docs/protocol.md](docs/protocol.md).
+Adapter-Wire-Format: [docs/protocol.md](docs/protocol.md), zu
+Rust-Code-Konventionen: [docs/rust-coding-guidelines.md](docs/rust-coding-guidelines.md).
 
 ## Privacy & Security
 
