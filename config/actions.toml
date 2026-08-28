@@ -118,3 +118,40 @@ modifier = "move"
 location = "right"
 key = "win+right"
 fallback_tier = "notify_only"
+
+# Virtual-desktop management, all handled by the OS-wide system listener
+# (extensions/linux-extension) -- there's no safe cross-platform keycode
+# guess for any of these (a wrongly guessed combo could do nothing or
+# switch/close the wrong thing), so all are notify_only.
+[[action]]
+modifier = "create"
+location = "desktop"
+fallback_tier = "notify_only"
+
+# Switches which virtual desktop is currently shown, without moving any
+# window -- the "just switch workspace" half of typical WM shortcuts.
+[[action]]
+modifier = "go_to"
+location = "next_desktop"
+key = "ctrl+alt+right"
+fallback_tier = "notify_only"
+
+[[action]]
+modifier = "go_to"
+location = "previous_desktop"
+key = "ctrl+alt+left"
+fallback_tier = "notify_only"
+
+# Moves the focused window to the adjacent virtual desktop and follows it
+# there -- the "bring the window with me" half.
+[[action]]
+modifier = "send"
+location = "next_desktop"
+key = "ctrl+alt+shift+right"
+fallback_tier = "notify_only"
+
+[[action]]
+modifier = "send"
+location = "previous_desktop"
+key = "ctrl+alt+shift+left"
+fallback_tier = "notify_only"

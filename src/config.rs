@@ -457,6 +457,28 @@ impl Registry {
     pub fn is_chord_prefix(&self, keys: &BTreeSet<String>) -> bool {
         self.chord_triggers.keys().any(|chord_keys| keys.is_subset(chord_keys))
     }
+
+    /// Every configured action id -- the baseline catalog `spotlight::Index`
+    /// builds its search entries from (`src/spotlight.rs`), before any
+    /// target enriches it via the `list_actions` handshake.
+    pub fn action_ids(&self) -> impl Iterator<Item = &str> {
+        self.actions.keys().map(String::as_str)
+    }
+
+    /// The physical key or chord bound to `action_id`, rendered
+    /// "ctrl+w"-style, if any -- a display hint for the spotlight catalog
+    /// only. Dispatch itself only ever needs the reverse lookup
+    /// (`action_for_trigger`/`action_for_chord`), so this scans the (small)
+    /// trigger maps rather than keeping a second reverse index in sync.
+    pub fn trigger_for_action(&self, action_id: &str) -> Option<String> {
+        if let Some((combo, _)) = self.triggers.iter().find(|(_, id)| id.as_str() == action_id) {
+            return Some(combo.to_string());
+        }
+        self.chord_triggers
+            .iter()
+            .find(|(_, id)| id.as_str() == action_id)
+            .map(|(keys, _)| keys.iter().cloned().collect::<Vec<_>>().join("+"))
+    }
 }
 
 #[cfg(test)]

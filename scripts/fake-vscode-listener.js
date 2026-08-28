@@ -1,9 +1,8 @@
-// Stand-in for the (not yet built) VS Code extension's socket server.
-//
-// There is no real VS Code-side listener yet, so SocketAdapter always times
-// out and every action falls through to the keycode fallback. Run this next
-// to `cargo run` to see a "native" dispatch actually arrive somewhere, per
-// the wire format in docs/protocol.md -- without needing the real extension.
+// Stand-in for the real VS Code extension's socket server
+// (../extensions/vscode-extension/extension.js). Run this next to
+// `cargo run`/`cargo run -- --spotlight` to see a "native" dispatch and the
+// list_actions handshake (docs/protocol.md#action-catalog-handshake-list_actions)
+// actually arrive somewhere, without needing a real VS Code window.
 const fs = require("fs");
 const net = require("net");
 const path = require("path");
@@ -15,6 +14,23 @@ const TOKEN_PATH = path.join(__dirname, "..", "config", "secret.token");
 // The daemon generates this file on first run (src/auth.rs); every message
 // it sends now carries this same token (docs/protocol.md#trust-model--authentication).
 const token = fs.readFileSync(TOKEN_PATH, "utf8").trim();
+
+// Mirrors the real extension's live-discovered catalog closely enough for
+// local testing -- not the real vscode.extensions.all/getCommands() walk
+// the real extension does, since there's no real VS Code here to check
+// against. Includes one entry ("editor.action.formatDocument") with no
+// Keylex action-id equivalent, to exercise the "raw command, namespaced by
+// source" path (see src/spotlight.rs's merge_remote/dispatch_entry) end to
+// end without a real VS Code window.
+const ACTION_CATALOG = [
+  { id: "close.tab", command: "workbench.action.closeActiveEditor", title: "Close Editor" },
+  { id: "save", command: "workbench.action.files.save", title: "Save File" },
+  {
+    id: "editor.action.formatDocument",
+    command: "editor.action.formatDocument",
+    title: "Format Document",
+  },
+];
 
 const server = net.createServer((socket) => {
   let buffer = "";
@@ -29,6 +45,15 @@ const server = net.createServer((socket) => {
         const message = JSON.parse(line);
         if (message.token !== token) {
           console.error("rejected message with invalid/missing token:", message);
+          continue;
+        }
+        if (message.type === "list_actions") {
+          console.log("received list_actions handshake request");
+          const response =
+            JSON.stringify({
+              actions: ACTION_CATALOG.map(({ id, command, title }) => ({ id, native_command: command, title })),
+            }) + "\n";
+          socket.end(response);
           continue;
         }
         console.log("received command:", message.command);

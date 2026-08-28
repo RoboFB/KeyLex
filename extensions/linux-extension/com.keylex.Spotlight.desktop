@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Keylex Spotlight
+Comment=Fuzzy-search Keylex actions from GNOME Shell's Activities search
+Exec=keylex --spotlight
+Icon=input-keyboard
+Terminal=true
+NoDisplay=true
+Categories=Utility;

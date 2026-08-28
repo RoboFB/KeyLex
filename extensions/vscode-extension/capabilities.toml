@@ -1,8 +1,12 @@
 # This extension's declared capabilities: which Keylex action ids it can
-# carry out, and the real VS Code command id each maps to (see
-# extension.js's ALLOWED_COMMANDS, which independently allowlists the
-# same commands on the receiving end -- see docs/protocol.md#action-ids
-# for why the two lists both exist).
+# carry out, and the real VS Code command id each maps to -- this is the
+# curated, cross-app action vocabulary only (see docs/protocol.md#action-ids),
+# a small hand-picked subset of everything the extension can actually do.
+# The full command catalog (used by spotlight search / the list_actions
+# handshake, and the keylex.spotlight QuickPick) is discovered live in
+# extension.js instead, deliberately with no second hardcoded copy any
+# more -- see docs/protocol.md#trust-model--authentication's "No
+# per-command allowlist, by design".
 #
 # The values here are literal upstream VS Code API command ids
 # (https://code.visualstudio.com/api/references/commands), fixed by

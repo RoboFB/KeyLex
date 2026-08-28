@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use keylex::adapters::WebSocketAdapter;
+use keylex::adapters::{SocketAdapter, WebSocketAdapter};
 use keylex::config::{Registry, Target};
 use keylex::dispatch::{Adapter, DispatchStatus, FallbackSender, Notifier, Router};
 
@@ -345,6 +345,75 @@ port = 47778
     assert_eq!(parsed["command"], "chrome.tab.close");
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn socket_adapter_fetch_actions_runs_list_actions_handshake() {
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+
+    const TOKEN: &str = "handshake-test-token";
+    let listener = TcpListener::bind("127.0.0.1:0").expect("fake target should bind");
+    let port = listener.local_addr().unwrap().port();
+
+    let server = std::thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("daemon should connect");
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("daemon should send a request line");
+        let request: serde_json::Value = serde_json::from_str(line.trim()).unwrap();
+        assert_eq!(request["type"], "list_actions");
+        assert_eq!(request["token"], TOKEN);
+
+        let response = serde_json::json!({
+            "actions": [
+                {
+                    "id": "close.tab",
+                    "native_command": "workbench.action.closeActiveEditor",
+                    "title": "Close Editor",
+                }
+            ]
+        })
+        .to_string()
+            + "\n";
+        let mut stream = stream;
+        stream.write_all(response.as_bytes()).unwrap();
+    });
+
+    let adapter = SocketAdapter::new(TOKEN.to_string());
+    let target = Target {
+        program: "vscode".to_string(),
+        match_process: vec![],
+        adapter: "socket".to_string(),
+        supports: HashMap::new(),
+        extra: HashMap::from([(
+            "address".to_string(),
+            toml::Value::String(format!("127.0.0.1:{port}")),
+        )]),
+    };
+
+    let actions = adapter.fetch_actions(&target).expect("handshake should succeed");
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0].id, "close.tab");
+    assert_eq!(actions[0].native_command, "workbench.action.closeActiveEditor");
+    assert_eq!(actions[0].title, "Close Editor");
+
+    server.join().unwrap();
+}
+
+#[test]
+fn socket_adapter_fetch_actions_returns_none_when_target_unreachable() {
+    let adapter = SocketAdapter::new("token".to_string());
+    let target = Target {
+        program: "vscode".to_string(),
+        match_process: vec![],
+        adapter: "socket".to_string(),
+        supports: HashMap::new(),
+        // Nothing listening on this loopback port.
+        extra: HashMap::from([("address".to_string(), toml::Value::String("127.0.0.1:1".to_string()))]),
+    };
+
+    assert!(adapter.fetch_actions(&target).is_none());
 }
 
 #[test]

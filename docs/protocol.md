@@ -124,6 +124,30 @@ extension. TLS/`wss://` is deliberately not used here: the threat is
 "another local process/webpage," not network eavesdropping, and a
 loopback-only certificate wouldn't stop either.
 
+**No per-command allowlist, by design.** An earlier version of
+`vscode-extension/extension.js` kept a second, independent allowlist
+(`ALLOWED_COMMANDS`) so that even a correctly-tokened message could only
+trigger a command the extension was specifically built to expect. That's
+gone now: the extension's command catalog is discovered live from every
+installed extension's own contributed commands (see "Native command
+strings" and `docs/protocol.md#action-catalog-handshake-list_actions`
+below) specifically so a newly installed extension shows up in spotlight
+search with no hand-maintained list to keep in sync — and a per-command
+allowlist can't coexist with that goal, since the whole point is not
+knowing the set of valid commands in advance. The trade-off this makes is
+real: **the token is now the only gate**, and anything holding it can
+invoke *any* command currently registered in the target VS Code window,
+including ones contributed by other installed extensions (running a task,
+executing terminal text, editing/deleting files) that are considerably
+more dangerous than "close tab". The "What the token is (and isn't) for"
+paragraph above already describes the trust level this implies — treat
+`secret.token` with that level of care. A target that wants a narrower
+guarantee than "the token holder can do anything this app can do" is free
+to keep its own allowlist (as `extensions/linux-extension/listener.js`
+and `extensions/windows-extension/listener.js` still do, since neither has
+an analogous "installed extensions" universe to discover in the first
+place — see "Native command strings" below).
+
 ## What Keylex guarantees vs. what the target owns
 
 - Keylex guarantees the `command` string is only sent when
@@ -166,11 +190,16 @@ now lives in that target's own `capabilities.toml`, next to its adapter
 code — `extensions/<name>/capabilities.toml` — rather than centrally in
 `targets.toml`, which points at it via a `capabilities` path. This is
 what lets an extension own the declaration of what it understands and
-accepts, instead of that living as a second, easily-drifting copy of the
-allowlist it already hardcodes on the receiving end (`ALLOWED_COMMANDS`
-in `vscode-extension/extension.js`, the `switch` in
-`chrome-extension/background.js`, the `COMMANDS` maps in the two
-system-listener `listener.js` files).
+accepts, instead of that living as a second, easily-drifting copy of an
+allowlist the receiving end also hardcodes. `chrome-extension/background.js`
+(a `switch` statement) and the two system-listener `listener.js` files
+(`COMMANDS` maps) still work this way — a small, fixed, hand-written set of
+commands each. `vscode-extension/extension.js` is the one exception: it
+deliberately has **no** second hardcoded copy any more, and instead
+discovers its command catalog live (see "No per-command allowlist, by
+design" under "Trust model & authentication" above, and the
+`list_actions` handshake below) so a newly installed VS Code extension's
+commands show up automatically.
 
 For a command string Keylex invented itself — where it controls both the
 daemon side and the target's handler — the shape is **enforced**, not
@@ -185,6 +214,73 @@ Neovim's ex-commands (`bd`, `w`) are fixed by Neovim — Keylex only
 forwards them, it doesn't get to rename them. A target can opt out of the
 grammar check with `exempt_command_grammar = true` in `targets.toml` for
 exactly this reason; `vscode` and `neovim` are the only two that set it.
+
+## Action-catalog handshake (`list_actions`)
+
+`keylex/v0`'s original message is one-directional and fire-and-forget: the
+daemon sends `command`s, nothing ever replies. The spotlight action search
+(`keylex --spotlight`, `src/spotlight.rs`) needs the opposite direction too:
+it wants to know, at query time, exactly which actions a target can *actually*
+carry out right now -- not a copy of that list baked into a config file that
+can drift out of sync with what the target really has installed/enabled.
+
+This adds one small request/response exchange to the TCP-socket transport
+(the only transport where the daemon is already the connecting party, so a
+synchronous "write request, read one response line, close" round trip fits
+naturally into the existing per-`send()` connection lifecycle):
+
+**Request** (daemon -> target, same line format as a `command` message):
+
+```json
+{"type": "list_actions", "token": "9f2c...ab"}
+```
+
+**Response** (target -> daemon, one line, same connection, before it closes):
+
+```json
+{
+  "actions": [
+    {
+      "id": "close.tab",
+      "native_command": "workbench.action.closeActiveEditor",
+      "title": "Close Editor"
+    }
+  ]
+}
+```
+
+| Field            | Type   | Meaning                                                                                   |
+|------------------|--------|---------------------------------------------------------------------------------------------|
+| `id`             | string | Either a real Keylex action id (a key in the target's `capabilities.toml` `[supports]` map, e.g. `close.tab`) *or*, when this native command has no such cross-app abstraction, the same value as `native_command` -- a target never needs to invent an id of its own. `spotlight::Index::merge_remote` (`src/spotlight.rs`) tells the two cases apart by checking whether `id` is already a known Keylex action id: if so, it enriches that entry in place; otherwise it namespaces the raw command as `"<target-program>:<id>"` so it can never collide with a real action id or another target's raw command. |
+| `native_command` | string | The literal command string to send back to this target on dispatch (via `SocketAdapter::send`/`WebSocketAdapter::send`, bypassing action-id/`supports` lookup entirely for a namespaced/raw entry -- see `spotlight::dispatch_entry`). |
+| `title`          | string | A human-readable label for the spotlight list (e.g. "Close Editor"), the target's own choosing. |
+
+A target should only report an entry here if it just verified, live, that
+the underlying native command still exists/works in the running instance
+(e.g. `vscode-extension/extension.js` cross-checks every command every
+installed extension contributes against `vscode.commands.getCommands(true)`
+before including it) -- that's the whole point of the handshake: the
+spotlight catalog reflects what's *actually* available in the target right
+now, not a static snapshot, and (for `vscode`) is not bounded to a
+hand-picked subset at all -- see "No per-command allowlist, by design"
+under "Trust model & authentication" above for what that trades away.
+
+A raw, namespaced entry (no matching Keylex action id) has no cross-app
+routing behavior: `keylex --spotlight`/`--spotlight-run` sends its
+`native_command` straight to the target that reported it, regardless of
+which app is currently focused, since there is no abstract action for
+`Router::dispatch` to route by focus in the first place -- unlike a real
+action id (`close.tab`), which still goes through the normal
+focus-aware/keycode-fallback path.
+
+This is best-effort and non-fatal: a target that doesn't implement
+`list_actions` at all (older extension version, or a target that hasn't
+added support yet) simply won't answer, the connection attempt times out or
+the response fails to parse, and `spotlight::bootstrap`
+falls back to the action ids already known from `actions.toml`/`targets.toml`
+alone. `SocketAdapter::fetch_actions` (`src/adapters/socket.rs`) is the
+reference client for this exchange; it's not implemented for the WebSocket
+transport yet (no target using it needs a spotlight catalog today).
 
 ## Versioning
 
