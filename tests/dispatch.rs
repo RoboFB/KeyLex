@@ -1,84 +1,86 @@
-//! Port of the previous tests/test_router.py cases: native dispatch,
-//! fallback tiers, and the two "unsupported" paths.
+//! Routing across the config/adapter boundary: which of native, fallback,
+//! and unsupported a dispatch picks, and what each adapter puts on the wire.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use keylex::adapters::{SocketAdapter, WebSocketAdapter};
-use keylex::config::{Registry, Target};
-use keylex::dispatch::{Adapter, DispatchStatus, FallbackSender, Notifier, Router};
+use keylex::config::{AdapterKind, KeyCombo, Registry, Target};
+use keylex::dispatch::{Adapter, Adapters, FallbackSender, Notifier, Outcome, Router};
 
-fn temp_config_dir(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("keylex-test-{name}-{}-{:?}", std::process::id(), std::thread::current().id()))
-}
-
-/// Covers every modifier/location these fixture tests bind an action to.
-const TEST_VOCABULARY: &str = r#"
+/// Covers every word the fixtures below build an action id from.
+const VOCABULARY: &str = r#"
 modifiers = ["close", "save", "duplicate", "go_to", "move"]
 locations = ["tab", "line", "definition", "left"]
 "#;
 
-fn write_config(actions_toml: &str, targets_toml: &str, name: &str) -> PathBuf {
-    let dir = temp_config_dir(name);
+fn write_config(name: &str, actions: &str, targets: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("keylex-test-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("vocabulary.toml"), TEST_VOCABULARY).unwrap();
-    std::fs::write(dir.join("actions.toml"), actions_toml).unwrap();
-    std::fs::write(dir.join("targets.toml"), targets_toml).unwrap();
+    std::fs::write(dir.join("vocabulary.toml"), VOCABULARY).unwrap();
+    std::fs::write(dir.join("actions.toml"), actions).unwrap();
+    std::fs::write(dir.join("targets.toml"), targets).unwrap();
     dir
 }
 
-fn load(dir: &Path) -> Registry {
-    Registry::load(dir).expect("fixture config should load")
+fn load(name: &str, actions: &str, targets: &str) -> Registry {
+    let dir = write_config(name, actions, targets);
+    let registry = Registry::load(&dir).expect("fixture config should load");
+    let _ = std::fs::remove_dir_all(&dir);
+    registry
 }
 
+type Log<T> = Rc<RefCell<Vec<T>>>;
+
+/// What a dispatch reached, recorded instead of actually sent.
 #[derive(Default)]
-struct Recording {
-    notifier_messages: Rc<RefCell<Vec<String>>>,
-    fallback_sent: Rc<RefCell<Vec<String>>>,
+struct Recorder {
+    commands: Log<(String, String)>,
+    notifications: Log<String>,
+    keycodes: Log<String>,
 }
 
-struct RecordingAdapter(Rc<RefCell<Vec<(String, String)>>>);
-impl Adapter for RecordingAdapter {
-    fn send(&self, target: &Target, native_command: &str) {
-        self.0.borrow_mut().push((target.program.clone(), native_command.to_string()));
+impl Recorder {
+    fn router<'a>(&self, registry: &'a Registry, adapter: Option<AdapterKind>) -> Router<'a> {
+        let mut adapters = Adapters::new();
+        if let Some(kind) = adapter {
+            adapters.insert(kind, Box::new(RecordingAdapter(Rc::clone(&self.commands))));
+        }
+        Router::new(
+            registry,
+            adapters,
+            Box::new(RecordingNotifier(Rc::clone(&self.notifications))),
+            Box::new(RecordingFallback(Rc::clone(&self.keycodes))),
+        )
     }
 }
 
-struct RecordingNotifier(Rc<RefCell<Vec<String>>>);
+struct RecordingAdapter(Log<(String, String)>);
+impl Adapter for RecordingAdapter {
+    fn send(&self, target: &Target, native_command: &str) {
+        self.0
+            .borrow_mut()
+            .push((target.program.clone(), native_command.to_string()));
+    }
+}
+
+struct RecordingNotifier(Log<String>);
 impl Notifier for RecordingNotifier {
     fn show(&self, message: &str) {
         self.0.borrow_mut().push(message.to_string());
     }
 }
 
-struct RecordingFallbackSender(Rc<RefCell<Vec<String>>>);
-impl FallbackSender for RecordingFallbackSender {
-    fn send(&self, keycode: &str) {
-        self.0.borrow_mut().push(keycode.to_string());
+struct RecordingFallback(Log<String>);
+impl FallbackSender for RecordingFallback {
+    fn send(&self, combo: &KeyCombo) {
+        self.0.borrow_mut().push(combo.to_string());
     }
 }
 
-fn router_with<'a>(
-    registry: &'a Registry,
-    adapters: HashMap<String, Box<dyn Adapter>>,
-) -> (Router<'a>, Recording) {
-    let recording = Recording::default();
-    let router = Router {
-        registry,
-        adapters,
-        notifier: Box::new(RecordingNotifier(Rc::clone(&recording.notifier_messages))),
-        fallback_sender: Box::new(RecordingFallbackSender(Rc::clone(&recording.fallback_sent))),
-    };
-    (router, recording)
-}
-
-#[test]
-fn dispatch_uses_native_adapter_when_target_supports_action() {
-    let dir = write_config(
-        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
-        r#"[[target]]
+const CLOSE_TAB: &str = "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n";
+const VSCODE: &str = r#"[[target]]
 program = "vscode"
 match_process = ["Code.exe"]
 adapter = "socket"
@@ -86,388 +88,285 @@ exempt_command_grammar = true
 
   [target.supports]
   "close.tab" = "workbench.action.closeActiveEditor"
-"#,
-        "native",
-    );
-    let registry = load(&dir);
+"#;
 
-    let calls = Rc::new(RefCell::new(Vec::new()));
-    let mut adapters: HashMap<String, Box<dyn Adapter>> = HashMap::new();
-    adapters.insert("socket".to_string(), Box::new(RecordingAdapter(Rc::clone(&calls))));
-    let (router, _recording) = router_with(&registry, adapters);
+#[test]
+fn a_focused_target_that_supports_the_action_gets_it_natively() {
+    let registry = load("native", CLOSE_TAB, VSCODE);
+    let recorder = Recorder::default();
+    let router = recorder.router(&registry, Some(AdapterKind::Socket));
 
-    let result = router.dispatch("close.tab", "Code.exe");
+    let outcome = router.dispatch("close.tab", Some("Code.exe"));
 
-    assert_eq!(result.status, DispatchStatus::Native);
-    assert_eq!(result.detail, "workbench.action.closeActiveEditor");
     assert_eq!(
-        calls.borrow().as_slice(),
-        [("vscode".to_string(), "workbench.action.closeActiveEditor".to_string())]
+        outcome,
+        Outcome::Native("workbench.action.closeActiveEditor".to_string())
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        recorder.commands.borrow().as_slice(),
+        [(
+            "vscode".to_string(),
+            "workbench.action.closeActiveEditor".to_string()
+        )]
+    );
 }
 
 #[test]
-fn dispatch_falls_back_when_target_does_not_support_action() {
-    let dir = write_config(
-        r#"[[action]]
-modifier = "save"
-fallback_tier = "silent"
-fallback_keycode = "ctrl+s"
-"#,
-        r#"[[target]]
-program = "vscode"
-match_process = ["Code.exe"]
-adapter = "socket"
-"#,
-        "fallback-silent",
-    );
-    let registry = load(&dir);
+fn a_missing_adapter_is_reported_rather_than_silently_dropped() {
+    let registry = load("adapter-missing", CLOSE_TAB, VSCODE);
+    let recorder = Recorder::default();
 
-    let (router, recording) = router_with(&registry, HashMap::new());
-    let result = router.dispatch("save", "Code.exe");
+    let outcome = recorder
+        .router(&registry, None)
+        .dispatch("close.tab", Some("Code.exe"));
 
-    assert_eq!(result.status, DispatchStatus::Fallback);
-    assert_eq!(result.detail, "ctrl+s");
-    assert_eq!(recording.fallback_sent.borrow().as_slice(), ["ctrl+s".to_string()]);
-    assert!(recording.notifier_messages.borrow().is_empty(), "silent tier: no popup");
-
-    let _ = std::fs::remove_dir_all(&dir);
+    assert!(matches!(outcome, Outcome::Unsupported(_)));
 }
 
 #[test]
-fn dispatch_notifies_on_fallback_attempt_tier() {
-    let dir = write_config(
-        r#"[[action]]
-modifier = "duplicate"
-location = "line"
-fallback_tier = "notify_attempt"
-fallback_keycode = "ctrl+shift+d"
-"#,
+fn the_silent_tier_sends_a_keycode_without_notifying() {
+    let registry = load(
+        "silent",
+        "[[action]]\nmodifier = \"save\"\nfallback_tier = \"silent\"\nfallback_keycode = \"ctrl+s\"\n",
         "",
-        "fallback-notify-attempt",
     );
-    let registry = load(&dir);
+    let recorder = Recorder::default();
 
-    let (router, recording) = router_with(&registry, HashMap::new());
-    let result = router.dispatch("duplicate.line", "unknown.exe");
+    let outcome = recorder
+        .router(&registry, None)
+        .dispatch("save", Some("Code.exe"));
 
-    assert_eq!(result.status, DispatchStatus::Fallback);
-    assert_eq!(recording.fallback_sent.borrow().as_slice(), ["ctrl+shift+d".to_string()]);
-    assert_eq!(recording.notifier_messages.borrow().len(), 1);
-
-    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(outcome.to_string(), "fallback: ctrl+s");
+    assert_eq!(
+        recorder.keycodes.borrow().as_slice(),
+        ["ctrl+s".to_string()]
+    );
+    assert!(recorder.notifications.borrow().is_empty());
 }
 
 #[test]
-fn dispatch_reports_unsupported_when_notify_only_and_no_target() {
-    let dir = write_config(
-        r#"[[action]]
-modifier = "go_to"
-location = "definition"
-fallback_tier = "notify_only"
-"#,
+fn the_notify_attempt_tier_sends_a_keycode_and_notifies() {
+    let registry = load(
+        "notify-attempt",
+        "[[action]]\nmodifier = \"duplicate\"\nlocation = \"line\"\nfallback_keycode = \"ctrl+shift+d\"\n",
         "",
+    );
+    let recorder = Recorder::default();
+
+    let outcome = recorder
+        .router(&registry, None)
+        .dispatch("duplicate.line", None);
+
+    assert!(matches!(outcome, Outcome::Fallback(_)));
+    assert_eq!(
+        recorder.keycodes.borrow().as_slice(),
+        ["ctrl+shift+d".to_string()]
+    );
+    assert_eq!(recorder.notifications.borrow().len(), 1);
+}
+
+#[test]
+fn an_action_with_nothing_safe_to_send_only_notifies() {
+    let registry = load(
         "notify-only",
+        "[[action]]\nmodifier = \"go_to\"\nlocation = \"definition\"\nfallback_tier = \"notify_only\"\n",
+        "",
     );
-    let registry = load(&dir);
+    let recorder = Recorder::default();
 
-    let (router, recording) = router_with(&registry, HashMap::new());
-    let result = router.dispatch("go_to.definition", "chrome.exe");
+    let outcome = recorder
+        .router(&registry, None)
+        .dispatch("go_to.definition", Some("chrome.exe"));
 
-    assert_eq!(result.status, DispatchStatus::Unsupported);
-    assert_eq!(recording.notifier_messages.borrow().len(), 1);
-
-    let _ = std::fs::remove_dir_all(&dir);
+    assert!(matches!(outcome, Outcome::Unsupported(_)));
+    assert!(recorder.keycodes.borrow().is_empty());
+    assert_eq!(recorder.notifications.borrow().len(), 1);
 }
 
+/// The OS-wide listener catches actions no focused app claims -- but never
+/// ahead of an app that does claim them.
 #[test]
-fn dispatch_reports_unsupported_when_native_adapter_missing() {
-    let dir = write_config(
-        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
+fn the_system_target_is_the_fallback_before_the_keycode_not_before_the_app() {
+    let system = format!(
         r#"[[target]]
-program = "vscode"
-match_process = ["Code.exe"]
-adapter = "socket"
-exempt_command_grammar = true
-
-  [target.supports]
-  "close.tab" = "workbench.action.closeActiveEditor"
-"#,
-        "adapter-missing",
-    );
-    let registry = load(&dir);
-
-    let (router, _recording) = router_with(&registry, HashMap::new()); // no "socket" adapter registered
-    let result = router.dispatch("close.tab", "Code.exe");
-
-    assert_eq!(result.status, DispatchStatus::Unsupported);
-
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
-fn dispatch_uses_system_target_when_no_focused_target_supports_action() {
-    let dir = write_config(
-        "[[action]]\nmodifier = \"move\"\nlocation = \"left\"\n",
-        &format!(
-            r#"[[target]]
 program = "system-{os}"
 os = "{os}"
 adapter = "socket"
 
   [target.supports]
   "move.left" = "os.window.move_left"
-"#,
-            os = std::env::consts::OS
-        ),
-        "system-target",
-    );
-    let registry = load(&dir);
-
-    let calls = Rc::new(RefCell::new(Vec::new()));
-    let mut adapters: HashMap<String, Box<dyn Adapter>> = HashMap::new();
-    adapters.insert("socket".to_string(), Box::new(RecordingAdapter(Rc::clone(&calls))));
-    let (router, _recording) = router_with(&registry, adapters);
-
-    // No app is focused with a matching target at all -- "unknown.exe" -- so
-    // this should only succeed via the OS-wide system target.
-    let result = router.dispatch("move.left", "unknown.exe");
-
-    assert_eq!(result.status, DispatchStatus::Native);
-    assert_eq!(result.detail, "os.window.move_left");
-    assert_eq!(
-        calls.borrow().as_slice(),
-        [(format!("system-{}", std::env::consts::OS), "os.window.move_left".to_string())]
-    );
-
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
-fn dispatch_prefers_focused_app_target_over_system_target() {
-    let dir = write_config(
-        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
-        &format!(
-            r#"[[target]]
-program = "vscode"
-match_process = ["Code.exe"]
-adapter = "socket"
-exempt_command_grammar = true
-
-  [target.supports]
-  "close.tab" = "workbench.action.closeActiveEditor"
-
-[[target]]
-program = "system-{os}"
-os = "{os}"
-adapter = "socket"
-
-  [target.supports]
   "close.tab" = "os.window.unused"
 "#,
-            os = std::env::consts::OS
-        ),
-        "system-target-precedence",
+        os = std::env::consts::OS
     );
-    let registry = load(&dir);
+    let registry = load(
+        "system-target",
+        &format!("{CLOSE_TAB}[[action]]\nmodifier = \"move\"\nlocation = \"left\"\nfallback_tier = \"notify_only\"\n"),
+        &format!("{VSCODE}\n{system}"),
+    );
+    let recorder = Recorder::default();
+    let router = recorder.router(&registry, Some(AdapterKind::Socket));
 
-    let calls = Rc::new(RefCell::new(Vec::new()));
-    let mut adapters: HashMap<String, Box<dyn Adapter>> = HashMap::new();
-    adapters.insert("socket".to_string(), Box::new(RecordingAdapter(Rc::clone(&calls))));
-    let (router, _recording) = router_with(&registry, adapters);
-
-    let result = router.dispatch("close.tab", "Code.exe");
-
-    assert_eq!(result.status, DispatchStatus::Native);
-    assert_eq!(result.detail, "workbench.action.closeActiveEditor");
-
-    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        router.dispatch("move.left", Some("unknown.exe")),
+        Outcome::Native("os.window.move_left".to_string())
+    );
+    assert_eq!(
+        router.dispatch("close.tab", Some("Code.exe")),
+        Outcome::Native("workbench.action.closeActiveEditor".to_string()),
+        "the focused app should win over the system listener"
+    );
 }
 
 #[test]
-fn websocket_adapter_delivers_command_to_connected_client() {
-    const PORT: u16 = 47778;
-
-    let dir = write_config(
-        "[[action]]\nmodifier = \"close\"\nlocation = \"tab\"\n",
-        r#"[[target]]
-program = "chrome"
-match_process = ["chrome.exe"]
-adapter = "websocket"
-port = 47778
-
-  [target.supports]
-  "close.tab" = "chrome.tab.close"
-"#,
-        "websocket",
-    );
-    let registry = load(&dir);
-
-    const TOKEN: &str = "test-token";
-    let ws_adapter = WebSocketAdapter::spawn(PORT, TOKEN.to_string(), None)
-        .expect("websocket adapter should bind");
-
-    // Give the accept-loop thread a moment to start listening before the
-    // fake client tries to connect.
-    let mut client = loop {
-        match tungstenite::connect(format!("ws://127.0.0.1:{PORT}")) {
-            Ok((client, _response)) => break client,
-            Err(_) => std::thread::sleep(std::time::Duration::from_millis(20)),
-        }
-    };
-
-    // The adapter won't promote this connection into its live slot until it
-    // sees a matching auth frame (docs/protocol.md#trust-model--authentication).
-    client
-        .send(tungstenite::Message::Text(
-            serde_json::json!({ "token": TOKEN }).to_string().into(),
-        ))
-        .expect("fake client should send the auth frame");
-
-    // Let the adapter's accept thread register the connection before
-    // dispatching, so `send` doesn't race the handshake completing.
-    std::thread::sleep(std::time::Duration::from_millis(50));
-
-    let mut adapters: HashMap<String, Box<dyn Adapter>> = HashMap::new();
-    adapters.insert("websocket".to_string(), Box::new(ws_adapter));
-    let (router, _recording) = router_with(&registry, adapters);
-
-    let result = router.dispatch("close.tab", "chrome.exe");
-    assert_eq!(result.status, DispatchStatus::Native);
-
-    let message = client
-        .read()
-        .expect("fake client should receive the dispatched command");
-    let text = message.into_text().expect("message should be text");
-    let parsed: serde_json::Value = serde_json::from_str(&text).expect("message should be JSON");
-    assert_eq!(parsed["command"], "chrome.tab.close");
-
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
-fn socket_adapter_fetch_actions_runs_list_actions_handshake() {
+fn the_socket_adapter_asks_a_target_for_its_action_catalog() {
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
 
-    const TOKEN: &str = "handshake-test-token";
+    const TOKEN: &str = "handshake-token";
     let listener = TcpListener::bind("127.0.0.1:0").expect("fake target should bind");
     let port = listener.local_addr().unwrap().port();
 
-    let server = std::thread::spawn(move || {
-        let (stream, _) = listener.accept().expect("daemon should connect");
-        let mut reader = BufReader::new(stream.try_clone().unwrap());
+    let target = std::thread::spawn(move || {
+        let (stream, _) = listener.accept().expect("the daemon should connect");
         let mut line = String::new();
-        reader.read_line(&mut line).expect("daemon should send a request line");
+        BufReader::new(&stream)
+            .read_line(&mut line)
+            .expect("a request line");
         let request: serde_json::Value = serde_json::from_str(line.trim()).unwrap();
         assert_eq!(request["type"], "list_actions");
         assert_eq!(request["token"], TOKEN);
 
         let response = serde_json::json!({
-            "actions": [
-                {
-                    "id": "close.tab",
-                    "native_command": "workbench.action.closeActiveEditor",
-                    "title": "Close Editor",
-                }
-            ]
-        })
-        .to_string()
-            + "\n";
-        let mut stream = stream;
-        stream.write_all(response.as_bytes()).unwrap();
+            "actions": [{
+                "id": "close.tab",
+                "native_command": "workbench.action.closeActiveEditor",
+                "title": "Close Editor",
+            }]
+        });
+        writeln!(&stream, "{response}").unwrap();
     });
 
-    let adapter = SocketAdapter::new(TOKEN.to_string());
-    let target = Target {
-        program: "vscode".to_string(),
-        match_process: vec![],
-        adapter: "socket".to_string(),
-        supports: HashMap::new(),
-        extra: HashMap::from([(
-            "address".to_string(),
-            toml::Value::String(format!("127.0.0.1:{port}")),
-        )]),
-    };
+    let registry = load(
+        "handshake",
+        CLOSE_TAB,
+        &format!("[[target]]\nprogram = \"vscode\"\nadapter = \"socket\"\naddress = \"127.0.0.1:{port}\"\n"),
+    );
+    let actions = SocketAdapter::new(TOKEN.to_string())
+        .fetch_actions(&registry.targets()[0])
+        .expect("handshake should succeed");
 
-    let actions = adapter.fetch_actions(&target).expect("handshake should succeed");
     assert_eq!(actions.len(), 1);
     assert_eq!(actions[0].id, "close.tab");
-    assert_eq!(actions[0].native_command, "workbench.action.closeActiveEditor");
     assert_eq!(actions[0].title, "Close Editor");
-
-    server.join().unwrap();
+    target.join().unwrap();
 }
 
 #[test]
-fn socket_adapter_fetch_actions_returns_none_when_target_unreachable() {
-    let adapter = SocketAdapter::new("token".to_string());
-    let target = Target {
-        program: "vscode".to_string(),
-        match_process: vec![],
-        adapter: "socket".to_string(),
-        supports: HashMap::new(),
-        // Nothing listening on this loopback port.
-        extra: HashMap::from([("address".to_string(), toml::Value::String("127.0.0.1:1".to_string()))]),
-    };
+fn a_silent_target_leaves_the_catalog_alone() {
+    let registry = load(
+        "unreachable",
+        CLOSE_TAB,
+        // Nothing is listening on this loopback port.
+        "[[target]]\nprogram = \"vscode\"\nadapter = \"socket\"\naddress = \"127.0.0.1:1\"\n",
+    );
 
-    assert!(adapter.fetch_actions(&target).is_none());
+    assert!(SocketAdapter::new("token".to_string())
+        .fetch_actions(&registry.targets()[0])
+        .is_none());
 }
 
-#[test]
-fn websocket_adapter_closes_connection_on_wrong_token() {
-    const PORT: u16 = 47780;
+type Client = tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>;
 
-    let _ws_adapter = WebSocketAdapter::spawn(PORT, "correct-token".to_string(), None)
-        .expect("websocket adapter should bind");
-
-    let mut client = loop {
-        match tungstenite::connect(format!("ws://127.0.0.1:{PORT}")) {
-            Ok((client, _response)) => break client,
-            Err(_) => std::thread::sleep(std::time::Duration::from_millis(20)),
+/// Connects a fake client and returns it once the adapter is listening.
+fn connect(port: u16) -> Client {
+    loop {
+        if let Ok((client, _response)) = tungstenite::connect(format!("ws://127.0.0.1:{port}")) {
+            return client;
         }
-    };
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
 
+fn send_token(client: &mut Client, token: &str) {
+    let frame = serde_json::json!({ "token": token }).to_string();
     client
-        .send(tungstenite::Message::Text(
-            serde_json::json!({ "token": "wrong-token" }).to_string().into(),
-        ))
-        .expect("fake client should send the (wrong) auth frame");
-
-    // The adapter should reject and close the connection rather than
-    // promoting it -- read on a separate thread so a would-be regression
-    // (connection left open, no data ever arrives) fails the test instead
-    // of hanging it forever.
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(client.read());
-    });
-    let result = rx
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .expect("server should close the connection after rejecting the wrong token");
-    assert!(result.is_err(), "connection should be closed, not left open");
+        .send(tungstenite::Message::Text(frame.into()))
+        .expect("auth frame should send");
 }
 
 #[test]
-fn websocket_adapter_rejects_handshake_from_disallowed_origin() {
-    const PORT: u16 = 47781;
+fn the_websocket_adapter_delivers_to_an_authenticated_client() {
+    const PORT: u16 = 47778;
+    const TOKEN: &str = "test-token";
 
-    let _ws_adapter = WebSocketAdapter::spawn(
+    let registry = load(
+        "websocket",
+        CLOSE_TAB,
+        &format!(
+            "[[target]]\nprogram = \"chrome\"\nmatch_process = [\"chrome.exe\"]\nadapter = \"websocket\"\nport = {PORT}\n\n[target.supports]\n\"close.tab\" = \"chrome.tab.close\"\n"
+        ),
+    );
+    let adapter = WebSocketAdapter::spawn(PORT, TOKEN.to_string(), None).expect("should bind");
+
+    let mut client = connect(PORT);
+    send_token(&mut client, TOKEN);
+    // Let the accept thread promote the connection before dispatching.
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    let mut adapters = Adapters::new();
+    adapters.insert(AdapterKind::WebSocket, Box::new(adapter));
+    let router = Router::new(
+        &registry,
+        adapters,
+        Box::new(RecordingNotifier(Log::default())),
+        Box::new(RecordingFallback(Log::default())),
+    );
+
+    assert!(matches!(
+        router.dispatch("close.tab", Some("chrome.exe")),
+        Outcome::Native(_)
+    ));
+
+    let message = client
+        .read()
+        .expect("the client should receive the command");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&message.into_text().unwrap()).expect("JSON");
+    assert_eq!(parsed["command"], "chrome.tab.close");
+}
+
+#[test]
+fn the_websocket_adapter_drops_a_client_with_the_wrong_token() {
+    const PORT: u16 = 47780;
+    let _adapter = WebSocketAdapter::spawn(PORT, "correct".to_string(), None).expect("should bind");
+
+    let mut client = connect(PORT);
+    send_token(&mut client, "wrong");
+
+    // Read on another thread, so a regression that leaves the connection
+    // open fails the test instead of hanging it.
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || tx.send(client.read()));
+    let read = rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("the server should close the connection, not leave it open");
+
+    assert!(read.is_err());
+}
+
+#[test]
+fn the_websocket_adapter_rejects_a_handshake_from_another_origin() {
+    const PORT: u16 = 47781;
+    let _adapter = WebSocketAdapter::spawn(
         PORT,
-        "correct-token".to_string(),
+        "correct".to_string(),
         Some("chrome-extension://expected-id".to_string()),
     )
-    .expect("websocket adapter should bind");
+    .expect("should bind");
 
-    // Wait for the listener to actually be up before attempting the (single,
-    // expected-to-fail) handshake.
-    loop {
-        match std::net::TcpStream::connect(("127.0.0.1", PORT)) {
-            Ok(_) => break,
-            Err(_) => std::thread::sleep(std::time::Duration::from_millis(20)),
-        }
+    while std::net::TcpStream::connect(("127.0.0.1", PORT)).is_err() {
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
 
     let request = tungstenite::client::ClientRequestBuilder::new(
@@ -475,9 +374,5 @@ fn websocket_adapter_rejects_handshake_from_disallowed_origin() {
     )
     .with_header("Origin", "https://evil.example");
 
-    let result = tungstenite::connect(request);
-    assert!(
-        result.is_err(),
-        "handshake from a disallowed Origin should have been rejected"
-    );
+    assert!(tungstenite::connect(request).is_err());
 }

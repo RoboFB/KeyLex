@@ -168,7 +168,7 @@ validated word lists in [config/vocabulary.toml](../config/vocabulary.toml),
 a `modifiers` list (verbs, e.g. `close`, `save`, `move`) and a `locations`
 list (objects, e.g. `tab`, `sidebar`, `left`). Every `[[action]]` in
 [config/actions.toml](../config/actions.toml) declares a `modifier` and an
-optional `location`; `Registry::load` (`src/config.rs`) rejects the whole
+optional `location`; `Registry::load` (`src/config/`) rejects the whole
 config at startup if either word isn't in `vocabulary.toml`, and derives
 the actual id from them:
 
@@ -219,7 +219,7 @@ exactly this reason; `vscode` and `neovim` are the only two that set it.
 
 `keylex/v0`'s original message is one-directional and fire-and-forget: the
 daemon sends `command`s, nothing ever replies. The spotlight action search
-(`keylex --spotlight`, `src/spotlight.rs`) needs the opposite direction too:
+(`keylex --spotlight`, `src/spotlight/`) needs the opposite direction too:
 it wants to know, at query time, exactly which actions a target can *actually*
 carry out right now -- not a copy of that list baked into a config file that
 can drift out of sync with what the target really has installed/enabled.
@@ -251,8 +251,8 @@ naturally into the existing per-`send()` connection lifecycle):
 
 | Field            | Type   | Meaning                                                                                   |
 |------------------|--------|---------------------------------------------------------------------------------------------|
-| `id`             | string | Either a real Keylex action id (a key in the target's `capabilities.toml` `[supports]` map, e.g. `close.tab`) *or*, when this native command has no such cross-app abstraction, the same value as `native_command` -- a target never needs to invent an id of its own. `spotlight::Index::merge_remote` (`src/spotlight.rs`) tells the two cases apart by checking whether `id` is already a known Keylex action id: if so, it enriches that entry in place; otherwise it namespaces the raw command as `"<target-program>:<id>"` so it can never collide with a real action id or another target's raw command. |
-| `native_command` | string | The literal command string to send back to this target on dispatch (via `SocketAdapter::send`/`WebSocketAdapter::send`, bypassing action-id/`supports` lookup entirely for a namespaced/raw entry -- see `spotlight::dispatch_entry`). |
+| `id`             | string | Either a real Keylex action id (a key in the target's `capabilities.toml` `[supports]` map, e.g. `close.tab`) *or*, when this native command has no such cross-app abstraction, the same value as `native_command` -- a target never needs to invent an id of its own. `spotlight::Index::merge_remote` (`src/spotlight/mod.rs`) tells the two cases apart by checking whether `id` is already a known Keylex action id: if so, it enriches that entry in place; otherwise it namespaces the raw command as `"<target-program>:<id>"` so it can never collide with a real action id or another target's raw command. |
+| `native_command` | string | The literal command string to send back to this target on dispatch (via `SocketAdapter::send`/`WebSocketAdapter::send`, bypassing action-id/`supports` lookup entirely for a namespaced/raw entry -- see `spotlight::Entry::dispatch`). |
 | `title`          | string | A human-readable label for the spotlight list (e.g. "Close Editor"), the target's own choosing. |
 
 A target should only report an entry here if it just verified, live, that

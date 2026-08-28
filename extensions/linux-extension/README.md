@@ -75,7 +75,7 @@ Shell's own Activities search bar fuzzy-search and run Keylex actions,
 without Keylex needing to build its own always-on-top launcher window --
 "talking nicely to the window manager" instead of fighting it. It does this
 by shelling out to the `keylex` binary itself (`--spotlight-query` /
-`--spotlight-run`, see `src/spotlight.rs` and `src/main.rs`) for every
+`--spotlight-run`, see `src/spotlight/` and `src/cli.rs`) for every
 search and activation, so the ranking is always the one real (pure-Rust,
 `nucleo-matcher`) fuzzy engine -- this file is just D-Bus glue, not a second
 search implementation.

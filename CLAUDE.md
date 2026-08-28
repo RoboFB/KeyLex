@@ -21,9 +21,11 @@ the current (draft, unstable) wire format and its LSP-inspired rationale.
 
 Everything here is early-stage. The core capture/dispatch pipeline
 (config → registry → router/capture → adapter/fallback) is written in
-Rust and is tested on Linux; the Windows capture backend exists but is
-untestable outside a Windows machine (this dev environment is Linux, no
-Windows box available). Application-side and OS-side integrations each
+Rust and is tested on Linux; the Windows capture backend compiles (check
+it with `cargo check --target x86_64-pc-windows-msvc`, which needs no MSVC
+toolchain) but cannot be *run* outside a Windows machine, and this dev
+environment is Linux with no Windows box available. Application-side and
+OS-side integrations each
 live in their own subfolder under [extensions/](extensions/), in whatever
 language fits that target's ecosystem — the VS Code extension
 (`extensions/vscode-extension/`, plain JS, using the official `vscode`
@@ -42,18 +44,42 @@ below) — Linux and Windows are the only supported platforms for now.
 ```bash
 cargo build              # compiles the daemon (Linux backend on this machine)
 cargo run                 # real capture loop, blocks (needs evdev/uinput perms)
+cargo run -- --help        # every flag below, from src/cli.rs
 cargo run -- --demo        # two hardcoded dispatches, no capture/hardware needed
 cargo run -- --config-dir <path>  # load actions.toml/targets.toml/vocabulary.toml from elsewhere
 
-cargo run -- --spotlight                    # interactive fuzzy action search/dispatch (src/spotlight.rs)
+cargo run -- --spotlight                    # interactive fuzzy action search/dispatch (src/spotlight/)
 cargo run -- --spotlight-query "<text>"      # non-interactive: print ranked matches as JSON, no dispatch
 cargo run -- --spotlight-run "<action-id>"   # non-interactive: dispatch one action id, record frecency
 
-cargo test                # unit tests (src/config.rs) + integration tests (tests/dispatch.rs)
+cargo test                # unit tests (src/config/, src/auth.rs, ...) + tests/dispatch.rs
 cargo test <name>          # single test by substring
+
+cargo check --target x86_64-pc-windows-msvc   # type-check the Windows backend
 ```
 
-There is no separate lint step configured beyond `cargo clippy`.
+There is no separate lint step configured beyond `cargo clippy`. The
+Windows cross-check is the one easy-to-forget check that matters: nothing
+in a Linux build compiles `src/capture/windows.rs` or
+`src/focus/windows.rs` at all.
+
+## Coding guidelines
+
+Rust code in this repo (`src/`, `tests/`) follows
+[docs/rust-coding-guidelines.md](docs/rust-coding-guidelines.md) — naming,
+doc-comment style, error-handling conventions (when `expect()` is
+acceptable and what its message must say), where `unsafe` is allowed, and
+dependency-vetting practice, each grounded in this codebase's existing
+code with links to trusted external references (Rust API Guidelines, the
+Rustonomicon, ANSSI's Rust guidelines, etc.). Check new or touched Rust
+code against it.
+
+**KISS is the first rule there, and it outranks the rest**: write the
+boring version, solve only the problem in front of you, and let an
+abstraction in only when it removes more than it adds. Less code is the
+goal — a change that deletes more than it writes is usually the right one.
+See that document's "Keep it simple" section for what that means in
+review.
 
 ## Coding guidelines
 
@@ -68,7 +94,24 @@ code against it.
 
 ## Architecture
 
-### Three config layers (`config/*.toml` + per-extension `capabilities.toml`), loaded by `Registry` (`src/config.rs`)
+### Module map (`src/`)
+
+```
+cli.rs        argument parsing and the wiring each mode needs; main.rs is a 3-liner
+config/       the three TOML layers -> Registry (key.rs, action.rs, target.rs, error.rs)
+capture/      keystrokes -> action ids (linux.rs, windows.rs, shared chord.rs)
+focus/        which app is focused (linux.rs, windows.rs)
+dispatch.rs   Router: native adapter -> keycode fallback -> notify
+adapters/     one transport per file (socket.rs, websocket.rs)
+spotlight/    fuzzy action catalog (mod.rs), frecency.rs, terminal UI in ui.rs
+auth.rs       the shared secret both transports require
+```
+
+Every string that means something is parsed into a type at load
+(`Fallback`, `AdapterKind`, `KeyCombo`, `Chord`) and matched on
+afterwards — nothing downstream re-interprets a config string.
+
+### Three config layers (`config/*.toml` + per-extension `capabilities.toml`), loaded by `Registry` (`src/config/`)
 
 1. **`vocabulary.toml`** — the one authoritative word list: a `modifiers`
    array (verbs, e.g. `close`, `save`, `move`) and a `locations` array
@@ -105,14 +148,14 @@ code against it.
    already hardcodes on the receiving end (see
    [docs/protocol.md](docs/protocol.md#native-command-strings)). `neovim`
    is the one exception, still declaring `[target.supports]` inline since
-   it has no `extensions/` folder yet (unimplemented stub). Also holds
-   `[[system_action]]` entries — OS-level actions that don't depend on the
-   focused app at all — and, as an ordinary `[[target]]` with an `os`
-   field instead of `match_process` (`"system-linux"` / `"system-
-   windows"`), the OS-wide system listeners under `extensions/`.
-   `Registry::system_target` picks whichever one's `os` matches
-   `std::env::consts::OS`, so only one is ever live per platform even
-   though both entries are declared in the same file.
+   it has no `extensions/` folder yet (unimplemented stub). The OS-wide
+   system listeners under `extensions/` are ordinary `[[target]]` entries
+   too, identified by an `os` field instead of `match_process`
+   (`"system-linux"` / `"system-windows"`); `Registry::system_target`
+   picks whichever one's `os` matches `std::env::consts::OS`, so only one
+   is ever live per platform even though both are declared in the same
+   file. Unknown keys are rejected at load, so a misspelled field is a
+   startup error rather than a line that silently does nothing.
 
 ### Capture rule
 
@@ -135,9 +178,11 @@ no overhead to ordinary typing.
 
 ### Adapters (`src/adapters/`)
 
-One implementation per transport, registered in `main.rs`'s `build_adapters()`
-map keyed by the `adapter` string used in `targets.toml` (`"socket"`,
-`"websocket"`, later `"rpc"`, …). `adapters::SocketAdapter` (TCP, Keylex is
+One implementation per transport, registered in `cli.rs`'s `adapters()`
+map keyed by the `AdapterKind` parsed from `targets.toml`'s `adapter`
+field (`socket`, `websocket`, and `rpc`, which is declared so a Neovim
+target still loads but has no implementation — dispatching to it reports
+"unsupported"). `adapters::SocketAdapter` (TCP, Keylex is
 the client) backs the VS Code target; `adapters::WebSocketAdapter`
 (Keylex runs the WebSocket *server*, since a browser extension can only be
 a client) backs the Chrome target — see
@@ -149,15 +194,19 @@ Both adapters authenticate every message with a shared secret the daemon
 generates on first run at `<config-dir>/secret.token` (`src/auth.rs`,
 git-ignored, never committed): `SocketAdapter` sends it with every
 `command`, and `WebSocketAdapter` requires it as the first frame on a
-freshly accepted connection before promoting that connection into the slot
-`send()` uses (this also fixes what would otherwise be a "last-connect-wins"
-hijack risk on the single-connection WebSocket transport). The WebSocket
+freshly accepted connection before making that connection the live one
+(this also fixes what would otherwise be a "last-connect-wins" hijack risk
+on the single-connection WebSocket transport). Each accepted connection is
+then owned outright by its own thread, and `send()` only queues a command
+onto a channel for it: dispatch runs on the keyboard path and must never
+wait on socket I/O, which is exactly what sharing the socket behind a
+mutex used to make it do. The WebSocket
 adapter can additionally check the handshake's `Origin` header against a
 per-target `allowed_origin` in `targets.toml`. See
 [docs/protocol.md](docs/protocol.md#trust-model--authentication) for the
 full wire-level contract and threat model.
 
-### Spotlight action search (`src/spotlight.rs`)
+### Spotlight action search (`src/spotlight/`)
 
 A fuzzy-searchable catalog of actions, cross-platform by construction: the
 ranking engine (`nucleo-matcher`) and the interactive terminal launcher
@@ -198,7 +247,7 @@ a vetted safe set.
 An entry the handshake reports has no Keylex action id of its own for the
 vast majority of what it discovers (only a handful, like `close.tab`,
 happen to also be one of Keylex's curated cross-app actions). Those two
-kinds are dispatched differently (`spotlight::dispatch_entry`): a real
+kinds are dispatched differently (`spotlight::Entry::dispatch`): a real
 Keylex action id goes through the normal focus-aware `Router::dispatch`
 (native adapter for whatever's focused, keycode fallback otherwise) exactly
 like a real key binding would; anything else is a raw native command with
@@ -237,22 +286,23 @@ reimplementing matching:
 
 ### Dispatch flow (`src/dispatch.rs`)
 
-`Router::dispatch(action_id, focused_process)`:
+`Router::dispatch(action_id, focused_process)` returns a `dispatch::Outcome`
+(`Native` / `Fallback` / `Unsupported`) after trying, in order:
 1. `Registry::target_for_process` — does a target's `match_process` include
    the focused process? If yes and it `supports` this action → **native**:
    look up the adapter by `target.adapter` and call `adapter.send(target,
    native_command)`.
 2. Otherwise, `Registry::system_target` — the OS-wide listener target for
    this platform (`extensions/linux-extension` or
-   `extensions/windows-extension`, see "Two config layers" above). If it
+   `extensions/windows-extension`, see the config layers above). If it
    `supports` this action → **native** via that target instead, regardless
    of what's focused (used for actions like `shutdown` and
-   `move.left`/`move.right` that don't belong to any one
-   app).
-3. Otherwise → **fallback**: based on `ActionSpec.fallback_tier`, either
-   send `fallback_keycode` via the platform's `FallbackSender` (optionally
-   also notifying), or — if there's no usable keycode / tier is
-   `notify_only` — report **unsupported** and just notify.
+   `move.left`/`move.right` that don't belong to any one app).
+3. Otherwise → **fallback**: the action's `Fallback`, normalized at load
+   from `fallback_tier` + `fallback_keycode`, is either a `KeyCombo` to
+   send through the platform's `FallbackSender` (notifying too, on the
+   `notify_attempt` tier) or `Unsupported`, which only notifies. An action
+   id nothing declares is `Unsupported` as well.
 
 `Notifier` is a log-only placeholder on both platforms — real OS
 notifications are not implemented yet (a known, deferred gap). Fallback
@@ -263,6 +313,12 @@ through the same `uinput` virtual device used for passthrough re-emission
 
 ### Capture backends (`src/capture/`)
 
+- `chord.rs` — the chord state machine both backends share: it decides
+  what a chord-member key means (keep pending, consume and dispatch,
+  replay), and each backend supplies only the effects it performs
+  differently, through the small `chord::Keyboard` trait (press, release,
+  arm the debounce timer). The decisions live in one place; only the
+  emitting differs.
 - `linux.rs` — grabs the physical `evdev` device exclusively and
   re-emits everything that isn't a matched trigger through a virtual
   `uinput` device, matching the interception-tools/evremap pattern (a raw
@@ -284,7 +340,9 @@ through the same `uinput` virtual device used for passthrough re-emission
   logic. A chord's debounce window uses a `SetTimer`/`TIMERPROC` timer on
   the hook's own thread (no second thread needed, since `run()` already
   pumps the message loop that `DispatchMessageW` uses to invoke the timer
-  callback). Untested outside a real Windows machine.
+  callback). It type-checks under `cargo check --target
+  x86_64-pc-windows-msvc`, but has never been run on a real Windows
+  machine.
 - `src/focus/` — resolves the focused process name needed by
   `Router::dispatch`. Linux: shells out to `xdotool` then reads
   `/proc/<pid>/comm` (X11 only; **Wayland focused-window detection is
@@ -292,9 +350,10 @@ through the same `uinput` virtual device used for passthrough re-emission
   fallback instead of erroring). Windows: `GetForegroundWindow` +
   `QueryFullProcessImageNameW` via the `windows` crate.
 
-`main.rs` picks the capture backend by `cfg(target_os)` and wires its
-dispatch calls to `focus::focused_process_name()` for the currently-
-focused app at dispatch time.
+`capture::run` is selected by `cfg(target_os)`, and each backend asks
+`focus::focused_process_name()` for the focused app at dispatch time.
+`None` from that (no backend, Wayland, an unreadable window) is a normal
+answer, not an error: dispatch just falls through to the keycode path.
 
 ### macOS (planned, not implemented)
 
@@ -348,10 +407,20 @@ started.
 - Wayland focused-window detection.
 - The Windows capture backend (`src/capture/windows.rs`,
   `src/focus/windows.rs`) is a careful port of the previous Python/ctypes
-  code (plus the newer chord/timer logic) but has never been compiled or
-  run on an actual Windows machine — this dev environment is Linux-only.
+  code (plus the newer chord/timer logic). It type-checks (`cargo check
+  --target x86_64-pc-windows-msvc` — run it after touching either file, a
+  Linux build never compiles them), but has never been *run* on an actual
+  Windows machine, so its behavior is still unverified.
 - Chord debounce window (currently a hardcoded 35ms constant in both
   capture backends) isn't configurable yet.
+- `rpc` is a declared `AdapterKind` with no implementation, so the
+  `neovim` target in `targets.toml` loads but reports "unsupported" when
+  dispatched to. That is deliberate: it keeps the config honest about the
+  planned transport without pretending it exists.
+- The keycode vocabulary the capture backends understand is still a-z,
+  0-9, `prtsc` and the four modifier names. A `key`/`chord` naming
+  anything else parses fine but never matches a real keystroke; full
+  layout support is a later step.
 - The privacy/GDPR posture described in [README.md](README.md#privacy--security)
   holds only because there is zero telemetry, crash-reporting, or
   cloud-sync anywhere in the codebase — that's a standing constraint, not

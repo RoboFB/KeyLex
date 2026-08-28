@@ -31,13 +31,16 @@ Jeder Tastendruck  ─→  Capture (evdev/uinput | WH_KEYBOARD_LL)
                                                                  └─→  Keycode-Fallback (generisch)
 ```
 
-Zwei Config-Ebenen:
-1. **Vokabular + Trigger** (`config/actions.toml`) — geräteunabhängige
+Drei Config-Ebenen:
+1. **Wortliste** (`config/vocabulary.toml`) — die einzigen erlaubten
+   Bausteine einer Aktions-ID: Verben (`close`, `save`, …) und Objekte
+   (`tab`, `sidebar`, …).
+2. **Aktionen + Trigger** (`config/actions.toml`) — geräteunabhängige
    Aktionen (`close.tab`, `save`, `go_to.definition`, …), jeweils mit
    optionalem physischem Tastentrigger und Fallback-Verhalten.
-2. **Output** (`config/targets.toml`) — pro Zielprogramm, welche
-   Aktionen es unterstützt (Whitelist) und wie sie dorthin dispatcht
-   werden.
+3. **Output** (`config/targets.toml`) — pro Zielprogramm, wie es
+   erreicht wird und wo seine Capability-Liste (`capabilities.toml` in
+   `extensions/<name>/`) steht.
 
 Jeder Tastendruck, der zu einem konfigurierten Trigger passt, wird immer
 abgefangen (nie ans OS/die App durchgereicht) und dispatcht; alles
@@ -54,10 +57,11 @@ Jede Aktion trägt eine Fallback-Stufe:
 | `notify_attempt` | Keycode-Fallback + kurzer Hinweis, dass geraten wurde   | `duplicate.line`          |
 | `notify_only`    | Kein Fallback, nur "nicht unterstützt"-Meldung          | `go_to.definition`        |
 
-Zusätzlich gibt es **System-Aktionen** (`[[system_action]]` in
-`config/targets.toml`): global gültige, OS-spezifische Kombinationen
-(z. B. Grafiktreiber-Reset unter Windows), die nicht von der
-fokussierten App abhängen.
+Aktionen, die zu gar keiner App gehören (`shutdown`, `move.left`, …),
+laufen stattdessen über den **OS-weiten Listener** — ein eigenes Target
+mit `os = "linux"`/`os = "windows"` in `config/targets.toml`, das der
+Router immer dann versucht, wenn die fokussierte App die Aktion nicht
+unterstützt, und bevor er zum Keycode-Fallback greift.
 
 ## Spotlight-Suche
 
@@ -78,9 +82,10 @@ Entwicklungsumfeld ungetesteten) GNOME-Shell-Suchanbieter-Integration unter
 ## Status
 
 Früher Prototyp. Die Rust-Dispatch-Pipeline (Registry, Router, Capture)
-steht und ist auf Linux getestet. Der Windows-Capture-Backend
-(`src/capture/windows.rs`) ist ein sorgfältiger Port, aber außerhalb
-einer echten Windows-Maschine ungetestet. Erster Zielarchitektur-
+steht und ist auf Linux getestet. Das Windows-Capture-Backend
+(`src/capture/windows.rs`) ist ein sorgfältiger Port: es kompiliert
+(`cargo check --target x86_64-pc-windows-msvc`), ist aber außerhalb einer
+echten Windows-Maschine ungetestet. Erster Zielarchitektur-
 Baustein: VS-Code-Adapter (offizielle Extension-API, klar dokumentierte
 Commands). Details zur Architektur: [CLAUDE.md](CLAUDE.md), zum
 Adapter-Wire-Format: [docs/protocol.md](docs/protocol.md), zu

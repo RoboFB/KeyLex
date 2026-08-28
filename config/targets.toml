@@ -49,7 +49,6 @@ allowed_origin = "chrome-extension://REPLACE_WITH_REAL_EXTENSION_ID"
 program = "neovim"
 match_process = ["nvim"]
 adapter = "rpc"
-socket_env = "NVIM_LISTEN_ADDRESS"
 exempt_command_grammar = true
 
   [target.supports]
@@ -76,9 +75,3 @@ os = "windows"
 adapter = "socket"
 address = "127.0.0.1:7780"
 capabilities = "../extensions/windows-extension/capabilities.toml"
-
-# System-wide actions, independent of the focused program.
-[[system_action]]
-id = "reset.graphics_driver"
-os = "windows"
-keycode = "win+ctrl+shift+b"
