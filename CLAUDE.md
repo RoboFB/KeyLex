@@ -74,6 +74,13 @@ code with links to trusted external references (Rust API Guidelines, the
 Rustonomicon, ANSSI's Rust guidelines, etc.). Check new or touched Rust
 code against it.
 
+**KISS is the first rule there, and it outranks the rest**: write the
+boring version, solve only the problem in front of you, and let an
+abstraction in only when it removes more than it adds. Less code is the
+goal — a change that deletes more than it writes is usually the right one.
+See that document's "Keep it simple" section for what that means in
+review.
+
 ## Architecture
 
 ### Module map (`src/`)

@@ -100,8 +100,8 @@ impl RawAction {
                 ));
             }
             (Some(key), None) => {
-                Some(Trigger::Key(key.parse().map_err(|e| {
-                    describe(format!("{key:?} is not a key combo ({e})"))
+                Some(Trigger::Key(KeyCombo::parse(&key).ok_or_else(|| {
+                    describe(format!("{key:?} is not a key combo"))
                 })?))
             }
             (None, Some(chord)) => Some(Trigger::Chord(Chord::parse(&chord).map_err(describe)?)),
@@ -111,9 +111,8 @@ impl RawAction {
         let fallback = match (self.fallback_tier, self.fallback_keycode) {
             (FallbackTier::NotifyOnly, _) | (_, None) => Fallback::Unsupported,
             (tier, Some(keycode)) => Fallback::Keycode {
-                combo: keycode
-                    .parse()
-                    .map_err(|e| describe(format!("{keycode:?} is not a key combo ({e})")))?,
+                combo: KeyCombo::parse(&keycode)
+                    .ok_or_else(|| describe(format!("{keycode:?} is not a key combo")))?,
                 notify: matches!(tier, FallbackTier::NotifyAttempt),
             },
         };

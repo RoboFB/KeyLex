@@ -4,7 +4,6 @@
 //! `docs/protocol.md#trust-model--authentication` for the wire-level
 //! contract and the threat model it defends against.
 
-use std::fmt::Write as _;
 use std::fs::OpenOptions;
 use std::io::{self, Write as _};
 use std::path::Path;
@@ -33,12 +32,7 @@ fn generate_token() -> String {
 
     let mut bytes = [0u8; TOKEN_BYTES];
     rand::rng().fill_bytes(&mut bytes);
-    bytes
-        .iter()
-        .fold(String::with_capacity(TOKEN_BYTES * 2), |mut token, byte| {
-            let _ = write!(token, "{byte:02x}");
-            token
-        })
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 #[cfg(unix)]

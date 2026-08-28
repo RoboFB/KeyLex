@@ -33,8 +33,10 @@ struct TargetsFile {
 }
 
 fn load_toml<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, ConfigError> {
-    let text = std::fs::read_to_string(path).map_err(|e| ConfigError::io(path, e))?;
-    toml::from_str(&text).map_err(|e| ConfigError::parse(path, e))
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| ConfigError::new(format!("could not read {}: {e}", path.display())))?;
+    toml::from_str(&text)
+        .map_err(|e| ConfigError::new(format!("could not parse {}: {e}", path.display())))
 }
 
 #[derive(Debug, Default)]
@@ -57,7 +59,7 @@ impl Registry {
 
         let mut registry = Registry::default();
         for raw in actions.action {
-            let action = raw.resolve(&vocabulary).map_err(ConfigError::invalid)?;
+            let action = raw.resolve(&vocabulary).map_err(ConfigError::new)?;
             match action.trigger {
                 Some(Trigger::Key(combo)) => {
                     registry.triggers.insert(combo, action.id.clone());
@@ -181,7 +183,7 @@ mod tests {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("config");
         let registry = Registry::load(&dir).expect("shipped config should load");
 
-        let combo: KeyCombo = "ctrl+w".parse().unwrap();
+        let combo = KeyCombo::parse("ctrl+w").unwrap();
         assert_eq!(registry.action_for_trigger(&combo), Some("close.tab"));
         assert_eq!(
             registry.fallback("close.tab"),

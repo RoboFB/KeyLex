@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 const FILE_NAME: &str = "spotlight_frecency.json";
 
-pub(crate) fn now_secs() -> u64 {
+pub(super) fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|since| since.as_secs())
@@ -65,7 +65,7 @@ impl Frecency {
     /// A small bonus added on top of the fuzzy match score -- never large
     /// enough for a well-used but poorly matching entry to outrank a strong
     /// match, only enough to break near-ties toward what's actually used.
-    pub(crate) fn boost(&self, action_id: &str, now: u64) -> u32 {
+    pub(super) fn boost(&self, action_id: &str, now: u64) -> u32 {
         let Some(record) = self.records.get(action_id) else {
             return 0;
         };

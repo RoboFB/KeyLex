@@ -92,13 +92,13 @@ impl Target {
 
         for (action_id, command) in &self.supports {
             if !known_actions.contains(action_id.as_str()) {
-                return Err(ConfigError::invalid(format!(
+                return Err(ConfigError::new(format!(
                     "target {:?} supports unknown action {action_id:?}",
                     self.program
                 )));
             }
             if !self.exempt_command_grammar && !fits_command_grammar(command) {
-                return Err(ConfigError::invalid(format!(
+                return Err(ConfigError::new(format!(
                     "target {:?} action {action_id:?} has command {command:?}, expected application.location.action",
                     self.program
                 )));

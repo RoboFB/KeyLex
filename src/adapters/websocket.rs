@@ -36,15 +36,10 @@ const READ_POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// How long a freshly handshaken client has to send its auth frame.
 const AUTH_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Where `send` leaves commands for the live connection's own thread. The
-/// `id` is what lets a thread clear only its own registration and never a
-/// newer connection's.
-struct Outbox {
-    id: u64,
-    commands: Sender<String>,
-}
-
-type Live = Arc<Mutex<Option<Outbox>>>;
+/// Where `send` leaves commands for the live connection's own thread. A
+/// connection that has since died needs no cleanup: the channel's own
+/// receiver is gone with it, so the next `send` fails and says so.
+type Live = Arc<Mutex<Option<Sender<String>>>>;
 
 pub struct WebSocketAdapter {
     live: Live,
@@ -70,7 +65,7 @@ impl WebSocketAdapter {
         let accepted = Arc::clone(&live);
 
         thread::spawn(move || {
-            for (id, stream) in listener.incoming().enumerate() {
+            for stream in listener.incoming() {
                 let stream = match stream {
                     Ok(stream) => stream,
                     Err(e) => {
@@ -83,18 +78,9 @@ impl WebSocketAdapter {
                 };
 
                 println!("keylex: websocket client authenticated on port {port}");
-                let id = id as u64;
                 let (commands, inbox) = mpsc::channel();
-                *accepted.lock().unwrap() = Some(Outbox { id, commands });
-
-                let live = Arc::clone(&accepted);
-                thread::spawn(move || {
-                    serve(ws, &inbox);
-                    let mut live = live.lock().unwrap();
-                    if live.as_ref().is_some_and(|outbox| outbox.id == id) {
-                        *live = None;
-                    }
-                });
+                *accepted.lock().unwrap() = Some(commands);
+                thread::spawn(move || serve(ws, &inbox));
             }
         });
 
@@ -104,7 +90,7 @@ impl WebSocketAdapter {
 
 /// Handshake, Origin check, and auth frame for one incoming client.
 /// `None` means it was rejected, with the reason already reported.
-// `accept_hdr`'s callback error type is `ErrorResponse`, whose size is
+// The handshake callback's error type is `ErrorResponse`, whose size is
 // dictated by tungstenite's `Callback` trait rather than by us.
 #[allow(clippy::result_large_err)]
 fn accept(
@@ -212,7 +198,7 @@ impl Adapter for WebSocketAdapter {
         let live = self.live.lock().unwrap();
         let queued = live
             .as_ref()
-            .is_some_and(|outbox| outbox.commands.send(native_command.to_string()).is_ok());
+            .is_some_and(|commands| commands.send(native_command.to_string()).is_ok());
         if !queued {
             eprintln!("keylex: no websocket client connected, dropping {native_command:?}");
         }

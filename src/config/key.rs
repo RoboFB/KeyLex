@@ -4,7 +4,6 @@
 
 use std::collections::BTreeSet;
 use std::fmt;
-use std::str::FromStr;
 
 /// Token names recognized as modifiers, shared with the capture backends'
 /// own modifier tables (`src/capture/linux.rs`, `src/capture/windows.rs`).
@@ -23,30 +22,17 @@ pub struct KeyCombo {
     pub modifiers: BTreeSet<String>,
 }
 
-/// A combo with no key in it at all (`""`, `"+"`): rejected at load time so
-/// no binding can silently match nothing.
-#[derive(Debug)]
-pub struct EmptyCombo;
-
-impl fmt::Display for EmptyCombo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("key combo is empty")
-    }
-}
-
-impl std::error::Error for EmptyCombo {}
-
-impl FromStr for KeyCombo {
-    type Err = EmptyCombo;
-
-    fn from_str(raw: &str) -> Result<KeyCombo, EmptyCombo> {
+impl KeyCombo {
+    /// `None` for a combo with no key in it at all (`""`, `"+"`), so that a
+    /// binding can never silently match nothing.
+    pub fn parse(raw: &str) -> Option<KeyCombo> {
         let mut tokens: Vec<String> = raw
             .split('+')
             .map(|token| token.trim().to_lowercase())
             .filter(|token| !token.is_empty())
             .collect();
-        let key = tokens.pop().ok_or(EmptyCombo)?;
-        Ok(KeyCombo {
+        let key = tokens.pop()?;
+        Some(KeyCombo {
             key,
             modifiers: tokens.into_iter().collect(),
         })
@@ -100,10 +86,6 @@ impl Chord {
         self.0.insert(token.into());
     }
 
-    pub fn contains(&self, token: &str) -> bool {
-        self.0.contains(token)
-    }
-
     pub fn is_subset_of(&self, other: &Chord) -> bool {
         self.0.is_subset(&other.0)
     }
@@ -137,8 +119,8 @@ mod tests {
 
     #[test]
     fn combo_parses_modifiers_order_independently() {
-        let a: KeyCombo = "ctrl+shift+w".parse().unwrap();
-        let b: KeyCombo = "shift+ctrl+w".parse().unwrap();
+        let a = KeyCombo::parse("ctrl+shift+w").unwrap();
+        let b = KeyCombo::parse("shift+ctrl+w").unwrap();
         assert_eq!(a, b);
         assert_eq!(a.key, "w");
         assert_eq!(a.to_string(), "ctrl+shift+w");
@@ -146,15 +128,15 @@ mod tests {
 
     #[test]
     fn combo_parses_a_bare_key() {
-        let combo: KeyCombo = "prtsc".parse().unwrap();
+        let combo = KeyCombo::parse("prtsc").unwrap();
         assert_eq!(combo.key, "prtsc");
         assert!(combo.modifiers.is_empty());
     }
 
     #[test]
     fn empty_combo_is_rejected() {
-        assert!("".parse::<KeyCombo>().is_err());
-        assert!(" + ".parse::<KeyCombo>().is_err());
+        assert!(KeyCombo::parse("").is_none());
+        assert!(KeyCombo::parse(" + ").is_none());
     }
 
     fn chord(tokens: &[&str]) -> Result<Chord, String> {

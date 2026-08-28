@@ -78,13 +78,13 @@ impl<'a> Router<'a> {
     /// `move.left`); anything left falls back to a raw keycode.
     pub fn dispatch(&self, action_id: &str, focused_process: Option<&str>) -> Outcome {
         let focused = focused_process.and_then(|name| self.registry.target_for_process(name));
-        let native = [focused, self.registry.system_target()]
+        for target in [focused, self.registry.system_target()]
             .into_iter()
             .flatten()
-            .find_map(|target| Some((target, target.supports.get(action_id)?)));
-
-        if let Some((target, native_command)) = native {
-            return self.send_native(target, native_command);
+        {
+            if let Some(native_command) = target.supports.get(action_id) {
+                return self.send_native(target, native_command);
+            }
         }
 
         match self.registry.fallback(action_id) {

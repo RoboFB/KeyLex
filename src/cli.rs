@@ -52,11 +52,14 @@ pub fn run() -> ExitCode {
 }
 
 fn execute(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let Some(options) = parse(args)? else {
+    let Some(Options {
+        config_dir,
+        command,
+    }) = parse(args)?
+    else {
         print!("{USAGE}");
         return Ok(());
     };
-    let config_dir = options.config_dir;
 
     let registry = Registry::load(&config_dir)
         .map_err(|e| format!("failed to load config from {}: {e}", config_dir.display()))?;
@@ -67,21 +70,19 @@ fn execute(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         )
     })?;
 
-    match options.command {
-        Command::Demo => demo(&registry, &token),
+    match command {
+        Command::Demo => demo(&router(&registry, &token)),
         Command::Spotlight => {
-            let router = router(&registry, &token, None);
             let mut index = catalog(&registry, &config_dir, &token);
-            spotlight::run_interactive(&mut index, &router)?;
+            spotlight::run_interactive(&mut index, &router(&registry, &token))?;
         }
         Command::Query(query) => {
             let index = catalog(&registry, &config_dir, &token);
             println!("{}", serde_json::to_string(&index.search(&query))?);
         }
         Command::Run(action_id) => {
-            let router = router(&registry, &token, None);
             let mut index = catalog(&registry, &config_dir, &token);
-            run_action(&mut index, &router, &action_id);
+            run_action(&mut index, &router(&registry, &token), &action_id);
         }
         Command::Capture => {
             let websocket = websocket_adapter(&registry, &token);
@@ -119,8 +120,7 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Option<Options>, Stri
 
 /// Two hardcoded dispatches, so the config/adapter wiring can be smoke
 /// tested without a keyboard grab.
-fn demo(registry: &Registry, token: &str) {
-    let router = router(registry, token, None);
+fn demo(router: &Router) {
     for (action_id, focused) in [("close.tab", "code"), ("go_to.definition", "chrome.exe")] {
         println!(
             "{action_id} -> {}",
@@ -163,14 +163,12 @@ fn adapters(token: &str, websocket: Option<WebSocketAdapter>) -> Adapters {
     adapters
 }
 
-fn router<'a>(
-    registry: &'a Registry,
-    token: &str,
-    websocket: Option<WebSocketAdapter>,
-) -> Router<'a> {
+/// The router the CLI modes share. Only the capture loop needs a
+/// websocket adapter, and it builds its own `Adapters` for that.
+fn router<'a>(registry: &'a Registry, token: &str) -> Router<'a> {
     Router::new(
         registry,
-        adapters(token, websocket),
+        adapters(token, None),
         Box::new(LogNotifier),
         Box::new(LogFallbackSender),
     )

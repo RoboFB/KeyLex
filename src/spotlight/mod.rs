@@ -27,10 +27,6 @@ use crate::adapters::SocketAdapter;
 use crate::config::{AdapterKind, Registry};
 use crate::dispatch::{Outcome, Router};
 
-/// Marks an entry that no target has reported on yet, so it carries only
-/// what the local config says about it.
-const LOCAL: &str = "local";
-
 /// One entry in the catalog. Serialized as-is by `--spotlight-query`, so
 /// the field names are part of that CLI contract (see
 /// `extensions/linux-extension/search-provider.js`).
@@ -63,12 +59,12 @@ impl Entry {
         let Some(native_command) = &self.native_command else {
             return Outcome::Unsupported(self.action_id.clone());
         };
-        let target = router
+        match router
             .registry()
             .targets()
             .iter()
-            .find(|t| t.program == self.source);
-        match target {
+            .find(|t| t.program == self.source)
+        {
             Some(target) => router.send_native(target, native_command),
             None => Outcome::Unsupported(format!("no target named {:?}", self.source)),
         }
@@ -128,7 +124,7 @@ impl<'a> Index<'a> {
                 action_id: id.to_string(),
                 title: title_from_action_id(id),
                 key_hint: registry.trigger_for_action(id),
-                source: LOCAL.to_string(),
+                source: "local".to_string(),
                 native_command: None,
             })
             .collect();
@@ -250,6 +246,15 @@ pub fn bootstrap<'a>(
 ) -> Index<'a> {
     let mut index = Index::new(registry, Frecency::load(config_dir));
     for target in registry.targets() {
+        // A listener for another OS can never be running here, and asking
+        // costs a connect timeout on every search.
+        if target
+            .os
+            .as_deref()
+            .is_some_and(|os| os != std::env::consts::OS)
+        {
+            continue;
+        }
         if target.adapter != AdapterKind::Socket {
             continue;
         }

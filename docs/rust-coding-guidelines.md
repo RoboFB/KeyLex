@@ -64,6 +64,40 @@ target's standard library. This is not optional politeness: the Windows
 capture backend was, at one point, committed in a state that did not
 compile at all, and nothing in the Linux build could have said so.
 
+## Keep it simple
+
+This is the first rule, and it outranks every stylistic preference below:
+**write the boring version**. Simplicity here means code a reader can
+follow top to bottom without holding anything in their head — not the
+fewest characters, and not the cleverest use of the type system.
+
+What that means concretely when reviewing a change to this repo:
+
+- **Solve the problem in front of you.** No configuration knob, trait,
+  generic parameter, or extension point for a use case that doesn't exist
+  yet. When one does exist, add it then.
+- **Prefer a plain loop to a combinator chain that needs a second read.**
+  `dispatch` tries the focused target and then the system listener with a
+  two-line `for`, not a `find_map` closure returning a tuple of options.
+- **Don't build a type whose only job is to carry a message.**
+  `ConfigError` is a newtype over `String`, because every caller does the
+  same thing with every kind of config failure: print it and refuse to
+  start. A variant per rule would have been pure ceremony.
+- **An abstraction has to remove more than it adds.**
+  [`src/capture/chord.rs`](../src/capture/chord.rs) earns its trait and
+  its generic: it replaced two drifting copies of the same state machine.
+  A wrapper that only forwards has not earned anything.
+- **Delete rather than keep "for later".** Unused config layers, unwired
+  files and speculative helpers are not free — they get read, trusted, and
+  maintained. Git remembers them.
+- **If a function needs a comment explaining *how* it works**, try
+  rewriting the function first. Comments are for *why* (see below).
+
+The one thing simplicity never buys out is correctness at a boundary: the
+type-level parsing, the `SAFETY:` comments, and the "never hold a lock
+across I/O" rule below are each there because the simpler-looking version
+was wrong. Simple, not naive.
+
 ## Module layout
 
 One concern per module, and a directory (`config/`, `capture/`,
