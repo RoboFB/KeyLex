@@ -1,23 +1,23 @@
-//! keylex/v0 adapter over WebSocket (docs/protocol.md): same
-//! `{"command": "..."}` message as `SocketAdapter`, just carried as a WS
-//! text frame instead of a newline-delimited TCP byte stream. Used for
-//! targets whose client can't open a listening socket (browser extensions):
-//! unlike `SocketAdapter`, where the daemon connects OUT to the target's
-//! server, here the roles are flipped -- the daemon runs the WebSocket
-//! *server* and the target's client connects IN, since browser JS has no
-//! server capability at all. A single, persistent connection is kept open
-//! (accepted once, reused for every `send`) so dispatch never pays a
-//! handshake -- important since this is still on the keyboard-input path.
+//! keylex/v0 over WebSocket (`docs/protocol.md`): the same
+//! `{"command": "..."}` message as `SocketAdapter`, carried as a WS text
+//! frame. Used for targets whose client can't open a listening socket --
+//! browser extensions -- so the roles are flipped: the daemon is the
+//! server and the target connects in. One connection is accepted and kept
+//! open for every `send`, so dispatch never pays for a handshake.
 //!
-//! Every accepted connection is authenticated (docs/protocol.md#trust-model--authentication)
-//! before it's trusted: the `Origin` header is checked during the WS
-//! handshake itself (if `allowed_origin` is configured), and the first frame
-//! read afterwards must be `{"token": "<the shared secret>"}`. A connection
-//! is only promoted into the live slot `send()` uses once that check passes
-//! -- this is also what stops an unauthenticated connection from hijacking
-//! ("last-connect-wins") the slot away from an already-authenticated one.
+//! Every connection is authenticated before it is trusted
+//! (`docs/protocol.md#trust-model--authentication`): the `Origin` header is
+//! checked during the handshake, and the first frame afterwards must carry
+//! the shared secret. Only then does it become the live one, which is also
+//! what stops an unauthenticated client from displacing a good one.
+//!
+//! One thread owns each accepted socket outright, and `send` only hands it
+//! a command through a channel. That matters: `send` sits on the keyboard
+//! path and must never wait on socket I/O, which is exactly what sharing
+//! the socket behind a mutex would make it do.
 
 use std::net::{TcpListener, TcpStream};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -28,30 +28,32 @@ use tungstenite::{Message, WebSocket};
 use crate::config::Target;
 use crate::dispatch::Adapter;
 
-type Connection = Arc<Mutex<Option<WebSocket<TcpStream>>>>;
+/// How long the owning thread waits for an incoming frame before checking
+/// its outbox again. It bounds both how long a queued command can sit
+/// there and how often an idle connection wakes up.
+const READ_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// How long the reader thread's `ws.read()` call is allowed to block before
-/// returning `WouldBlock`/`TimedOut` and releasing the connection mutex for
-/// another cycle. Bounds `send()`'s worst-case wait for the lock.
-const READ_POLL_INTERVAL: Duration = Duration::from_millis(20);
-
-/// How long a freshly handshaken connection has to send its `{"token": ...}`
-/// auth frame before it's dropped. Generous relative to `READ_POLL_INTERVAL`
-/// since this is a one-time check, not the per-cycle send()-blocking budget.
+/// How long a freshly handshaken client has to send its auth frame.
 const AUTH_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Where `send` leaves commands for the live connection's own thread. The
+/// `id` is what lets a thread clear only its own registration and never a
+/// newer connection's.
+struct Outbox {
+    id: u64,
+    commands: Sender<String>,
+}
+
+type Live = Arc<Mutex<Option<Outbox>>>;
+
 pub struct WebSocketAdapter {
-    connection: Connection,
+    live: Live,
 }
 
 impl WebSocketAdapter {
-    /// Binds a TCP listener on `port` and spawns a background thread that
-    /// accepts WebSocket clients, authenticates each one (Origin header +
-    /// token), and keeps only the most recently *authenticated* one alive
-    /// (an unauthenticated connection can never displace a live one).
-    // The accept_hdr callback's Err type size is dictated by tungstenite's
-    // `Callback` trait, not under our control here.
-    #[allow(clippy::result_large_err)]
+    /// Binds `port` and spawns the accept loop. Only the most recently
+    /// *authenticated* client is kept; an unauthenticated one can never
+    /// displace it.
     pub fn spawn(
         port: u16,
         token: String,
@@ -64,89 +66,106 @@ impl WebSocketAdapter {
         }
 
         let listener = TcpListener::bind(("127.0.0.1", port))?;
-        let connection: Connection = Arc::new(Mutex::new(None));
+        let live: Live = Arc::new(Mutex::new(None));
+        let accepted = Arc::clone(&live);
 
-        let accept_connection = Arc::clone(&connection);
         thread::spawn(move || {
-            for stream in listener.incoming() {
+            for (id, stream) in listener.incoming().enumerate() {
                 let stream = match stream {
                     Ok(stream) => stream,
                     Err(e) => {
-                        eprintln!("keylex: websocket adapter accept failed: {e}");
+                        eprintln!("keylex: websocket accept failed: {e}");
                         continue;
                     }
                 };
-
-                let origin_for_check = allowed_origin.clone();
-                let mut ws = match tungstenite::accept_hdr(stream, move |req: &Request, response: Response| {
-                    check_origin(req, origin_for_check.as_deref())?;
-                    Ok(response)
-                }) {
-                    Ok(ws) => ws,
-                    Err(e) => {
-                        eprintln!("keylex: websocket handshake rejected: {e}");
-                        continue;
-                    }
+                let Some(ws) = accept(stream, allowed_origin.as_deref(), &token) else {
+                    continue;
                 };
 
-                if let Err(e) = ws.get_ref().set_read_timeout(Some(AUTH_TIMEOUT)) {
-                    eprintln!("keylex: websocket adapter could not set auth read timeout: {e}");
-                    continue;
-                }
-                if let Err(e) = authenticate(&mut ws, &token) {
-                    eprintln!("keylex: websocket adapter rejected unauthenticated connection: {e}");
-                    continue;
-                }
+                println!("keylex: websocket client authenticated on port {port}");
+                let id = id as u64;
+                let (commands, inbox) = mpsc::channel();
+                *accepted.lock().unwrap() = Some(Outbox { id, commands });
 
-                if let Err(e) = ws.get_ref().set_read_timeout(Some(READ_POLL_INTERVAL)) {
-                    eprintln!("keylex: websocket adapter could not set read timeout: {e}");
-                    continue;
-                }
-
-                println!("keylex: websocket adapter client authenticated and connected on port {port}");
-                *accept_connection.lock().unwrap() = Some(ws);
-                spawn_reader(Arc::clone(&accept_connection));
+                let live = Arc::clone(&accepted);
+                thread::spawn(move || {
+                    serve(ws, &inbox);
+                    let mut live = live.lock().unwrap();
+                    if live.as_ref().is_some_and(|outbox| outbox.id == id) {
+                        *live = None;
+                    }
+                });
             }
         });
 
-        Ok(WebSocketAdapter { connection })
+        Ok(WebSocketAdapter { live })
     }
 }
 
-/// Rejects the handshake outright (before a `WebSocket` value even exists)
-/// if `allowed_origin` is configured and the request's `Origin` header
-/// doesn't match -- e.g. a browser tab other than the paired extension
-/// trying `new WebSocket("ws://127.0.0.1:<port>")`. Skipped entirely (not
-/// enforced) when no `allowed_origin` is configured for this target.
-// `ErrorResponse`'s size is dictated by tungstenite's `Callback` trait, not
-// under our control here.
+/// Handshake, Origin check, and auth frame for one incoming client.
+/// `None` means it was rejected, with the reason already reported.
+// `accept_hdr`'s callback error type is `ErrorResponse`, whose size is
+// dictated by tungstenite's `Callback` trait rather than by us.
+#[allow(clippy::result_large_err)]
+fn accept(
+    stream: TcpStream,
+    allowed_origin: Option<&str>,
+    token: &str,
+) -> Option<WebSocket<TcpStream>> {
+    let mut ws = tungstenite::accept_hdr(stream, |request: &Request, response: Response| {
+        check_origin(request, allowed_origin)?;
+        Ok(response)
+    })
+    .map_err(|e| eprintln!("keylex: websocket handshake rejected: {e}"))
+    .ok()?;
+
+    ws.get_ref()
+        .set_read_timeout(Some(AUTH_TIMEOUT))
+        .map_err(|e| eprintln!("keylex: websocket could not set auth read timeout: {e}"))
+        .ok()?;
+    authenticate(&mut ws, token)
+        .map_err(|e| eprintln!("keylex: websocket rejected unauthenticated client: {e}"))
+        .ok()?;
+    ws.get_ref()
+        .set_read_timeout(Some(READ_POLL_INTERVAL))
+        .map_err(|e| eprintln!("keylex: websocket could not set read timeout: {e}"))
+        .ok()?;
+
+    Some(ws)
+}
+
+/// Rejects the handshake before a `WebSocket` value even exists if the
+/// request's `Origin` doesn't match -- e.g. a browser tab other than the
+/// paired extension opening `ws://127.0.0.1:<port>`. Not enforced at all
+/// when no `allowed_origin` is configured for the target.
 #[allow(clippy::result_large_err)]
 fn check_origin(request: &Request, allowed_origin: Option<&str>) -> Result<(), ErrorResponse> {
     let Some(allowed) = allowed_origin else {
         return Ok(());
     };
-
-    let origin = request.headers().get("Origin").and_then(|v| v.to_str().ok());
+    let origin = request
+        .headers()
+        .get("Origin")
+        .and_then(|value| value.to_str().ok());
     if origin == Some(allowed) {
         return Ok(());
     }
 
-    eprintln!("keylex: websocket adapter rejected connection with Origin {origin:?}, expected {allowed:?}");
+    eprintln!("keylex: websocket rejected Origin {origin:?}, expected {allowed:?}");
     Err(http::Response::builder()
         .status(http::StatusCode::FORBIDDEN)
         .body(Some("origin not allowed".to_string()))
-        .expect("static error response is always well-formed"))
+        .expect("a response built from constants is always well-formed"))
 }
 
-/// Blocks (up to whatever read timeout is currently set on `ws`'s stream)
-/// for the one auth frame a freshly connected client must send:
-/// `{"token": "<the shared secret from config/secret.token>"}`.
+/// Blocks (up to the read timeout set by the caller) for the one auth frame
+/// a client must send: `{"token": "<the shared secret>"}`.
 fn authenticate(ws: &mut WebSocket<TcpStream>, token: &str) -> Result<(), String> {
     match ws.read() {
         Ok(Message::Text(text)) => {
-            let parsed: serde_json::Value =
+            let frame: serde_json::Value =
                 serde_json::from_str(&text).map_err(|e| format!("invalid auth frame: {e}"))?;
-            match parsed.get("token").and_then(|v| v.as_str()) {
+            match frame.get("token").and_then(|value| value.as_str()) {
                 Some(provided) if provided == token => Ok(()),
                 _ => Err("token mismatch".to_string()),
             }
@@ -156,54 +175,46 @@ fn authenticate(ws: &mut WebSocket<TcpStream>, token: &str) -> Result<(), String
     }
 }
 
-/// Drains incoming frames on the current connection so ping/pong keepalive
-/// is answered (tungstenite only responds to pings when the app calls
-/// `read`) and so a closed/broken connection is noticed and cleared
-/// promptly rather than left stale until the next failed `send`.
-fn spawn_reader(connection: Connection) {
-    thread::spawn(move || loop {
-        let read_result = {
-            let mut guard = connection.lock().unwrap();
-            match guard.as_mut() {
-                Some(ws) => ws.read(),
-                None => return, // superseded by a newer connection
-            }
-        };
-        match read_result {
-            Ok(_) => continue,
-            Err(tungstenite::Error::Io(ref e))
-                if e.kind() == std::io::ErrorKind::WouldBlock
-                    || e.kind() == std::io::ErrorKind::TimedOut =>
+/// Owns one authenticated connection until it breaks: writes whatever
+/// `send` queues, and keeps reading so ping/pong keepalive is answered
+/// (tungstenite only replies to pings while the app is reading) and a dead
+/// connection is noticed promptly rather than at the next dispatch.
+fn serve(mut ws: WebSocket<TcpStream>, commands: &Receiver<String>) {
+    loop {
+        for command in commands.try_iter() {
+            let payload = serde_json::json!({ "command": command }).to_string();
+            if let Err(e) = ws
+                .send(Message::Text(payload.into()))
+                .and_then(|()| ws.flush())
             {
-                // Just a read-timeout poll cycle, not a real disconnect.
-                continue;
-            }
-            Err(e) => {
-                eprintln!("keylex: websocket adapter connection closed: {e}");
-                *connection.lock().unwrap() = None;
+                eprintln!("keylex: websocket write failed: {e}");
                 return;
             }
         }
-    });
+
+        match ws.read() {
+            Ok(_) => {}
+            Err(tungstenite::Error::Io(e))
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) => {}
+            Err(e) => {
+                eprintln!("keylex: websocket connection closed: {e}");
+                return;
+            }
+        }
+    }
 }
 
 impl Adapter for WebSocketAdapter {
     fn send(&self, _target: &Target, native_command: &str) {
-        let mut guard = self.connection.lock().unwrap();
-        let Some(ws) = guard.as_mut() else {
-            eprintln!("keylex: websocket adapter has no connected client, dropping {native_command:?}");
-            return;
-        };
-
-        let payload = serde_json::json!({ "command": native_command }).to_string();
-        if let Err(e) = ws.send(Message::Text(payload.into())) {
-            eprintln!("keylex: websocket adapter write failed: {e}");
-            *guard = None;
-            return;
-        }
-        if let Err(e) = ws.flush() {
-            eprintln!("keylex: websocket adapter flush failed: {e}");
-            *guard = None;
+        let live = self.live.lock().unwrap();
+        let queued = live
+            .as_ref()
+            .is_some_and(|outbox| outbox.commands.send(native_command.to_string()).is_ok());
+        if !queued {
+            eprintln!("keylex: no websocket client connected, dropping {native_command:?}");
         }
     }
 }

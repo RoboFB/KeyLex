@@ -1,27 +1,27 @@
-//! Shared-secret token that both local IPC transports (`SocketAdapter`,
-//! `WebSocketAdapter`) require on every message, so an unauthenticated local
-//! process or a malicious webpage can't drive a target's native commands.
-//! See docs/protocol.md#trust-model--authentication for the wire-level
-//! contract and threat model this defends against.
+//! The shared secret both local IPC transports require on every message, so
+//! that an unauthenticated local process or a malicious web page can't
+//! drive a target's native commands. See
+//! `docs/protocol.md#trust-model--authentication` for the wire-level
+//! contract and the threat model it defends against.
 
+use std::fmt::Write as _;
 use std::fs::OpenOptions;
-use std::io::{self, Write};
+use std::io::{self, Write as _};
 use std::path::Path;
 
 const TOKEN_FILE_NAME: &str = "secret.token";
 const TOKEN_BYTES: usize = 32;
 
-/// Loads the per-install shared secret from `<config_dir>/secret.token`,
-/// generating and persisting a new one on first run. Reusing an existing
-/// file means restarting the daemon never invalidates already-paired
-/// extensions.
+/// Loads the per-install secret, generating and persisting one on first
+/// run. Reusing the existing file is what keeps a daemon restart from
+/// unpairing every extension.
 pub fn load_or_create_token(config_dir: &Path) -> io::Result<String> {
     let path = config_dir.join(TOKEN_FILE_NAME);
     match std::fs::read_to_string(&path) {
-        Ok(contents) => Ok(contents.trim().to_string()),
+        Ok(token) => Ok(token.trim().to_string()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
             let token = generate_token();
-            write_token_file(&path, &token)?;
+            write_token(&path, &token)?;
             Ok(token)
         }
         Err(e) => Err(e),
@@ -29,50 +29,41 @@ pub fn load_or_create_token(config_dir: &Path) -> io::Result<String> {
 }
 
 fn generate_token() -> String {
-    use rand::Rng;
+    use rand::Rng as _;
+
     let mut bytes = [0u8; TOKEN_BYTES];
     rand::rng().fill_bytes(&mut bytes);
-    hex_encode(&bytes)
-}
-
-fn hex_encode(bytes: &[u8]) -> String {
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        s.push_str(&format!("{b:02x}"));
-    }
-    s
+    bytes
+        .iter()
+        .fold(String::with_capacity(TOKEN_BYTES * 2), |mut token, byte| {
+            let _ = write!(token, "{byte:02x}");
+            token
+        })
 }
 
 #[cfg(unix)]
-fn write_token_file(path: &Path, token: &str) -> io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
-    // `create_new` + mode 0o600 in one syscall avoids a write-then-chmod
-    // window where the token would briefly be world-readable.
-    let mut file = OpenOptions::new()
+fn write_token(path: &Path, token: &str) -> io::Result<()> {
+    use std::os::unix::fs::OpenOptionsExt as _;
+
+    // `create_new` plus mode 0o600 in one syscall: a write-then-chmod would
+    // leave a window where the token is world-readable.
+    OpenOptions::new()
         .write(true)
         .create_new(true)
         .mode(0o600)
-        .open(path)?;
-    file.write_all(token.as_bytes())
+        .open(path)?
+        .write_all(token.as_bytes())
 }
 
 #[cfg(not(unix))]
-fn write_token_file(path: &Path, token: &str) -> io::Result<()> {
-    // No POSIX mode bits on Windows; default NTFS ACLs (owner + admins) are
-    // the accepted trust boundary here, same as any other per-user secret
-    // file (e.g. an SSH private key).
-    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
-    file.write_all(token.as_bytes())
-}
-
-/// Reads the token back out of an already-open file handle, used only by
-/// tests to check what `write_token_file` actually persisted.
-#[cfg(test)]
-fn read_token_file(path: &Path) -> io::Result<String> {
-    use std::io::Read;
-    let mut contents = String::new();
-    std::fs::File::open(path)?.read_to_string(&mut contents)?;
-    Ok(contents)
+fn write_token(path: &Path, token: &str) -> io::Result<()> {
+    // No POSIX mode bits here; the default NTFS ACL (owner plus admins) is
+    // the accepted trust boundary, as it is for any other per-user secret.
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)?
+        .write_all(token.as_bytes())
 }
 
 #[cfg(test)]
@@ -80,50 +71,40 @@ mod tests {
     use super::*;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "keylex-auth-test-{name}-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
+        let dir = std::env::temp_dir().join(format!("keylex-auth-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
 
     #[test]
-    fn generates_a_64_char_hex_token_on_first_run() {
-        let dir = temp_dir("first-run");
-        let token = load_or_create_token(&dir).expect("should generate a token");
+    fn first_run_generates_a_hex_token_and_later_runs_reuse_it() {
+        let dir = temp_dir("reuse");
+        let token = load_or_create_token(&dir).unwrap();
+
         assert_eq!(token.len(), TOKEN_BYTES * 2);
         assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
-        let _ = std::fs::remove_dir_all(&dir);
-    }
+        assert_eq!(load_or_create_token(&dir).unwrap(), token);
+        assert_eq!(
+            std::fs::read_to_string(dir.join(TOKEN_FILE_NAME)).unwrap(),
+            token
+        );
 
-    #[test]
-    fn reuses_existing_token_across_calls() {
-        let dir = temp_dir("reuse");
-        let first = load_or_create_token(&dir).expect("first load creates token");
-        let second = load_or_create_token(&dir).expect("second load reuses token");
-        assert_eq!(first, second);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(unix)]
     #[test]
-    fn token_file_is_created_with_owner_only_permissions() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = temp_dir("perms");
-        load_or_create_token(&dir).expect("should generate a token");
-        let meta = std::fs::metadata(dir.join(TOKEN_FILE_NAME)).unwrap();
-        assert_eq!(meta.permissions().mode() & 0o777, 0o600);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
+    fn the_token_file_is_readable_only_by_its_owner() {
+        use std::os::unix::fs::PermissionsExt as _;
 
-    #[test]
-    fn stored_token_round_trips_through_the_file() {
-        let dir = temp_dir("roundtrip");
-        let token = load_or_create_token(&dir).expect("should generate a token");
-        let on_disk = read_token_file(&dir.join(TOKEN_FILE_NAME)).unwrap();
-        assert_eq!(on_disk.trim(), token);
+        let dir = temp_dir("perms");
+        load_or_create_token(&dir).unwrap();
+        let mode = std::fs::metadata(dir.join(TOKEN_FILE_NAME))
+            .unwrap()
+            .permissions()
+            .mode();
+
+        assert_eq!(mode & 0o777, 0o600);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

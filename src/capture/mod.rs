@@ -1,7 +1,10 @@
-//! Lowest-level keyboard interception: grabs the physical keyboard as
-//! deeply as the OS allows, matches each key combo against the actions
-//! registry, and either consumes+dispatches a match or re-emits the
-//! event unchanged so normal typing stays untouched.
+//! Lowest-level keyboard interception: grab the physical keyboard as deeply
+//! as the OS allows, match each key against the actions registry, and
+//! either consume and dispatch it or re-emit it unchanged so ordinary
+//! typing stays untouched.
+
+#[cfg(any(target_os = "linux", windows))]
+mod chord;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -13,10 +16,12 @@ mod windows;
 #[cfg(windows)]
 pub use windows::run;
 
+/// macOS and everything else: compiles, but there is no backend to run.
+/// The planned approach is a `CGEventTap` behind an Accessibility grant.
 #[cfg(not(any(target_os = "linux", windows)))]
 pub fn run(
     _registry: &crate::config::Registry,
-    _adapters: std::collections::HashMap<String, Box<dyn crate::dispatch::Adapter>>,
+    _adapters: crate::dispatch::Adapters,
     _notifier: Box<dyn crate::dispatch::Notifier>,
 ) -> std::io::Result<()> {
     Err(std::io::Error::new(

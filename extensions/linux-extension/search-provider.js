@@ -1,5 +1,5 @@
 // GNOME Shell search provider ("org.gnome.Shell.SearchProvider2") for
-// Keylex's spotlight action search (../../src/spotlight.rs), so the same
+// Keylex's spotlight action search (../../src/spotlight/), so the same
 // fuzzy-ranked action catalog the `keylex --spotlight` terminal launcher
 // shows is also reachable from GNOME Shell's own Activities search --
 // "talking nicely to the OS/window manager" instead of Keylex inventing its
@@ -52,7 +52,7 @@ function runKeylex(args) {
   });
 }
 
-// Mirrors src/spotlight.rs's SpotlightMatch/SpotlightEntry JSON shape
+// Mirrors src/spotlight/mod.rs's Match/Entry JSON shape
 // (serde `Serialize` derive) -- see `keylex --spotlight-query`'s output.
 async function spotlightSearch(query) {
   const stdout = await runKeylex(["--spotlight-query", query]);
