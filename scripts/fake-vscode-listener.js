@@ -15,12 +15,21 @@ const TOKEN_PATH = path.join(__dirname, "..", "config", "secret.token");
 // it sends now carries this same token (docs/protocol.md#trust-model--authentication).
 const token = fs.readFileSync(TOKEN_PATH, "utf8").trim();
 
-// Mirrors the real extension's ACTION_CATALOG closely enough for local
-// testing -- not the "live vscode.commands.getCommands()" check the real
-// extension does, since there's no real VS Code here to check against.
+// Mirrors the real extension's live-discovered catalog closely enough for
+// local testing -- not the real vscode.extensions.all/getCommands() walk
+// the real extension does, since there's no real VS Code here to check
+// against. Includes one entry ("editor.action.formatDocument") with no
+// Keylex action-id equivalent, to exercise the "raw command, namespaced by
+// source" path (see src/spotlight.rs's merge_remote/dispatch_entry) end to
+// end without a real VS Code window.
 const ACTION_CATALOG = [
   { id: "close.tab", command: "workbench.action.closeActiveEditor", title: "Close Editor" },
   { id: "save", command: "workbench.action.files.save", title: "Save File" },
+  {
+    id: "editor.action.formatDocument",
+    command: "editor.action.formatDocument",
+    title: "Format Document",
+  },
 ];
 
 const server = net.createServer((socket) => {

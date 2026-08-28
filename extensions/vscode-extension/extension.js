@@ -4,12 +4,24 @@
 // src/keylex/config/targets.toml's vscode target ("127.0.0.1:7777").
 //
 // Every message must also carry the shared secret from config/secret.token
-// (../../docs/protocol.md#trust-model--authentication) -- without it, any local
-// process able to open a TCP connection to this port could otherwise drive
-// arbitrary VS Code commands. The allowlist below is a second, independent
-// layer: even a correctly-tokened message can only trigger a command this
-// extension already knows about, since some VS Code commands (e.g. running
-// text in an open terminal) are far more dangerous than "close tab".
+// (../../docs/protocol.md#trust-model--authentication) -- without it, any
+// local process able to open a TCP connection to this port could otherwise
+// drive arbitrary VS Code commands.
+//
+// SECURITY NOTE, deliberately no allowlist here (unlike an earlier version
+// of this file): the command catalog below is discovered live from every
+// installed extension's own contributed commands (see liveActionCatalog),
+// specifically so a newly installed extension shows up in spotlight search
+// automatically, with no hand-maintained list to keep in sync. The
+// trade-off is real and worth stating plainly: anything holding
+// config/secret.token can now invoke *any* command currently registered in
+// this VS Code window -- including ones contributed by other installed
+// extensions, some of which (running a task, executing terminal text,
+// editing/deleting files) are considerably more dangerous than "close tab".
+// The token itself is still the only gate (docs/protocol.md#trust-model--authentication):
+// treat it with the same care as an SSH private key. If that trade-off
+// isn't acceptable for your setup, reintroduce an explicit allowlist here
+// (git blame this comment for the previous version).
 const vscode = require("vscode");
 const net = require("net");
 const fs = require("fs");
@@ -17,39 +29,30 @@ const fs = require("fs");
 const HOST = "127.0.0.1";
 const PORT = 7777;
 
-// Mirrors this folder's capabilities.toml `[supports]` map -- an
-// independent, hardcoded copy on purpose (see
-// ../../docs/protocol.md#native-command-strings), so a compromised/rogue
-// local client holding the token still can't invoke a command this
-// extension wasn't built to expect. This is also the *only* source of
-// "valid options" for both the `list_actions` handshake
+// The full live command catalog: every {command, title} an installed
+// extension actually contributes (vscode.extensions.all's own parsed
+// package.json is the same data VS Code's Command Palette itself is built
+// from -- ext.packageJSON.contributes.commands), filtered down to whatever
+// is *currently* registered (vscode.commands.getCommands()) so a disabled
+// extension or a not-yet-activated command silently drops out instead of
+// being offered. This is the only source of "valid options" for both the
+// list_actions handshake
 // (../../docs/protocol.md#action-catalog-handshake-list_actions) and the
-// `keylex.spotlight` QuickPick below -- neither reads a config/CSV file of
-// commands, and both live-filter this list against
-// `vscode.commands.getCommands()` before trusting an entry, so a command
-// that's no longer actually registered (extension disabled, VS Code
-// version drift) silently drops out instead of being offered.
-const ACTION_CATALOG = [
-  { id: "close.tab", command: "workbench.action.closeActiveEditor", title: "Close Editor" },
-  { id: "close.window", command: "workbench.action.closeWindow", title: "Close Window" },
-  { id: "close.sidebar", command: "workbench.action.closeSidebar", title: "Close Sidebar" },
-  { id: "close.pane", command: "workbench.action.closePanel", title: "Close Panel" },
-  { id: "close.terminal", command: "workbench.action.terminal.kill", title: "Kill Terminal" },
-  { id: "duplicate.line", command: "editor.action.copyLinesDownAction", title: "Duplicate Line" },
-  { id: "go_to.definition", command: "editor.action.revealDefinition", title: "Go to Definition" },
-  { id: "comment.line", command: "editor.action.commentLine", title: "Toggle Line Comment" },
-  { id: "save", command: "workbench.action.files.save", title: "Save File" },
-];
-
-const ALLOWED_COMMANDS = new Set(ACTION_CATALOG.map((entry) => entry.command));
-
-// The daemon-facing catalog, live-checked against this running VS Code
-// instance's actual command registry -- see the ACTION_CATALOG comment
-// above for why this (never a static file) is the source of truth for
-// "what can Keylex actually search/dispatch right now".
+// keylex.spotlight QuickPick below, and it needs zero maintenance when a
+// new extension gets installed -- it's picked up on the next call.
 async function liveActionCatalog() {
   const registered = new Set(await vscode.commands.getCommands(true));
-  return ACTION_CATALOG.filter((entry) => registered.has(entry.command));
+  const byCommand = new Map();
+  for (const ext of vscode.extensions.all) {
+    const contributed = ext.packageJSON && ext.packageJSON.contributes && ext.packageJSON.contributes.commands;
+    if (!Array.isArray(contributed)) continue;
+    for (const entry of contributed) {
+      if (!entry.command || !entry.title || !registered.has(entry.command)) continue;
+      const title = entry.category ? `${entry.category}: ${entry.title}` : entry.title;
+      byCommand.set(entry.command, { command: entry.command, title });
+    }
+  }
+  return Array.from(byCommand.values());
 }
 
 // `keylex.spotlight`: a fuzzy-searchable QuickPick over the same live
@@ -60,8 +63,7 @@ async function runSpotlight() {
   const catalog = await liveActionCatalog();
   const items = catalog.map((entry) => ({
     label: entry.title,
-    description: entry.id,
-    detail: entry.command,
+    description: entry.command,
     command: entry.command,
   }));
   const picked = await vscode.window.showQuickPick(items, {
@@ -120,12 +122,18 @@ function activate(context) {
     // The list_actions handshake (../../docs/protocol.md#action-catalog-handshake-list_actions):
     // respond once, on this same connection, with the live catalog, then
     // close -- it's a request/response exchange, not the fire-and-forget
-    // `command` messages below.
+    // `command` messages below. `id` is just the native command string
+    // itself: this extension has no notion of Keylex's cross-app action
+    // ids (close.tab, save, ...) for the vast majority of what it
+    // discovers, and doesn't need one -- the daemon-side merge
+    // (spotlight::Index::merge_remote) recognizes an id that happens to
+    // already be a known Keylex action and enriches that entry in place;
+    // everything else it namespaces as a raw, VS-Code-only passthrough.
     if (message.type === "list_actions") {
       liveActionCatalog().then((catalog) => {
         const response =
           JSON.stringify({
-            actions: catalog.map(({ id, command, title }) => ({ id, native_command: command, title })),
+            actions: catalog.map(({ command, title }) => ({ id: command, native_command: command, title })),
           }) + "\n";
         socket.end(response);
       });
@@ -136,13 +144,19 @@ function activate(context) {
       console.error("keylex: message has no 'command' field:", message);
       return;
     }
-    if (!ALLOWED_COMMANDS.has(message.command)) {
-      console.error("keylex: rejected non-allowlisted command:", message.command);
-      return;
-    }
-    console.log("keylex: executing command:", message.command);
-    vscode.commands.executeCommand(message.command).then(undefined, (err) => {
-      console.error(`keylex: command '${message.command}' failed:`, err);
+    // No allowlist here -- see the SECURITY NOTE at the top of this file
+    // for why, and what that trades away. This check is a liveness check,
+    // not a safety filter: it only rejects a command string that isn't
+    // (or is no longer) actually registered in this VS Code window.
+    vscode.commands.getCommands(true).then((registered) => {
+      if (!registered.includes(message.command)) {
+        console.error("keylex: rejected unregistered command:", message.command);
+        return;
+      }
+      console.log("keylex: executing command:", message.command);
+      vscode.commands.executeCommand(message.command).then(undefined, (err) => {
+        console.error(`keylex: command '${message.command}' failed:`, err);
+      });
     });
   }
 

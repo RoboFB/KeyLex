@@ -165,11 +165,37 @@ small request/response extension to `keylex/v0`
 (`SocketAdapter::fetch_actions`,
 [docs/protocol.md](docs/protocol.md#action-catalog-handshake-list_actions)):
 the daemon asks, a target answers with the commands it just verified still
-exist (`vscode-extension/extension.js` cross-checks against
-`vscode.commands.getCommands()` before including anything), and the
-spotlight catalog reflects that live state, not a stale snapshot. A target
-that doesn't answer (not running, doesn't implement the handshake yet) just
-means its entries keep whatever `actions.toml`/`targets.toml` already said.
+exist, and the spotlight catalog reflects that live state, not a stale
+snapshot. A target that doesn't answer (not running, doesn't implement the
+handshake yet) just means its entries keep whatever
+`actions.toml`/`targets.toml` already said.
+
+`vscode-extension/extension.js` answers with a genuinely complete catalog,
+not a hand-picked subset: `vscode.extensions.all` exposes every installed
+extension's own parsed `package.json`, and `contributes.commands` there is
+the exact same data VS Code's own Command Palette is built from, so a
+newly installed extension's commands show up in spotlight search
+automatically. Each candidate is still cross-checked live against
+`vscode.commands.getCommands()` before being reported, but there is
+deliberately **no allowlist** narrowing that down further any more — see
+[docs/protocol.md](docs/protocol.md#trust-model--authentication)'s "No
+per-command allowlist, by design" for the security trade-off that makes:
+the shared token is the only remaining gate, and it now grants the ability
+to run *any* command any installed VS Code extension contributes, not just
+a vetted safe set.
+
+An entry the handshake reports has no Keylex action id of its own for the
+vast majority of what it discovers (only a handful, like `close.tab`,
+happen to also be one of Keylex's curated cross-app actions). Those two
+kinds are dispatched differently (`spotlight::dispatch_entry`): a real
+Keylex action id goes through the normal focus-aware `Router::dispatch`
+(native adapter for whatever's focused, keycode fallback otherwise) exactly
+like a real key binding would; anything else is a raw native command with
+no cross-app abstraction, namespaced internally as `"<target-
+program>:<native-command>"` (`spotlight::Index::merge_remote`) and sent
+straight to the target that reported it, regardless of what's currently
+focused, since there is no abstract action to route by focus in the first
+place.
 
 Optional zoxide-style "last used" tracking (`spotlight::Frecency`) persists
 a small per-action-id count/recency score to
@@ -188,7 +214,7 @@ reimplementing matching:
 - `cargo run -- --spotlight` — the interactive terminal launcher.
 - `extensions/vscode-extension/extension.js`'s `keylex.spotlight` command —
   a native VS Code `QuickPick` (which already does its own fuzzy filtering)
-  populated from the *same* live, verified command catalog the
+  populated from the *same* live, complete command catalog the
   `list_actions` handshake reports, so both consumers agree on what's
   "valid" for VS Code by construction, not by convention.
 - `extensions/linux-extension/search-provider.js` — a best-effort, untested
@@ -273,6 +299,14 @@ started.
 ## Known gaps / deliberately deferred (don't "fix" without discussion)
 
 - No real OS notification — `Notifier` just logs, on both platforms.
+- `vscode-extension/extension.js` has no per-command allowlist any more
+  (see "Spotlight action search" above and
+  [docs/protocol.md](docs/protocol.md#trust-model--authentication)'s "No
+  per-command allowlist, by design") — this is a deliberate trade for
+  complete, zero-maintenance command discovery, but it means
+  `config/secret.token` alone now gates *every* command any installed VS
+  Code extension contributes, not a vetted subset. Not a bug, but revisit
+  this if Keylex's threat model ever needs to change.
 - `extensions/linux-extension/search-provider.js` (the GNOME Shell search
   provider for spotlight, see "Spotlight action search" above) is untested
   outside a real GNOME Shell session, same caveat as the Windows capture

@@ -55,6 +55,22 @@ const COMMANDS = {
   "os.window.move_right": () => moveActiveWindow("right"),
 };
 
+// Mirrors this folder's capabilities.toml -- action id, wire command, and a
+// human title for each, reported over the list_actions handshake
+// (../../docs/protocol.md#action-catalog-handshake-list_actions) so
+// spotlight search (../../src/spotlight.rs) shows something readable
+// instead of the raw command string. Unlike vscode-extension/extension.js,
+// there's no "installed extensions" style dynamic universe of commands
+// here to auto-discover -- this listener only ever does exactly these four
+// things, so a small hardcoded catalog is the whole story, not a stand-in
+// for a real discovery mechanism.
+const ACTION_CATALOG = [
+  { id: "shutdown", command: "os.system.shutdown", title: "Shut Down" },
+  { id: "show.desktop", command: "os.desktop.show", title: "Show Desktop" },
+  { id: "move.left", command: "os.window.move_left", title: "Snap Window Left" },
+  { id: "move.right", command: "os.window.move_right", title: "Snap Window Right" },
+];
+
 const server = net.createServer((socket) => {
   let buffer = "";
   socket.on("data", (chunk) => {
@@ -64,12 +80,12 @@ const server = net.createServer((socket) => {
       const line = buffer.slice(0, newlineIndex).trim();
       buffer = buffer.slice(newlineIndex + 1);
       if (!line) continue;
-      handleLine(line);
+      handleLine(line, socket);
     }
   });
 });
 
-function handleLine(line) {
+function handleLine(line, socket) {
   let message;
   try {
     message = JSON.parse(line);
@@ -78,9 +94,19 @@ function handleLine(line) {
     return;
   }
   if (message.token !== token) {
-    console.error("keylex: rejected message with invalid/missing token:", message.command);
+    console.error("keylex: rejected message with invalid/missing token:", message.command || message.type);
     return;
   }
+
+  if (message.type === "list_actions") {
+    const response =
+      JSON.stringify({
+        actions: ACTION_CATALOG.map(({ id, command, title }) => ({ id, native_command: command, title })),
+      }) + "\n";
+    socket.end(response);
+    return;
+  }
+
   const handler = COMMANDS[message.command];
   if (!handler) {
     console.error("keylex: rejected unknown command:", message.command);

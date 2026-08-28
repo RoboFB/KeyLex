@@ -117,10 +117,14 @@ fn run_spotlight_query(registry: &Registry, config_dir: &Path, token: &str, quer
 }
 
 /// Non-interactive `keylex --spotlight-run <action-id>`: dispatches one
-/// action id to whichever app is currently focused (the same
-/// `Router::dispatch` the capture loop and the interactive launcher both
-/// use) and records the frecency hit, then exits. The activation half of the
-/// same external-front-end use case as `run_spotlight_query`.
+/// spotlight entry (`spotlight::dispatch_entry` -- a real Keylex action id
+/// goes through the normal focus-aware `Router::dispatch`, a raw
+/// target-native command id goes straight to its source target) and records
+/// the frecency hit, then exits. The activation half of the same
+/// external-front-end use case as `run_spotlight_query`. Falls back to a
+/// plain `Router::dispatch` if `action_id` isn't in the freshly-bootstrapped
+/// index at all (shouldn't happen for anything `--spotlight-query` handed
+/// back, but keeps this usable for a bare Keylex action id too).
 fn run_spotlight_action(registry: &Registry, config_dir: &Path, token: &str, action_id: &str) -> ExitCode {
     let handshake_adapter = SocketAdapter::new(token.to_string());
     let mut index = spotlight::bootstrap(registry, config_dir, &handshake_adapter);
@@ -133,7 +137,10 @@ fn run_spotlight_action(registry: &Registry, config_dir: &Path, token: &str, act
     };
 
     let focused = keylex::focus::focused_process_name();
-    let result = router.dispatch(action_id, &focused);
+    let result = match index.entries().iter().find(|e| e.action_id == action_id) {
+        Some(entry) => spotlight::dispatch_entry(entry, &focused, &router),
+        None => router.dispatch(action_id, &focused),
+    };
     index.record_use(action_id);
     println!("{action_id} -> {result}");
     ExitCode::SUCCESS
