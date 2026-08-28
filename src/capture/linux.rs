@@ -1,37 +1,37 @@
-//! Linux capture: grab the physical keyboard device exclusively via
-//! evdev, and re-emit everything that isn't a bound action's trigger
-//! through a virtual uinput device -- matching the interception-tools/
-//! evremap pattern (a raw evdev grab blinds the *whole* device, so
-//! anything not meant to be intercepted has to be manually re-emitted).
-//! A matched trigger is always consumed: it never reaches the OS/app
-//! directly, only ever indirectly via the fallback path below.
+//! Linux capture: grab the physical keyboard exclusively via evdev and
+//! re-emit everything that isn't a bound trigger through a virtual uinput
+//! device -- the interception-tools/evremap pattern, since a raw evdev grab
+//! blinds the *whole* device and anything not meant to be intercepted has
+//! to be re-emitted by hand. A matched trigger is always consumed: it never
+//! reaches the OS directly, only ever indirectly via the fallback path.
 //!
-//! Single-key(+modifier) triggers match synchronously on the triggering
-//! key's down-edge, same as always. Chords (`ChordEngine` below) need a
-//! bounded debounce window instead, since a lone keystroke that happens to
-//! be a chord member can't be told apart from "the start of a chord" until
-//! either the rest of the chord arrives or the window times out. `evdev`'s
-//! blocking `fetch_events()` has no timeout of its own, so capture is split
-//! across two threads: a reader thread that only forwards raw events, and
-//! this module's main thread, which owns all state and blocks on a channel
-//! that also carries timer ticks -- letting a debounce "wake up" the same
-//! loop that normally just waits on the next keystroke.
+//! `evdev`'s blocking `fetch_events()` has no timeout, so capture is split
+//! across two threads: a reader that only forwards raw events, and the main
+//! thread, which owns all state and blocks on a channel carrying both those
+//! events and chord debounce ticks. That is what lets a timer wake the same
+//! loop that otherwise just waits for the next keystroke.
 
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::BTreeSet;
 use std::io;
 use std::rc::Rc;
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 
 use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
 use evdev::{Device, EventType, InputEvent, InputEventKind, Key};
 
-use crate::config::{KeyCombo, Registry};
-use crate::dispatch::{Adapter, FallbackSender, Notifier, Router};
+use super::chord::{self, Chords, Keyboard as _, Phase};
+use crate::config::{is_modifier, KeyCombo, Registry};
+use crate::dispatch::{Adapters, FallbackSender, Notifier, Router};
+use crate::focus;
 
-const LETTERS: &[(char, Key)] = &[
+/// Prototype scope: a-z, 0-9 and prtsc. evdev's letter keycodes aren't in
+/// alphabetical order, so this stays a table; full layout support is a
+/// later step.
+#[rustfmt::skip]
+const KEYS: &[(char, Key)] = &[
     ('a', Key::KEY_A), ('b', Key::KEY_B), ('c', Key::KEY_C), ('d', Key::KEY_D),
     ('e', Key::KEY_E), ('f', Key::KEY_F), ('g', Key::KEY_G), ('h', Key::KEY_H),
     ('i', Key::KEY_I), ('j', Key::KEY_J), ('k', Key::KEY_K), ('l', Key::KEY_L),
@@ -39,14 +39,14 @@ const LETTERS: &[(char, Key)] = &[
     ('q', Key::KEY_Q), ('r', Key::KEY_R), ('s', Key::KEY_S), ('t', Key::KEY_T),
     ('u', Key::KEY_U), ('v', Key::KEY_V), ('w', Key::KEY_W), ('x', Key::KEY_X),
     ('y', Key::KEY_Y), ('z', Key::KEY_Z),
-];
-
-const DIGITS: &[(char, Key)] = &[
     ('0', Key::KEY_0), ('1', Key::KEY_1), ('2', Key::KEY_2), ('3', Key::KEY_3),
     ('4', Key::KEY_4), ('5', Key::KEY_5), ('6', Key::KEY_6), ('7', Key::KEY_7),
     ('8', Key::KEY_8), ('9', Key::KEY_9),
 ];
 
+/// Modifier token, left key, right key. Both sides map to the one token;
+/// only the left one is ever synthesized, the same simplification the
+/// Windows fallback sender makes.
 const MODIFIERS: &[(&str, Key, Key)] = &[
     ("ctrl", Key::KEY_LEFTCTRL, Key::KEY_RIGHTCTRL),
     ("shift", Key::KEY_LEFTSHIFT, Key::KEY_RIGHTSHIFT),
@@ -54,435 +54,192 @@ const MODIFIERS: &[(&str, Key, Key)] = &[
     ("win", Key::KEY_LEFTMETA, Key::KEY_RIGHTMETA),
 ];
 
-/// How long a chord stays "pending" after its most recent member key went
-/// down before giving up and replaying it as normal keystrokes. Chosen to
-/// match a typical "is this the start of a chord" window in comparable
-/// tools (kmonad, karabiner); not yet configurable.
-const CHORD_DEBOUNCE_WINDOW: Duration = Duration::from_millis(35);
+/// How long a chord stays pending after its most recent member went down
+/// before being replayed as ordinary keystrokes. Chosen to match the
+/// comparable window in kmonad/karabiner; not yet configurable.
+const DEBOUNCE_WINDOW: Duration = Duration::from_millis(35);
 
-/// Prototype scope: a-z / 0-9 / prtsc, same as the previous Python
-/// listener -- full layout support is a later step.
 fn token_to_key(token: &str) -> Option<Key> {
     if token == "prtsc" {
         return Some(Key::KEY_SYSRQ);
     }
-    let mut chars = token.chars();
-    let c = chars.next()?;
-    if chars.next().is_some() {
-        return None;
+    if let Some((_, left, _)) = MODIFIERS.iter().find(|(name, _, _)| *name == token) {
+        return Some(*left);
     }
-    LETTERS
-        .iter()
-        .chain(DIGITS.iter())
-        .find(|(ch, _)| *ch == c)
-        .map(|(_, key)| *key)
+    let mut chars = token.chars();
+    let token = chars.next().filter(|_| chars.next().is_none())?;
+    KEYS.iter().find(|(c, _)| *c == token).map(|(_, key)| *key)
 }
 
 fn key_to_token(key: Key) -> Option<String> {
     if key == Key::KEY_SYSRQ {
         return Some("prtsc".to_string());
     }
-    LETTERS
-        .iter()
-        .chain(DIGITS.iter())
+    if let Some((name, _, _)) = MODIFIERS.iter().find(|(_, l, r)| key == *l || key == *r) {
+        return Some((*name).to_string());
+    }
+    KEYS.iter()
         .find(|(_, k)| *k == key)
         .map(|(c, _)| c.to_string())
 }
 
-fn modifier_name(key: Key) -> Option<&'static str> {
-    MODIFIERS
-        .iter()
-        .find(|(_, left, right)| key == *left || key == *right)
-        .map(|(name, _, _)| *name)
+/// Everything the capture loop can be woken by.
+enum Message {
+    Event(InputEvent),
+    /// A chord debounce window elapsed, for the generation it was armed on.
+    Timeout(u64),
 }
 
-/// Only used by the fallback sender, which always presses the left
-/// variant of a modifier -- same simplification the Windows fallback
-/// sender already makes (one VK per modifier name, not handedness-aware).
-fn modifier_key(name: &str) -> Option<Key> {
-    MODIFIERS
-        .iter()
-        .find(|(n, _, _)| *n == name)
-        .map(|(_, left, _)| *left)
+/// The virtual device, shared between the capture loop's passthrough path
+/// and the router's fallback sender, which both write to it.
+type Uinput = Rc<RefCell<VirtualDevice>>;
+
+/// Passthrough side of capture: re-emits events the daemon decided not to
+/// consume, and tracks which modifiers are currently held (chord replay
+/// included, which is why this and not the loop owns that set).
+struct Emitter {
+    device: Uinput,
+    timers: Sender<Message>,
+    modifiers: BTreeSet<String>,
 }
 
-/// The canonical `&'static str` for a modifier token name, if `token` names
-/// one -- used to fold a chord member back into `pressed_modifiers` (which
-/// borrows from `MODIFIERS` rather than owning strings) once it's resolved
-/// as a normal keystroke via chord replay.
-fn modifier_static_name(token: &str) -> Option<&'static str> {
-    MODIFIERS
-        .iter()
-        .find(|(name, _, _)| *name == token)
-        .map(|(name, _, _)| *name)
-}
-
-fn discover_keyboard() -> io::Result<Device> {
-    for (_path, device) in evdev::enumerate() {
-        if let Some(keys) = device.supported_keys() {
-            if keys.contains(Key::KEY_A) && keys.contains(Key::KEY_SPACE) {
-                return Ok(device);
-            }
-        }
+impl Emitter {
+    fn emit(&self, event: InputEvent) -> io::Result<()> {
+        self.device.borrow_mut().emit(&[event])
     }
-    Err(io::Error::new(
-        io::ErrorKind::NotFound,
-        "no keyboard device found via evdev",
-    ))
 }
 
-struct LinuxFallbackSender {
-    device: Rc<RefCell<VirtualDevice>>,
+impl chord::Keyboard for Emitter {
+    type Event = InputEvent;
+
+    fn press(&mut self, token: &str, event: InputEvent) -> io::Result<()> {
+        if is_modifier(token) {
+            self.modifiers.insert(token.to_string());
+        }
+        self.emit(event)
+    }
+
+    fn release(&mut self, token: &str, event: InputEvent) -> io::Result<()> {
+        if is_modifier(token) {
+            self.modifiers.remove(token);
+        }
+        self.emit(event)
+    }
+
+    fn arm_timer(&mut self, generation: u64) {
+        let timers = self.timers.clone();
+        thread::spawn(move || {
+            thread::sleep(DEBOUNCE_WINDOW);
+            let _ = timers.send(Message::Timeout(generation));
+        });
+    }
 }
 
-impl FallbackSender for LinuxFallbackSender {
-    fn send(&self, keycode: &str) {
-        let combo = KeyCombo::parse(keycode);
-        let mut keys = Vec::new();
-        for modifier in &combo.modifiers {
-            match modifier_key(modifier) {
+struct Fallback {
+    device: Uinput,
+}
+
+impl FallbackSender for Fallback {
+    fn send(&self, combo: &KeyCombo) {
+        let mut keys = Vec::with_capacity(combo.modifiers.len() + 1);
+        for token in combo.modifiers.iter().chain(std::iter::once(&combo.key)) {
+            match token_to_key(token) {
                 Some(key) => keys.push(key),
                 None => {
-                    eprintln!("keylex: unknown modifier {modifier:?} in fallback keycode {keycode:?}");
+                    eprintln!("keylex: fallback keycode {combo}: unknown key {token:?}");
                     return;
                 }
             }
         }
-        match token_to_key(&combo.key) {
-            Some(key) => keys.push(key),
-            None => {
-                eprintln!("keylex: unknown key {:?} in fallback keycode {keycode:?}", combo.key);
-                return;
-            }
-        }
+
+        let event =
+            |key: &Key, down: bool| InputEvent::new(EventType::KEY, key.code(), down.into());
+        let down: Vec<_> = keys.iter().map(|key| event(key, true)).collect();
+        let up: Vec<_> = keys.iter().rev().map(|key| event(key, false)).collect();
 
         let mut device = self.device.borrow_mut();
-        let down: Vec<InputEvent> = keys
-            .iter()
-            .map(|k| InputEvent::new(EventType::KEY, k.code(), 1))
-            .collect();
-        if let Err(e) = device.emit(&down) {
-            eprintln!("keylex: failed to emit fallback keycode {keycode:?}: {e}");
-            return;
-        }
-        let up: Vec<InputEvent> = keys
-            .iter()
-            .rev()
-            .map(|k| InputEvent::new(EventType::KEY, k.code(), 0))
-            .collect();
-        if let Err(e) = device.emit(&up) {
-            eprintln!("keylex: failed to release fallback keycode {keycode:?}: {e}");
+        if let Err(e) = device.emit(&down).and_then(|()| device.emit(&up)) {
+            eprintln!("keylex: failed to send fallback keycode {combo}: {e}");
         }
     }
 }
 
-/// Sent from the reader thread (raw evdev events) and from one-shot debounce
-/// timer threads (chord timeouts) to the main thread, which owns all state.
-enum Msg {
-    Event(InputEvent),
-    /// A chord debounce window elapsed. Carries the generation it was armed
-    /// for, so a timer that fires after its chord was already resolved some
-    /// other way (matched, broken, or released early) is a stale no-op.
-    Timeout(u64),
+fn discover_keyboard() -> io::Result<Device> {
+    evdev::enumerate()
+        .map(|(_path, device)| device)
+        .find(|device| {
+            device
+                .supported_keys()
+                .is_some_and(|keys| keys.contains(Key::KEY_A) && keys.contains(Key::KEY_SPACE))
+        })
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "no keyboard device found via evdev",
+            )
+        })
 }
 
-/// What a chord-member key that's no longer "pending" (undecided) is
-/// currently doing, for the rest of its physical hold: still being
-/// swallowed as part of a matched chord, or passing through normally
-/// because the chord attempt broke or timed out.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ChordKeyState {
-    ConsumedByChord,
-    ReplayedPassthrough,
-}
-
-/// Chord-member keys currently held down and not yet resolved: could still
-/// complete a configured chord if the right keys follow within the window,
-/// or could break/time out and get replayed as normal keystrokes.
-struct PendingChord {
-    /// Insertion order, so a timeout/break replay reproduces the keys in
-    /// the order they were actually pressed.
-    order: Vec<String>,
-    down_events: HashMap<String, InputEvent>,
-    generation: u64,
-}
-
-impl PendingChord {
-    fn members(&self) -> BTreeSet<String> {
-        self.order.iter().cloned().collect()
-    }
-}
-
-/// The read-only handles a chord-member event needs beyond its own
-/// per-call arguments (`token`, `event`, `pressed_modifiers`) -- bundled
-/// so `ChordEngine`'s methods take one context reference instead of
-/// threading `registry`/`router`/`virtual_device`/`tx` through each of
-/// them individually.
-struct EventCtx<'a> {
-    registry: &'a Registry,
-    router: &'a Router<'a>,
-    virtual_device: &'a Rc<RefCell<VirtualDevice>>,
-    tx: &'a mpsc::Sender<Msg>,
-}
-
-/// All chord-related state for the capture loop. Kept separate from the
-/// single-key+modifier trigger path (`pressed_modifiers`, matched via
-/// `Registry::action_for_trigger`), which stays exactly as it always was
-/// for any key that isn't a configured chord member.
-struct ChordEngine {
-    pending: Option<PendingChord>,
-    held: HashMap<String, ChordKeyState>,
-    generation: u64,
-}
-
-impl ChordEngine {
-    fn new() -> ChordEngine {
-        ChordEngine {
-            pending: None,
-            held: HashMap::new(),
-            generation: 0,
-        }
-    }
-
-    fn next_generation(&mut self) -> u64 {
-        self.generation += 1;
-        self.generation
-    }
-
-    /// Dispatch on a key event already known to be for a token that is a
-    /// member of at least one configured chord (`Registry::is_chord_member`
-    /// already checked by the caller).
-    fn handle_chord_member_event(
-        &mut self,
-        token: String,
-        event: InputEvent,
-        pressed_modifiers: &mut HashSet<&'static str>,
-        ctx: &EventCtx,
-    ) -> io::Result<()> {
-        match event.value() {
-            1 => self.on_chord_key_down(token, event, pressed_modifiers, ctx),
-            0 => self.on_chord_key_up(token, event, pressed_modifiers, ctx.virtual_device),
-            _ => self.on_chord_key_repeat(token, event, ctx.virtual_device),
-        }
-    }
-
-    fn on_chord_key_down(
-        &mut self,
-        token: String,
-        event: InputEvent,
-        pressed_modifiers: &mut HashSet<&'static str>,
-        ctx: &EventCtx,
-    ) -> io::Result<()> {
-        let Some(mut pending) = self.pending.take() else {
-            let mut order = Vec::new();
-            let mut down_events = HashMap::new();
-            order.push(token.clone());
-            down_events.insert(token, event);
-            let generation = self.next_generation();
-            self.pending = Some(PendingChord { order, down_events, generation });
-            arm_timer(ctx.tx.clone(), generation);
-            return Ok(());
-        };
-
-        let mut candidate = pending.members();
-        candidate.insert(token.clone());
-
-        if let Some(action_id) = ctx.registry.action_for_chord(&candidate) {
-            let action_id = action_id.to_string();
-            for member in &pending.order {
-                self.held.insert(member.clone(), ChordKeyState::ConsumedByChord);
-            }
-            self.held.insert(token, ChordKeyState::ConsumedByChord);
-            self.next_generation(); // invalidate any in-flight timer for the old pending set
-
-            let focused = crate::focus::focused_process_name();
-            let result = ctx.router.dispatch(&action_id, &focused);
-            println!("{action_id} -> {result} (chord)");
-            return Ok(());
-        }
-
-        if ctx.registry.is_chord_prefix(&candidate) {
-            pending.order.push(token.clone());
-            pending.down_events.insert(token, event);
-            let generation = self.next_generation();
-            pending.generation = generation;
-            self.pending = Some(pending);
-            arm_timer(ctx.tx.clone(), generation);
-            return Ok(());
-        }
-
-        // This key breaks every chord the old pending set could have
-        // become: replay the old keys as normal keystrokes, then let this
-        // key start a fresh pending sequence of its own (it might yet be
-        // the start of a *different* chord).
-        self.pending = Some(pending);
-        self.replay_pending(pressed_modifiers, ctx.virtual_device)?;
-        self.on_chord_key_down(token, event, pressed_modifiers, ctx)
-    }
-
-    fn on_chord_key_up(
-        &mut self,
-        token: String,
-        event: InputEvent,
-        pressed_modifiers: &mut HashSet<&'static str>,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-    ) -> io::Result<()> {
-        if let Some(pending) = &mut self.pending {
-            if let Some(down_event) = pending.down_events.remove(&token) {
-                // Early resolution: released before the chord completed or
-                // timed out. Replay just this key's down+up immediately --
-                // faster feedback for plain typing than waiting out the
-                // rest of the window.
-                pending.order.retain(|t| t != &token);
-                let now_empty = pending.order.is_empty();
-                virtual_device.borrow_mut().emit(&[down_event])?;
-                virtual_device.borrow_mut().emit(&[event])?;
-                if now_empty {
-                    self.pending = None;
-                }
-                self.next_generation();
-                return Ok(());
-            }
-        }
-
-        match self.held.remove(&token) {
-            Some(ChordKeyState::ConsumedByChord) => Ok(()), // matched trigger: fully consumed
-            Some(ChordKeyState::ReplayedPassthrough) => {
-                // `modifier_static_name` is the single source of truth for
-                // "is this token a modifier" -- no need for callers to pass
-                // that redundantly alongside `token` itself.
-                if let Some(name) = modifier_static_name(&token) {
-                    pressed_modifiers.remove(name);
-                }
-                virtual_device.borrow_mut().emit(&[event])
-            }
-            None => {
-                // No tracked down for this token (shouldn't normally
-                // happen) -- fail safe by passing it through.
-                virtual_device.borrow_mut().emit(&[event])
-            }
-        }
-    }
-
-    fn on_chord_key_repeat(
-        &mut self,
-        token: String,
-        event: InputEvent,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-    ) -> io::Result<()> {
-        if let Some(pending) = &self.pending {
-            if pending.order.contains(&token) {
-                return Ok(()); // undecided: drop, don't extend the window on autorepeat
-            }
-        }
-        match self.held.get(&token) {
-            Some(ChordKeyState::ConsumedByChord) => Ok(()),
-            Some(ChordKeyState::ReplayedPassthrough) | None => {
-                virtual_device.borrow_mut().emit(&[event])
-            }
-        }
-    }
-
-    /// Replay every currently pending key as an ordinary keystroke, in the
-    /// order it was originally pressed, and clear the pending set. Used on
-    /// both a debounce timeout and a same-key-down break.
-    fn replay_pending(
-        &mut self,
-        pressed_modifiers: &mut HashSet<&'static str>,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-    ) -> io::Result<()> {
-        let Some(pending) = self.pending.take() else {
-            return Ok(());
-        };
-        for token in &pending.order {
-            let event = pending.down_events[token];
-            virtual_device.borrow_mut().emit(&[event])?;
-            self.held.insert(token.clone(), ChordKeyState::ReplayedPassthrough);
-            if let Some(name) = modifier_static_name(token) {
-                pressed_modifiers.insert(name);
-            }
-        }
-        Ok(())
-    }
-
-    fn handle_timeout(
-        &mut self,
-        generation: u64,
-        pressed_modifiers: &mut HashSet<&'static str>,
-        virtual_device: &Rc<RefCell<VirtualDevice>>,
-    ) -> io::Result<()> {
-        let is_current = matches!(&self.pending, Some(p) if p.generation == generation);
-        if is_current {
-            self.replay_pending(pressed_modifiers, virtual_device)?;
-        }
-        Ok(())
-    }
-
-    fn handle_key_event(
-        &mut self,
-        key: Key,
-        event: InputEvent,
-        pressed_modifiers: &mut HashSet<&'static str>,
-        ctx: &EventCtx,
-    ) -> io::Result<()> {
-        if let Some(name) = modifier_name(key) {
-            if !ctx.registry.is_chord_member(name) {
-                match event.value() {
-                    1 => {
-                        pressed_modifiers.insert(name);
-                    }
-                    0 => {
-                        pressed_modifiers.remove(name);
-                    }
-                    _ => {}
-                }
-                return ctx.virtual_device.borrow_mut().emit(&[event]);
-            }
-            return self.handle_chord_member_event(name.to_string(), event, pressed_modifiers, ctx);
-        }
-
-        let Some(token) = key_to_token(key) else {
-            // Untracked key (e.g. arrow keys): always passthrough, same as
-            // before chords existed.
-            return ctx.virtual_device.borrow_mut().emit(&[event]);
-        };
-
-        if ctx.registry.is_chord_member(&token) {
-            return self.handle_chord_member_event(token, event, pressed_modifiers, ctx);
-        }
-
-        // Existing single-key(+modifier) trigger path, unchanged: matches
-        // synchronously against the currently held *resolved* modifiers
-        // (a modifier that's itself mid-chord-decision doesn't count yet).
-        let combo = KeyCombo {
-            key: token,
-            modifiers: pressed_modifiers.iter().map(|s| s.to_string()).collect(),
-        };
-        if let Some(action_id) = ctx.registry.action_for_trigger(&combo).map(str::to_string) {
-            if event.value() == 1 {
-                let focused = crate::focus::focused_process_name();
-                let result = ctx.router.dispatch(&action_id, &focused);
-                println!("{action_id} -> {result}");
-            }
-            return Ok(()); // consumed: never re-emitted, down/up/repeat alike
-        }
-
-        ctx.virtual_device.borrow_mut().emit(&[event])
-    }
-}
-
-fn arm_timer(tx: mpsc::Sender<Msg>, generation: u64) {
-    thread::spawn(move || {
-        thread::sleep(CHORD_DEBOUNCE_WINDOW);
-        let _ = tx.send(Msg::Timeout(generation));
-    });
-}
-
-pub fn run(
+/// One key event, once its token is known. The chord path takes precedence:
+/// a key belonging to some configured chord can't be judged until the
+/// debounce window resolves it (see `super::chord`), so it never reaches
+/// the single-combo path below.
+fn on_key(
+    key: Key,
+    event: InputEvent,
     registry: &Registry,
-    adapters: HashMap<String, Box<dyn Adapter>>,
-    notifier: Box<dyn Notifier>,
+    router: &Router,
+    chords: &mut Chords<InputEvent>,
+    emitter: &mut Emitter,
 ) -> io::Result<()> {
+    let phase = match event.value() {
+        1 => Phase::Down,
+        0 => Phase::Up,
+        _ => Phase::Repeat,
+    };
+
+    // An unmapped key (arrows, function keys) can't be bound to anything
+    // yet, so it always passes straight through.
+    let Some(token) = key_to_token(key) else {
+        return emitter.emit(event);
+    };
+
+    if registry.is_chord_member(&token) {
+        if let Some(action_id) = chords.on_key(&token, phase, event, registry, emitter)? {
+            dispatch(&action_id, router);
+        }
+        return Ok(());
+    }
+
+    if is_modifier(&token) {
+        return match phase {
+            Phase::Up => emitter.release(&token, event),
+            _ => emitter.press(&token, event),
+        };
+    }
+
+    let combo = KeyCombo {
+        key: token,
+        modifiers: emitter.modifiers.clone(),
+    };
+    let Some(action_id) = registry.action_for_trigger(&combo).map(str::to_string) else {
+        return emitter.emit(event);
+    };
+    if phase == Phase::Down {
+        dispatch(&action_id, router);
+    }
+    Ok(()) // consumed: never re-emitted, down/up/repeat alike
+}
+
+fn dispatch(action_id: &str, router: &Router) {
+    let focused = focus::focused_process_name();
+    println!(
+        "{action_id} -> {}",
+        router.dispatch(action_id, focused.as_deref())
+    );
+}
+
+pub fn run(registry: &Registry, adapters: Adapters, notifier: Box<dyn Notifier>) -> io::Result<()> {
     let mut source = discover_keyboard()?;
     source.grab()?;
     println!(
@@ -490,47 +247,40 @@ pub fn run(
         source.name().unwrap_or("<unnamed>")
     );
 
-    let vdevice_name = "keylex-main-keyboard".to_string();
-    let virtual_device = {
+    let device: Uinput = {
         let keys = source
             .supported_keys()
             .expect("a device that reached discover_keyboard() must report supported keys");
-        VirtualDeviceBuilder::new()?
-            .name(&vdevice_name)
+        let device = VirtualDeviceBuilder::new()?
+            .name("keylex-main-keyboard")
             .with_keys(keys)?
-            .build()?
+            .build()?;
+        Rc::new(RefCell::new(device))
     };
-    let virtual_device = Rc::new(RefCell::new(virtual_device));
 
-    let router = Router {
+    let router = Router::new(
         registry,
         adapters,
         notifier,
-        fallback_sender: Box::new(LinuxFallbackSender {
-            device: Rc::clone(&virtual_device),
+        Box::new(Fallback {
+            device: Rc::clone(&device),
         }),
+    );
+    let (events, inbox) = mpsc::channel();
+    let mut emitter = Emitter {
+        device,
+        timers: events.clone(),
+        modifiers: BTreeSet::new(),
     };
+    let mut chords = Chords::default();
 
-    let mut pressed_modifiers: HashSet<&'static str> = HashSet::new();
-    let mut chord_engine = ChordEngine::new();
-    let (tx, rx) = mpsc::channel::<Msg>();
-    let ctx = EventCtx {
-        registry,
-        router: &router,
-        virtual_device: &virtual_device,
-        tx: &tx,
-    };
-
-    // Reader thread: owns the grabbed device, forwards raw events over a
-    // channel. Keeping this separate from the main thread is what lets the
-    // main thread also receive debounce-timer ticks on the same channel,
-    // without ever needing a timeout on the blocking evdev read itself.
-    let reader_tx = tx.clone();
+    // Owns the grabbed device and does nothing but forward. Keeping it off
+    // the main thread is what lets debounce ticks share the same channel.
     thread::spawn(move || loop {
         match source.fetch_events() {
-            Ok(events) => {
-                for event in events {
-                    if reader_tx.send(Msg::Event(event)).is_err() {
+            Ok(batch) => {
+                for event in batch {
+                    if events.send(Message::Event(event)).is_err() {
                         return; // main thread gone
                     }
                 }
@@ -543,24 +293,17 @@ pub fn run(
     });
 
     loop {
-        let msg = rx
+        let message = inbox
             .recv()
             .map_err(|_| io::Error::other("keylex: capture channel closed unexpectedly"))?;
-
-        match msg {
-            Msg::Timeout(generation) => {
-                chord_engine.handle_timeout(generation, &mut pressed_modifiers, &virtual_device)?;
-            }
-            Msg::Event(event) => {
-                let key = match event.kind() {
-                    InputEventKind::Key(key) => key,
-                    _ => {
-                        virtual_device.borrow_mut().emit(&[event])?;
-                        continue;
-                    }
-                };
-                chord_engine.handle_key_event(key, event, &mut pressed_modifiers, &ctx)?;
-            }
+        match message {
+            Message::Timeout(generation) => chords.on_timeout(generation, &mut emitter)?,
+            Message::Event(event) => match event.kind() {
+                InputEventKind::Key(key) => {
+                    on_key(key, event, registry, &router, &mut chords, &mut emitter)?;
+                }
+                _ => emitter.emit(event)?,
+            },
         }
     }
 }

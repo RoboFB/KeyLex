@@ -1,38 +1,25 @@
-# Output side: per target program, how the adapter reaches it and where
-# to find its declared capabilities (which actions it supports and the
-# native command string for each).
+# Output side: per target program, how the adapter reaches it. Which
+# actions a target can carry out natively is no longer declared here (or in
+# a per-extension capabilities.toml) -- a target reports that live, via the
+# list_actions handshake (see docs/protocol.md#action-catalog-handshake-list_actions).
 #
 # Both local IPC adapters (socket, websocket) require every message to
 # carry the shared secret the daemon generates on first run at
 # <config-dir>/secret.token (git-ignored, never checked in -- see
 # docs/protocol.md#trust-model--authentication). Nothing here configures
 # the token itself; it's loaded automatically from that fixed path.
-#
-# capabilities: path (relative to this file's directory) to that target's
-#               own capabilities.toml, which owns the actual action ->
-#               native-command mapping -- see docs/protocol.md#action-ids
-#               for why that lives with the extension instead of here.
-# exempt_command_grammar: when true, that target's capability values are
-#               not checked against the enforced application.location.action
-#               shape (see docs/protocol.md#native-command-strings) --
-#               for targets whose command strings are an upstream API's
-#               own naming (VS Code) or a foreign scripting language
-#               (Neovim ex-commands), not ours to rename.
 
 [[target]]
 program = "vscode"
 match_process = ["Code.exe", "code"]
 adapter = "socket"
 address = "127.0.0.1:7777"
-capabilities = "../extensions/vscode-extension/capabilities.toml"
-exempt_command_grammar = true
 
 [[target]]
 program = "chrome"
 match_process = ["chrome.exe", "chrome"]
 adapter = "websocket"
 port = 7778
-capabilities = "../extensions/chrome-extension/capabilities.toml"
 # Placeholder -- replace with the real extension ID after loading it
 # unpacked (chrome://extensions/), so the daemon rejects any WebSocket
 # handshake from a browser tab/page other than this extension. See
@@ -41,21 +28,11 @@ capabilities = "../extensions/chrome-extension/capabilities.toml"
 # the Origin check (not recommended -- see docs/protocol.md).
 allowed_origin = "chrome-extension://REPLACE_WITH_REAL_EXTENSION_ID"
 
-# Neovim has no extensions/ folder yet (unimplemented stub, see CLAUDE.md)
-# -- its capabilities stay inline here until a real neovim extension
-# exists to own them. Ex-commands ("bd", "w") are Neovim's own namespace,
-# so this target is exempt from the command-string grammar too.
+# Neovim has no extensions/ folder yet (unimplemented stub, see CLAUDE.md).
 [[target]]
 program = "neovim"
 match_process = ["nvim"]
 adapter = "rpc"
-socket_env = "NVIM_LISTEN_ADDRESS"
-exempt_command_grammar = true
-
-  [target.supports]
-  "close.tab" = "bd"
-  "save" = "w"
-  "duplicate.line" = "normal yyp"
 
 # OS-wide system listeners -- independent of the focused program, matched by
 # `os` (against std::env::consts::OS) rather than `match_process`. Each is a
@@ -68,17 +45,9 @@ program = "system-linux"
 os = "linux"
 adapter = "socket"
 address = "127.0.0.1:7779"
-capabilities = "../extensions/linux-extension/capabilities.toml"
 
 [[target]]
 program = "system-windows"
 os = "windows"
 adapter = "socket"
 address = "127.0.0.1:7780"
-capabilities = "../extensions/windows-extension/capabilities.toml"
-
-# System-wide actions, independent of the focused program.
-[[system_action]]
-id = "reset.graphics_driver"
-os = "windows"
-keycode = "win+ctrl+shift+b"

@@ -4,7 +4,9 @@ Status: **draft, unstable.** This document exists so a target adapter (an
 editor extension, a browser extension host, a firmware author) can be
 implemented against a written spec instead of reading the Python daemon's
 source. Nothing here is a compatibility promise yet — expect breaking
-changes until `v1`.
+changes until `v1`. For the coding conventions the Rust reference
+implementations linked below (`src/adapters/`) follow, see
+[rust-coding-guidelines.md](rust-coding-guidelines.md).
 
 ## Why a written protocol at all
 
@@ -122,35 +124,54 @@ extension. TLS/`wss://` is deliberately not used here: the threat is
 "another local process/webpage," not network eavesdropping, and a
 loopback-only certificate wouldn't stop either.
 
+**No per-command allowlist, by design.** An earlier version of
+`vscode-extension/extension.js` kept a second, independent allowlist
+(`ALLOWED_COMMANDS`) so that even a correctly-tokened message could only
+trigger a command the extension was specifically built to expect. That's
+gone now: the extension's command catalog is discovered live from every
+installed extension's own contributed commands (see "Native command
+strings" and `docs/protocol.md#action-catalog-handshake-list_actions`
+below) specifically so a newly installed extension shows up in spotlight
+search with no hand-maintained list to keep in sync — and a per-command
+allowlist can't coexist with that goal, since the whole point is not
+knowing the set of valid commands in advance. The trade-off this makes is
+real: **the token is now the only gate**, and anything holding it can
+invoke *any* command currently registered in the target VS Code window,
+including ones contributed by other installed extensions (running a task,
+executing terminal text, editing/deleting files) that are considerably
+more dangerous than "close tab". The "What the token is (and isn't) for"
+paragraph above already describes the trust level this implies — treat
+`secret.token` with that level of care. A target that wants a narrower
+guarantee than "the token holder can do anything this app can do" is free
+to keep its own allowlist (as `extensions/linux-extension/listener.js`
+and `extensions/windows-extension/listener.js` still do, since neither has
+an analogous "installed extensions" universe to discover in the first
+place — see "Native command strings" below).
+
 ## What Keylex guarantees vs. what the target owns
 
-- Keylex guarantees the `command` string is only sent when
-  `Router::dispatch` resolved a `target.supports[action_id]` entry for the
-  currently focused process (see
-  [src/dispatch.rs](../src/dispatch.rs)), and only alongside a `token`
-  matching the per-install secret in `<config-dir>/secret.token` (see
-  "Trust model & authentication" above).
-- Keylex does **not** validate that `command` means anything — that
-  mapping (`"close.tab" → "workbench.action.closeActiveEditor"`) lives
-  entirely in `targets.toml` and is the target adapter's contract to
-  fulfil (e.g. the VS Code extension calling
-  `vscode.commands.executeCommand(command)`).
+- Keylex guarantees the `command` string sent to a target came from that
+  same target's own `list_actions` response (see "Action-catalog handshake"
+  below) — never from a static file Keylex maintains a second copy of —
+  and only alongside a `token` matching the per-install secret in
+  `<config-dir>/secret.token` (see "Trust model & authentication" above).
+- Keylex does **not** validate that `command` means anything — interpreting
+  it is entirely the target adapter's contract to fulfil (e.g. the VS Code
+  extension calling `vscode.commands.executeCommand(command)`).
+
 ### Action IDs
 
-Action IDs are **not** free-form strings — they're built from two
-validated word lists derived from
-[config/hotkeys-reference.csv](../config/hotkeys-reference.csv): every
-non-empty value in its `modifier` column is a valid modifier (verbs, e.g.
-`close`, `save`, `move`), every non-empty value in its `location` column a
-valid location (objects, e.g. `tab`, `sidebar`, `left`). Every `[[action]]`
-in [config/actions.toml](../config/actions.toml) declares a `modifier` and
-an optional `location`; `Registry::load` (`src/config.rs`) rejects the
-whole config at startup if either word doesn't appear in
-`hotkeys-reference.csv`, and derives the actual id from them:
+Action IDs are plain, free-form strings — there is no static vocabulary or
+grammar checked at startup any more. An id is whatever the reporting target
+calls it in its `list_actions` response (see "Action-catalog handshake"
+below); `close.tab`/`modifier.location`-shaped ids are a convention some
+targets choose to follow, not something `Registry::load` enforces.
+`config/hotkeys-reference.csv` still catalogs each app's own commands for
+human reference, but nothing in the daemon reads it.
 
-- `modifier` alone, e.g. `save`, `shutdown` — for actions with no natural
-  object.
-- `modifier.location`, e.g. `close.tab`, `move.left` — everything else.
+Physical-key binding (which key/chord triggers which action id) is a
+separate, currently-deferred concern — see `config/keymap.toml` and
+CLAUDE.md's "Known gaps".
 
 This id is app-agnostic by design: the same `close.tab` is what a
 `ctrl+w` key binding resolves to regardless of which app ends up
@@ -161,30 +182,96 @@ native-adapter indirection doing the actual app-specific work.
 
 ### Native command strings
 
-Each target's `supports` map (the values sent as `command` on the wire)
-now lives in that target's own `capabilities.toml`, next to its adapter
-code — `extensions/<name>/capabilities.toml` — rather than centrally in
-`targets.toml`, which points at it via a `capabilities` path. This is
-what lets an extension own the declaration of what it understands and
-accepts, instead of that living as a second, easily-drifting copy of the
-allowlist it already hardcodes on the receiving end (`ALLOWED_COMMANDS`
-in `vscode-extension/extension.js`, the `switch` in
-`chrome-extension/background.js`, the `COMMANDS` maps in the two
-system-listener `listener.js` files).
+There is no static `capabilities.toml`/`supports` map any more, on either
+side. A target's entire command catalog — action id, native command
+string, and title — comes from its own `list_actions` response (see below),
+generated live from whatever it can actually do right now. This is a
+deliberate step further than the previous design: instead of an extension
+declaring its capabilities once in a file that can drift out of sync,
+it's asked, and answers fresh, every time.
 
-For a command string Keylex invented itself — where it controls both the
-daemon side and the target's handler — the shape is **enforced**, not
-just recommended: `<application>.<location>.<action>`, three
-lowercase/underscore dot-separated tokens, e.g. `chrome.tab.close`,
-`os.window.move_left`. `Registry::load` rejects any non-conforming value.
+`vscode-extension/extension.js` implements this today (see "No per-command
+allowlist, by design" under "Trust model & authentication" above). Chrome,
+Neovim, and the Linux/Windows system listeners don't yet — see CLAUDE.md's
+"Known gaps" — so until each grows its own `list_actions` handler, Keylex
+has no native command string to send them for any action, and dispatch to
+them always falls through to the keycode-fallback/unsupported path.
 
-The one thing this can't apply to is a command string that's actually
-someone else's namespace: VS Code's real command IDs
-(`workbench.action.closeActiveEditor`) are fixed by Microsoft, and
-Neovim's ex-commands (`bd`, `w`) are fixed by Neovim — Keylex only
-forwards them, it doesn't get to rename them. A target can opt out of the
-grammar check with `exempt_command_grammar = true` in `targets.toml` for
-exactly this reason; `vscode` and `neovim` are the only two that set it.
+There is no enforced command-string grammar any more either — a target's
+`list_actions` response can shape its `native_command` however its own
+adapter code expects (an upstream API's own command ids, a foreign
+scripting language's own syntax, or Keylex's own `<application>.<location>.
+<action>` convention if a target chooses to follow it), since Keylex never
+invents or checks these strings itself now.
+
+## Action-catalog handshake (`list_actions`)
+
+`keylex/v0`'s original message is one-directional and fire-and-forget: the
+daemon sends `command`s, nothing ever replies. The spotlight action search
+(`keylex --spotlight`, `src/spotlight/`) needs the opposite direction too:
+it wants to know, at query time, exactly which actions a target can *actually*
+carry out right now -- not a copy of that list baked into a config file that
+can drift out of sync with what the target really has installed/enabled.
+
+This adds one small request/response exchange to the TCP-socket transport
+(the only transport where the daemon is already the connecting party, so a
+synchronous "write request, read one response line, close" round trip fits
+naturally into the existing per-`send()` connection lifecycle):
+
+**Request** (daemon -> target, same line format as a `command` message):
+
+```json
+{"type": "list_actions", "token": "9f2c...ab"}
+```
+
+**Response** (target -> daemon, one line, same connection, before it closes):
+
+```json
+{
+  "actions": [
+    {
+      "id": "close.tab",
+      "native_command": "workbench.action.closeActiveEditor",
+      "title": "Close Editor"
+    }
+  ]
+}
+```
+
+| Field            | Type   | Meaning                                                                                   |
+|------------------|--------|---------------------------------------------------------------------------------------------|
+| `id`             | string | Either a real Keylex action id already known locally (e.g. one bound to a key in `config/keymap.toml`, once that's wired up) *or*, when this native command has no such cross-app abstraction, the same value as `native_command` -- a target never needs to invent an id of its own. `spotlight::Index::merge_remote` (`src/spotlight/mod.rs`) tells the two cases apart by checking whether `id` is already a known Keylex action id: if so, it enriches that entry in place; otherwise it namespaces the raw command as `"<target-program>:<id>"` so it can never collide with a real action id or another target's raw command. |
+| `native_command` | string | The literal command string to send back to this target on dispatch (via `SocketAdapter::send`/`WebSocketAdapter::send`, bypassing action-id/`supports` lookup entirely for a namespaced/raw entry -- see `spotlight::Entry::dispatch`). |
+| `title`          | string | A human-readable label for the spotlight list (e.g. "Close Editor"), the target's own choosing. |
+
+A target should only report an entry here if it just verified, live, that
+the underlying native command still exists/works in the running instance
+(e.g. `vscode-extension/extension.js` cross-checks every command every
+installed extension contributes against `vscode.commands.getCommands(true)`
+before including it) -- that's the whole point of the handshake: the
+spotlight catalog reflects what's *actually* available in the target right
+now, not a static snapshot, and (for `vscode`) is not bounded to a
+hand-picked subset at all -- see "No per-command allowlist, by design"
+under "Trust model & authentication" above for what that trades away.
+
+A raw, namespaced entry (no matching Keylex action id) has no cross-app
+routing behavior: `keylex --spotlight`/`--spotlight-run` sends its
+`native_command` straight to the target that reported it, regardless of
+which app is currently focused, since there is no abstract action for
+`Router::dispatch` to route by focus in the first place -- unlike a real
+action id (`close.tab`), which still goes through the normal
+focus-aware/keycode-fallback path.
+
+This is best-effort and non-fatal: a target that doesn't implement
+`list_actions` at all (older extension version, or a target that hasn't
+added support yet) simply won't answer, the connection attempt times out or
+the response fails to parse, and `spotlight::bootstrap` just leaves that
+target's entries out -- there is no static `actions.toml`/`targets.toml`
+catalog to fall back to any more; `list_actions` is the only source of
+entries beyond whatever `config/keymap.toml` binds locally.
+`SocketAdapter::fetch_actions` (`src/adapters/socket.rs`) is the
+reference client for this exchange; it's not implemented for the WebSocket
+transport yet (no target using it needs a spotlight catalog today).
 
 ## Versioning
 
@@ -215,7 +302,11 @@ versions can be told apart during the `v0` → `v1` transition.
 
 An action can bind to a **chord** instead of a single key(+modifier)
 combo: an order-independent set of two or more keys that must all be held
-down together. Configured in `actions.toml` with `chord` instead of `key`:
+down together. The capture-side mechanism below is fully implemented and
+tested; what's currently missing is a config file to declare a chord from
+(the old `actions.toml`'s `chord` field is gone along with the rest of the
+static action list -- see CLAUDE.md's "Known gaps"). Once a successor
+exists, the shape would look like:
 
 ```toml
 [[action]]
