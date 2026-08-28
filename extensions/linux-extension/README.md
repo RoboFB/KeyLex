@@ -33,12 +33,30 @@ target's `address` in `config/targets.toml`.
 
 ## Command mapping
 
-| `command` (wire)       | Action          | Implementation                                     |
-|-------------------------|-----------------|-----------------------------------------------------|
-| `os.system.shutdown`    | `shutdown`      | `systemctl poweroff`                                |
-| `os.desktop.show`       | `show.desktop`  | `wmctrl -k on`                                      |
-| `os.window.move_left`   | `move.left`     | un-maximize + `wmctrl -r :ACTIVE: -e` to left half   |
-| `os.window.move_right`  | `move.right`    | un-maximize + `wmctrl -r :ACTIVE: -e` to right half  |
+| `command` (wire)                       | Action                    | Implementation                                                        |
+|------------------------------------------|---------------------------|---------------------------------------------------------------------|
+| `os.system.shutdown`                    | `shutdown`                | `systemctl poweroff`                                                  |
+| `os.desktop.show`                       | `show.desktop`            | `wmctrl -k on`                                                        |
+| `os.window.move_left`                   | `move.left`               | un-maximize + `wmctrl -r :ACTIVE: -e` to left half                    |
+| `os.window.move_right`                  | `move.right`              | un-maximize + `wmctrl -r :ACTIVE: -e` to right half                   |
+| `os.window.close`                       | `close.window`            | `wmctrl -c :ACTIVE:`                                                  |
+| `os.desktop.create`                     | `create.desktop`          | `wmctrl -n <current desktop count + 1>` (see caveat below)            |
+| `os.desktop.next`                       | `go_to.next_desktop`      | switch to the next desktop (`wmctrl -s`), doesn't move any window     |
+| `os.desktop.previous`                   | `go_to.previous_desktop`  | switch to the previous desktop (`wmctrl -s`)                          |
+| `os.window.move_to_next_desktop`        | `send.next_desktop`       | move the active window to the next desktop and follow it there        |
+| `os.window.move_to_previous_desktop`    | `send.previous_desktop`   | move the active window to the previous desktop and follow it there    |
+
+The desktop-switching/moving commands read `wmctrl -d`'s output to find the
+current desktop and total count, so they work on however many virtual
+desktops are actually configured, wrapping around at either end.
+
+**`create.desktop` caveat:** this grows the desktop count via
+`wmctrl -n` (EWMH `_NET_NUMBER_OF_DESKTOPS`), which only does something
+useful under a fixed-workspace-count window manager. **GNOME Shell's default
+config uses dynamic workspaces** (one is created/destroyed automatically the
+moment you need it, no fixed count to grow) -- on stock GNOME this command
+is effectively a no-op; disable dynamic workspaces in GNOME Settings, or use
+a WM with a fixed workspace count, for it to do anything.
 
 ## GNOME Shell search provider (`search-provider.js`)
 
