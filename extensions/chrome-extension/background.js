@@ -7,35 +7,25 @@
 // daemon runs the WebSocket *server* and this extension connects out to it
 // as a client. Port must match config/targets.toml's chrome target.
 //
-// The daemon won't trust this connection until it sees the shared secret
-// from config/secret.token as the very first frame
-// (../../docs/protocol.md#trust-model--authentication) -- since a browser
-// extension can't read an arbitrary filesystem path, that token is pasted
-// once into this extension's options page (options.html/options.js) and
-// kept in chrome.storage.local from then on.
+// SECURITY NOTE: there is currently NO authentication on this connection at
+// all (deliberately dropped for now -- see
+// ../../docs/protocol.md#trust-model--authentication and CLAUDE.md's "Known
+// gaps", a keypair-based scheme is planned to replace the old shared-secret
+// token). Any local process, or any webpage's JS, that can open a
+// ws://127.0.0.1:7778 connection can currently take this extension's place
+// unless config/targets.toml's `allowed_origin` is set for the chrome
+// target -- see extensions/chrome-extension/README.md.
 const HOST = "127.0.0.1";
 const PORT = 7778;
 const RECONNECT_DELAY_MS = 1000;
 
 let socket = null;
 let sidePanelOpen = false;
-let token = null;
-
-async function loadToken() {
-  const { keylexToken } = await chrome.storage.local.get("keylexToken");
-  return keylexToken || null;
-}
 
 function connect() {
   socket = new WebSocket(`ws://${HOST}:${PORT}`);
 
   socket.addEventListener("open", () => {
-    if (!token) {
-      console.error("keylex: no token configured yet -- set one via the extension's Options page");
-      socket.close();
-      return;
-    }
-    socket.send(JSON.stringify({ token }));
     console.log(`keylex: connected to daemon at ${HOST}:${PORT}`);
   });
 
@@ -53,22 +43,6 @@ function connect() {
     console.error("keylex: websocket error:", err);
   });
 }
-
-async function connectWithToken() {
-  token = await loadToken();
-  if (!token) {
-    console.error("keylex: no token stored yet -- open this extension's Options page and paste one in");
-    return;
-  }
-  connect();
-}
-
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.keylexToken) {
-    token = changes.keylexToken.newValue || null;
-    if (token && !socket) connectWithToken();
-  }
-});
 
 function handleMessage(data) {
   let message;
@@ -129,12 +103,12 @@ async function runCommand(command) {
 // WebSocket doesn't reliably keep one alive. This alarm is a best-effort
 // nudge to reduce how often that happens; when it does happen anyway, the
 // worker simply re-runs this file from the top on the next wake, which
-// reconnects for free via the connectWithToken() call below.
+// reconnects for free via the connect() call below.
 chrome.alarms.create("keylex-keepalive", { periodInMinutes: 0.4 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "keylex-keepalive" && !socket) {
-    connectWithToken();
+    connect();
   }
 });
 
-connectWithToken();
+connect();

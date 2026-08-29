@@ -139,7 +139,6 @@ fn the_socket_adapter_asks_a_target_for_its_action_catalog() {
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
 
-    const TOKEN: &str = "handshake-token";
     let listener = TcpListener::bind("127.0.0.1:0").expect("fake target should bind");
     let port = listener.local_addr().unwrap().port();
 
@@ -151,7 +150,6 @@ fn the_socket_adapter_asks_a_target_for_its_action_catalog() {
             .expect("a request line");
         let request: serde_json::Value = serde_json::from_str(line.trim()).unwrap();
         assert_eq!(request["type"], "list_actions");
-        assert_eq!(request["token"], TOKEN);
 
         let response = serde_json::json!({
             "actions": [{
@@ -167,7 +165,7 @@ fn the_socket_adapter_asks_a_target_for_its_action_catalog() {
         "handshake",
         &format!("[[target]]\nprogram = \"vscode\"\nadapter = \"socket\"\naddress = \"127.0.0.1:{port}\"\n"),
     );
-    let actions = SocketAdapter::new(TOKEN.to_string())
+    let actions = SocketAdapter::new()
         .fetch_actions(&registry.targets()[0])
         .expect("handshake should succeed");
 
@@ -185,7 +183,7 @@ fn a_silent_target_leaves_the_catalog_alone() {
         "[[target]]\nprogram = \"vscode\"\nadapter = \"socket\"\naddress = \"127.0.0.1:1\"\n",
     );
 
-    assert!(SocketAdapter::new("token".to_string())
+    assert!(SocketAdapter::new()
         .fetch_actions(&registry.targets()[0])
         .is_none());
 }
@@ -202,17 +200,9 @@ fn connect(port: u16) -> Client {
     }
 }
 
-fn send_token(client: &mut Client, token: &str) {
-    let frame = serde_json::json!({ "token": token }).to_string();
-    client
-        .send(tungstenite::Message::Text(frame.into()))
-        .expect("auth frame should send");
-}
-
 #[test]
-fn the_websocket_adapter_delivers_to_an_authenticated_client() {
+fn the_websocket_adapter_delivers_to_a_connected_client() {
     const PORT: u16 = 47778;
-    const TOKEN: &str = "test-token";
 
     let registry = load(
         "websocket",
@@ -220,10 +210,9 @@ fn the_websocket_adapter_delivers_to_an_authenticated_client() {
             "[[target]]\nprogram = \"chrome\"\nmatch_process = [\"chrome.exe\"]\nadapter = \"websocket\"\nport = {PORT}\n"
         ),
     );
-    let adapter = WebSocketAdapter::spawn(PORT, TOKEN.to_string(), None).expect("should bind");
+    let adapter = WebSocketAdapter::spawn(PORT, None).expect("should bind");
 
     let mut client = connect(PORT);
-    send_token(&mut client, TOKEN);
     // Let the accept thread promote the connection before dispatching.
     std::thread::sleep(std::time::Duration::from_millis(50));
 
@@ -250,30 +239,10 @@ fn the_websocket_adapter_delivers_to_an_authenticated_client() {
 }
 
 #[test]
-fn the_websocket_adapter_drops_a_client_with_the_wrong_token() {
-    const PORT: u16 = 47780;
-    let _adapter = WebSocketAdapter::spawn(PORT, "correct".to_string(), None).expect("should bind");
-
-    let mut client = connect(PORT);
-    send_token(&mut client, "wrong");
-
-    // Read on another thread, so a regression that leaves the connection
-    // open fails the test instead of hanging it.
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || tx.send(client.read()));
-    let read = rx
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .expect("the server should close the connection, not leave it open");
-
-    assert!(read.is_err());
-}
-
-#[test]
 fn the_websocket_adapter_rejects_a_handshake_from_another_origin() {
     const PORT: u16 = 47781;
     let _adapter = WebSocketAdapter::spawn(
         PORT,
-        "correct".to_string(),
         Some("chrome-extension://expected-id".to_string()),
     )
     .expect("should bind");

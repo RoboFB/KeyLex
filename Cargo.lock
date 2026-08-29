@@ -290,7 +290,6 @@ dependencies = [
  "evdev",
  "http",
  "nucleo-matcher",
- "rand",
  "serde",
  "serde_json",
  "toml",

@@ -9,10 +9,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
 tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
-# Both already resolved transitively via tungstenite's handshake feature
-# (nonce generation / HTTP types) -- promoted to direct deps for auth.rs
-# and the websocket Origin check, no new supply-chain surface added.
-rand = "0.10"
+# Already resolved transitively via tungstenite's handshake feature (HTTP
+# types) -- promoted to a direct dep for the websocket Origin check, no new
+# supply-chain surface added.
 http = "1"
 # Pure computation, no OS bindings -- the same fuzzy-ranking logic behind
 # the `nucleo`/helix fuzzy finder, used here for the spotlight action

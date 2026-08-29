@@ -3,17 +3,10 @@
 // `cargo run`/`cargo run -- --spotlight` to see a "native" dispatch and the
 // list_actions handshake (docs/protocol.md#action-catalog-handshake-list_actions)
 // actually arrive somewhere, without needing a real VS Code window.
-const fs = require("fs");
 const net = require("net");
-const path = require("path");
 
 const HOST = "127.0.0.1";
 const PORT = 7777; // must match config/targets.toml's vscode target
-const TOKEN_PATH = path.join(__dirname, "..", "config", "secret.token");
-
-// The daemon generates this file on first run (src/auth.rs); every message
-// it sends now carries this same token (docs/protocol.md#trust-model--authentication).
-const token = fs.readFileSync(TOKEN_PATH, "utf8").trim();
 
 // Mirrors the real extension's live-discovered catalog closely enough for
 // local testing -- not the real vscode.extensions.all/getCommands() walk
@@ -43,10 +36,6 @@ const server = net.createServer((socket) => {
       if (!line) continue;
       try {
         const message = JSON.parse(line);
-        if (message.token !== token) {
-          console.error("rejected message with invalid/missing token:", message);
-          continue;
-        }
         if (message.type === "list_actions") {
           console.log("received list_actions handshake request");
           const response =

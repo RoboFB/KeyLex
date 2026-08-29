@@ -165,21 +165,20 @@ a client) backs the Chrome target — see
 Neovim/terminal adapters are unimplemented; each will need its own
 transport.
 
-Both adapters authenticate every message with a shared secret the daemon
-generates on first run at `<config-dir>/secret.token` (`src/auth.rs`,
-git-ignored, never committed): `SocketAdapter` sends it with every
-`command`, and `WebSocketAdapter` requires it as the first frame on a
-freshly accepted connection before making that connection the live one
-(this also fixes what would otherwise be a "last-connect-wins" hijack risk
-on the single-connection WebSocket transport). Each accepted connection is
-then owned outright by its own thread, and `send()` only queues a command
-onto a channel for it: dispatch runs on the keyboard path and must never
-wait on socket I/O, which is exactly what sharing the socket behind a
-mutex used to make it do. The WebSocket
-adapter can additionally check the handshake's `Origin` header against a
-per-target `allowed_origin` in `targets.toml`. See
+Neither adapter authenticates messages right now — the shared-secret
+`token` both used to require on every message has been deliberately
+dropped for now (single-user local tool; see "Known gaps" below), so
+anything able to open a loopback connection to a configured port can drive
+either transport. Each accepted WebSocket connection is owned outright by
+its own thread, and `send()` only queues a command onto a channel for it:
+dispatch runs on the keyboard path and must never wait on socket I/O, which
+is exactly what sharing the socket behind a mutex used to make it do. The
+WebSocket adapter can still check the handshake's `Origin` header against a
+per-target `allowed_origin` in `targets.toml` (defense-in-depth, doesn't
+need a shared secret). See
 [docs/protocol.md](docs/protocol.md#trust-model--authentication) for the
-full wire-level contract and threat model.
+full wire-level contract, current exposure, and the planned keypair-based
+replacement.
 
 ### Spotlight action search (`src/spotlight/`)
 
@@ -216,9 +215,9 @@ automatically. Each candidate is still cross-checked live against
 deliberately **no allowlist** narrowing that down further any more — see
 [docs/protocol.md](docs/protocol.md#trust-model--authentication)'s "No
 per-command allowlist, by design" for the security trade-off that makes:
-the shared token is the only remaining gate, and it now grants the ability
-to run *any* command any installed VS Code extension contributes, not just
-a vetted safe set.
+combined with the current lack of any authentication (see "Known gaps"
+below), anything able to reach the socket at all can run *any* command any
+installed VS Code extension contributes, not just a vetted safe set.
 
 An entry the handshake reports has no Keylex action id of its own for the
 vast majority of what it discovers (only a handful, like `close.tab`,
@@ -363,15 +362,30 @@ started.
   VS Code pattern (`liveActionCatalog`/`list_actions` in
   `extensions/vscode-extension/extension.js`) to the others is the natural
   next step, not started yet.
+- **No authentication on either IPC transport right now.** The
+  shared-secret `token` `SocketAdapter`/`WebSocketAdapter` used to require
+  on every message (`docs/protocol.md#trust-model--authentication`) has
+  been deliberately dropped, for now, in favor of shipping the core
+  dispatch pipeline first — this is a single-user local tool today, not a
+  multi-user or hardened deployment. Both transports are still
+  loopback-only, and the WebSocket adapter's `allowed_origin` check still
+  works without a token, but any other local process (or, for the
+  WebSocket/Chrome transport, any webpage's JS) can currently connect and
+  drive commands. The planned replacement is a keypair scheme — a public
+  key per paired target held by the daemon, a private key held by the
+  target/extension — rather than reintroducing a bearer secret; not started
+  yet. Revisit before running Keylex on a shared machine or trusting it
+  with anything more sensitive.
 - No real OS notification — `Notifier` just logs, on both platforms.
 - `vscode-extension/extension.js` has no per-command allowlist any more
   (see "Spotlight action search" above and
   [docs/protocol.md](docs/protocol.md#trust-model--authentication)'s "No
   per-command allowlist, by design") — this is a deliberate trade for
-  complete, zero-maintenance command discovery, but it means
-  `config/secret.token` alone now gates *every* command any installed VS
-  Code extension contributes, not a vetted subset. Not a bug, but revisit
-  this if Keylex's threat model ever needs to change.
+  complete, zero-maintenance command discovery, but combined with the lack
+  of authentication above, it means anything that can reach the socket at
+  all gates *every* command any installed VS Code extension contributes,
+  not a vetted subset. Not a bug, but revisit this alongside the
+  authentication gap above.
 - `extensions/linux-extension/search-provider.js` (the GNOME Shell search
   provider for spotlight, see "Spotlight action search" above) is untested
   outside a real GNOME Shell session, same caveat as the Windows capture

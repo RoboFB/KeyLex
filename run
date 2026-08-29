@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Raw test client for the keylex/v0 socket protocol (docs/protocol.md):
-# sends {"command": "<arg>", "token": "<secret>"} straight to the VS Code
-# extension's listening socket (extensions/vscode-extension/extension.js),
-# bypassing the Rust daemon's action-id/registry layer entirely. For poking
-# at the extension directly with any VS Code command id while actions.toml
-# is still being reworked.
+# sends {"command": "<arg>"} straight to the VS Code extension's listening
+# socket (extensions/vscode-extension/extension.js), bypassing the Rust
+# daemon's action-id/registry layer entirely. For poking at the extension
+# directly with any VS Code command id while actions.toml is still being
+# reworked.
+#
+# No authentication on the wire right now -- see
+# docs/protocol.md#trust-model--authentication and CLAUDE.md's "Known gaps".
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
@@ -13,21 +16,12 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOKEN_FILE="$DIR/config/secret.token"
 HOST=127.0.0.1
 PORT=7777
 COMMAND="$1"
 
-if [ ! -f "$TOKEN_FILE" ]; then
-  echo "run: no token file at $TOKEN_FILE -- run 'cargo run -- --demo' once to generate it" >&2
-  exit 1
-fi
-
-TOKEN="$(<"$TOKEN_FILE")"
-
 exec 3<>"/dev/tcp/$HOST/$PORT"
-printf '{"command":"%s","token":"%s"}\n' "$COMMAND" "$TOKEN" >&3
+printf '{"command":"%s"}\n' "$COMMAND" >&3
 exec 3<&- 3>&-
 
 echo "sent: $COMMAND"

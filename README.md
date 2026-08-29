@@ -110,12 +110,15 @@ anywhere in the codebase.
 
 **Network activity:** the only network code is two local, loopback-bound
 (`127.0.0.1`) IPC channels used to reach the VS Code and Chrome
-integrations (see [docs/protocol.md](docs/protocol.md)). Both require a
-per-install shared secret on every message, and the WebSocket transport
-additionally supports an Origin allowlist — see
+integrations (see [docs/protocol.md](docs/protocol.md)). Neither is
+authenticated right now — the shared-secret token both used to require has
+been deliberately dropped for now, since this is currently a single-user
+local tool; the WebSocket transport still supports an Origin allowlist as
+defense-in-depth. See
 [docs/protocol.md#trust-model--authentication](docs/protocol.md#trust-model--authentication)
-for the full threat model. Nothing Keylex does ever reaches a server
-outside your machine.
+for the full current threat model and the keypair-based scheme planned to
+replace the token. Nothing Keylex does ever reaches a server outside your
+machine.
 
 **GDPR framing:** since all processing happens locally, on your own
 device, for your own configured use, Keylex isn't acting as a data
@@ -146,9 +149,9 @@ cargo run                               # in einem zweiten Terminal
 ## VS-Code-Adapter testen
 
 `./run <vscode-command-id>` (im Repo-Root) ist ein minimaler, von der
-Rust-Registry unabhängiger Test-Client: er liest `config/secret.token` und
-schickt genau diesen einen Befehl über den `keylex/v0`-Socket an die
-Extension — z. B. `./run workbench.action.closeActiveEditor`. Siehe
+Rust-Registry unabhängiger Test-Client: er schickt genau diesen einen
+Befehl über den `keylex/v0`-Socket an die Extension — z. B.
+`./run workbench.action.closeActiveEditor`. Siehe
 [docs/protocol.md](docs/protocol.md) für das Wire-Format.
 
 Damit `./run` überhaupt etwas erreicht, muss
@@ -170,7 +173,10 @@ Wege, in aufsteigender Dauerhaftigkeit:
    Socket-Server auf Port 7777 im Hintergrund — nicht nur projektbezogen.
 
 `extension.js` hat aktuell **keine** Befehls-Allowlist (bewusst entfernt
-für lokales Testen) — jeder Befehl mit gültigem Token wird ausgeführt,
-nicht nur die in `capabilities.toml` deklarierten. Vor jedem Einsatz
-außerhalb der eigenen Maschine sollte das wieder eingeschränkt werden
-(siehe Kommentar am Dateianfang).
+für lokales Testen) und der Socket ist derzeit **unauthentifiziert** (das
+frühere Shared-Secret-Token wurde bewusst entfernt, siehe
+[docs/protocol.md](docs/protocol.md#trust-model--authentication)) — jeder
+lokale Prozess, der die Verbindung erreicht, kann jeden registrierten
+Befehl ausführen, nicht nur die in `capabilities.toml` deklarierten. Vor
+jedem Einsatz außerhalb der eigenen Maschine sollte das wieder
+eingeschränkt werden (siehe Kommentar am Dateianfang).

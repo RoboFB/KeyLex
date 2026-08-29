@@ -6,21 +6,22 @@
 // management (close/snap the active window, create a desktop, switch
 // desktops, move a window to another desktop) -- and carries them out with
 // `wmctrl` / `xdotool` and a `systemctl` shutdown -- same
-// newline-delimited-JSON-over-TCP-socket transport and shared-secret auth as
-// the VS Code adapter.
+// newline-delimited-JSON-over-TCP-socket transport as the VS Code adapter.
+//
+// SECURITY NOTE: there is currently NO authentication on this socket
+// (deliberately dropped for now -- see
+// ../../docs/protocol.md#trust-model--authentication and
+// ../../CLAUDE.md's "Known gaps"). Any local process able to open a TCP
+// connection to 127.0.0.1:7779 can trigger shutdown and window/desktop
+// commands.
 //
 // Requires `wmctrl` and `xdotool` on PATH (X11 only, matching the rest of
 // this repo's Linux focus/window handling -- see src/focus/linux.rs).
-const fs = require("fs");
 const net = require("net");
-const path = require("path");
 const { execFile } = require("child_process");
 
 const HOST = "127.0.0.1";
 const PORT = 7779; // must match config/targets.toml's system-linux target
-const TOKEN_PATH = path.join(__dirname, "..", "..", "config", "secret.token");
-
-const token = fs.readFileSync(TOKEN_PATH, "utf8").trim();
 
 function run(cmd, args) {
   execFile(cmd, args, (err, _stdout, stderr) => {
@@ -176,11 +177,6 @@ function handleLine(line, socket) {
     console.error("keylex: could not parse message:", line, err);
     return;
   }
-  if (message.token !== token) {
-    console.error("keylex: rejected message with invalid/missing token:", message.command || message.type);
-    return;
-  }
-
   if (message.type === "list_actions") {
     const response =
       JSON.stringify({
