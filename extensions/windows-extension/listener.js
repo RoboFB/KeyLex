@@ -2,22 +2,23 @@
 // (../../docs/protocol.md), for the "system-windows" target in
 // config/targets.toml. Windows counterpart of extensions/linux-extension --
 // same OS-wide-action idea, same newline-delimited-JSON-over-TCP-socket
-// transport and shared-secret auth as the VS Code adapter, but carries
-// commands out via PowerShell (Win32 SetWindowPos/ShowWindow through inline
-// C#, and Shell.Application for the desktop toggle) instead of wmctrl.
+// transport as the VS Code adapter, but carries commands out via PowerShell
+// (Win32 SetWindowPos/ShowWindow through inline C#, and Shell.Application
+// for the desktop toggle) instead of wmctrl.
+//
+// SECURITY NOTE: there is currently NO authentication on this socket
+// (deliberately dropped for now -- see
+// ../../docs/protocol.md#trust-model--authentication and
+// ../../CLAUDE.md's "Known gaps"). Any local process able to open a TCP
+// connection to 127.0.0.1:7780 can trigger shutdown and window commands.
 //
 // Untested outside a real Windows machine -- this repo's dev environment is
 // Linux-only, same caveat as src/capture/windows.rs and src/focus/windows.rs.
-const fs = require("fs");
 const net = require("net");
-const path = require("path");
 const { execFile } = require("child_process");
 
 const HOST = "127.0.0.1";
 const PORT = 7780; // must match config/targets.toml's system-windows target
-const TOKEN_PATH = path.join(__dirname, "..", "..", "config", "secret.token");
-
-const token = fs.readFileSync(TOKEN_PATH, "utf8").trim();
 
 function runPowerShell(script) {
   execFile(
@@ -84,10 +85,6 @@ function handleLine(line) {
     message = JSON.parse(line);
   } catch (err) {
     console.error("keylex: could not parse message:", line, err);
-    return;
-  }
-  if (message.token !== token) {
-    console.error("keylex: rejected message with invalid/missing token:", message.command);
     return;
   }
   const handler = COMMANDS[message.command];

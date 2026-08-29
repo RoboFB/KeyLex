@@ -8,23 +8,15 @@
 //
 // Needs the `ws` package: run `npm install ws` in this directory first, or
 // wherever you invoke this script from.
-const fs = require("fs");
-const path = require("path");
 const WebSocket = require("ws");
 
 const HOST = "127.0.0.1";
 const PORT = 7778; // must match config/targets.toml's chrome target
-const TOKEN_PATH = path.join(__dirname, "..", "config", "secret.token");
-
-// The daemon won't promote this connection into its live slot until it sees
-// this token as the very first frame (docs/protocol.md#trust-model--authentication).
-const token = fs.readFileSync(TOKEN_PATH, "utf8").trim();
 
 function connect() {
   const socket = new WebSocket(`ws://${HOST}:${PORT}`);
 
   socket.on("open", () => {
-    socket.send(JSON.stringify({ token }));
     console.log(`fake Chrome listener connected to ${HOST}:${PORT}`);
   });
 

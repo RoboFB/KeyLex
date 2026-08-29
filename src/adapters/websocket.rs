@@ -5,11 +5,15 @@
 //! server and the target connects in. One connection is accepted and kept
 //! open for every `send`, so dispatch never pays for a handshake.
 //!
-//! Every connection is authenticated before it is trusted
-//! (`docs/protocol.md#trust-model--authentication`): the `Origin` header is
-//! checked during the handshake, and the first frame afterwards must carry
-//! the shared secret. Only then does it become the live one, which is also
-//! what stops an unauthenticated client from displacing a good one.
+//! **No shared-secret authentication right now** -- see
+//! `docs/protocol.md#trust-model--authentication` and CLAUDE.md's "Known
+//! gaps" for why and what's planned instead (a keypair-based scheme).
+//! `Origin` is still checked during the handshake when a target configures
+//! `allowed_origin`, and a freshly accepted connection still becomes the
+//! live one immediately (last-connect-wins) -- but nothing stops another
+//! local process from connecting and displacing the real client, since
+//! there's no secret left to prove it's the paired extension. Loopback-only
+//! binding is the only current boundary.
 //!
 //! One thread owns each accepted socket outright, and `send` only hands it
 //! a command through a channel. That matters: `send` sits on the keyboard
@@ -33,9 +37,6 @@ use crate::dispatch::Adapter;
 /// there and how often an idle connection wakes up.
 const READ_POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// How long a freshly handshaken client has to send its auth frame.
-const AUTH_TIMEOUT: Duration = Duration::from_secs(2);
-
 /// Where `send` leaves commands for the live connection's own thread. A
 /// connection that has since died needs no cleanup: the channel's own
 /// receiver is gone with it, so the next `send` fails and says so.
@@ -46,14 +47,9 @@ pub struct WebSocketAdapter {
 }
 
 impl WebSocketAdapter {
-    /// Binds `port` and spawns the accept loop. Only the most recently
-    /// *authenticated* client is kept; an unauthenticated one can never
-    /// displace it.
-    pub fn spawn(
-        port: u16,
-        token: String,
-        allowed_origin: Option<String>,
-    ) -> std::io::Result<WebSocketAdapter> {
+    /// Binds `port` and spawns the accept loop. The most recently accepted
+    /// client (that passes the Origin check, if configured) is the live one.
+    pub fn spawn(port: u16, allowed_origin: Option<String>) -> std::io::Result<WebSocketAdapter> {
         if allowed_origin.is_none() {
             eprintln!(
                 "keylex: websocket adapter on port {port} has no 'allowed_origin' configured -- Origin header will not be checked"
@@ -73,11 +69,11 @@ impl WebSocketAdapter {
                         continue;
                     }
                 };
-                let Some(ws) = accept(stream, allowed_origin.as_deref(), &token) else {
+                let Some(ws) = accept(stream, allowed_origin.as_deref()) else {
                     continue;
                 };
 
-                println!("keylex: websocket client authenticated on port {port}");
+                println!("keylex: websocket client connected on port {port}");
                 let (commands, inbox) = mpsc::channel();
                 *accepted.lock().unwrap() = Some(commands);
                 thread::spawn(move || serve(ws, &inbox));
@@ -88,30 +84,19 @@ impl WebSocketAdapter {
     }
 }
 
-/// Handshake, Origin check, and auth frame for one incoming client.
-/// `None` means it was rejected, with the reason already reported.
+/// Handshake and Origin check for one incoming client. `None` means it was
+/// rejected, with the reason already reported.
 // The handshake callback's error type is `ErrorResponse`, whose size is
 // dictated by tungstenite's `Callback` trait rather than by us.
 #[allow(clippy::result_large_err)]
-fn accept(
-    stream: TcpStream,
-    allowed_origin: Option<&str>,
-    token: &str,
-) -> Option<WebSocket<TcpStream>> {
-    let mut ws = tungstenite::accept_hdr(stream, |request: &Request, response: Response| {
+fn accept(stream: TcpStream, allowed_origin: Option<&str>) -> Option<WebSocket<TcpStream>> {
+    let ws = tungstenite::accept_hdr(stream, |request: &Request, response: Response| {
         check_origin(request, allowed_origin)?;
         Ok(response)
     })
     .map_err(|e| eprintln!("keylex: websocket handshake rejected: {e}"))
     .ok()?;
 
-    ws.get_ref()
-        .set_read_timeout(Some(AUTH_TIMEOUT))
-        .map_err(|e| eprintln!("keylex: websocket could not set auth read timeout: {e}"))
-        .ok()?;
-    authenticate(&mut ws, token)
-        .map_err(|e| eprintln!("keylex: websocket rejected unauthenticated client: {e}"))
-        .ok()?;
     ws.get_ref()
         .set_read_timeout(Some(READ_POLL_INTERVAL))
         .map_err(|e| eprintln!("keylex: websocket could not set read timeout: {e}"))
@@ -144,24 +129,7 @@ fn check_origin(request: &Request, allowed_origin: Option<&str>) -> Result<(), E
         .expect("a response built from constants is always well-formed"))
 }
 
-/// Blocks (up to the read timeout set by the caller) for the one auth frame
-/// a client must send: `{"token": "<the shared secret>"}`.
-fn authenticate(ws: &mut WebSocket<TcpStream>, token: &str) -> Result<(), String> {
-    match ws.read() {
-        Ok(Message::Text(text)) => {
-            let frame: serde_json::Value =
-                serde_json::from_str(&text).map_err(|e| format!("invalid auth frame: {e}"))?;
-            match frame.get("token").and_then(|value| value.as_str()) {
-                Some(provided) if provided == token => Ok(()),
-                _ => Err("token mismatch".to_string()),
-            }
-        }
-        Ok(other) => Err(format!("expected a text auth frame, got {other:?}")),
-        Err(e) => Err(format!("no auth frame received: {e}")),
-    }
-}
-
-/// Owns one authenticated connection until it breaks: writes whatever
+/// Owns one accepted connection until it breaks: writes whatever
 /// `send` queues, and keeps reading so ping/pong keepalive is answered
 /// (tungstenite only replies to pings while the app is reading) and a dead
 /// connection is noticed promptly rather than at the next dispatch.

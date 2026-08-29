@@ -1,6 +1,13 @@
 //! Generic keylex/v0 adapter (`docs/protocol.md`): newline-delimited JSON,
 //! one `{"command": "..."}` object per line, over a local TCP socket. The
 //! daemon is the client here; the target listens.
+//!
+//! **No authentication right now.** This used to require a shared-secret
+//! `token` on every message (`docs/protocol.md#trust-model--authentication`);
+//! that's been dropped for now -- see CLAUDE.md's "Known gaps" -- in favor
+//! of a keypair-based scheme later. Loopback-only binding is the only
+//! current boundary, so treat this target's socket as reachable by any
+//! other local process until that lands.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -17,16 +24,11 @@ const CONNECT_TIMEOUT: Duration = Duration::from_millis(500);
 /// work to do (cross-checking its command list) before it can reply.
 const HANDSHAKE_READ_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// Carries the shared secret on every message
-/// (`docs/protocol.md#trust-model--authentication`) so the listening target
-/// can reject anything that isn't holding it.
-pub struct SocketAdapter {
-    token: String,
-}
+pub struct SocketAdapter;
 
 impl SocketAdapter {
-    pub fn new(token: String) -> SocketAdapter {
-        SocketAdapter { token }
+    pub fn new() -> SocketAdapter {
+        SocketAdapter
     }
 
     /// Runs the `list_actions` handshake against `target`
@@ -44,7 +46,7 @@ impl SocketAdapter {
             return None;
         }
 
-        let request = serde_json::json!({ "type": "list_actions", "token": self.token });
+        let request = serde_json::json!({ "type": "list_actions" });
         if let Err(e) = writeln!(stream, "{request}") {
             eprintln!("keylex: {}: handshake write failed: {e}", target.program);
             return None;
@@ -97,12 +99,18 @@ impl SocketAdapter {
     }
 }
 
+impl Default for SocketAdapter {
+    fn default() -> SocketAdapter {
+        SocketAdapter::new()
+    }
+}
+
 impl Adapter for SocketAdapter {
     fn send(&self, target: &Target, native_command: &str) {
         let Some(mut stream) = self.connect(target) else {
             return;
         };
-        let payload = serde_json::json!({ "command": native_command, "token": self.token });
+        let payload = serde_json::json!({ "command": native_command });
         if let Err(e) = writeln!(stream, "{payload}") {
             eprintln!("keylex: target {:?}: write failed: {e}", target.program);
         }

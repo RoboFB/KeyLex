@@ -58,13 +58,15 @@ keystroke would be wasteful on the keyboard-input path.
 One line, one JSON object, UTF-8, `\n`-terminated:
 
 ```json
-{"command": "workbench.action.closeActiveEditor", "token": "9f2c...ab"}
+{"command": "workbench.action.closeActiveEditor"}
 ```
 
 | Field     | Type   | Required | Meaning                                                                 |
 |-----------|--------|----------|--------------------------------------------------------------------------|
 | `command` | string | yes      | The native command string, as declared in that target's `supports` map in `targets.toml`. Opaque to Keylex — only the target-side adapter/extension interprets it. |
-| `token`   | string | yes      | The shared secret from `<config-dir>/secret.token` (see "Trust model & authentication" below). Checked before `command` is ever acted on. |
+
+There is no `token`/auth field on the wire right now — see "Trust model &
+authentication" below for why, and what's planned to replace it.
 
 There is currently no response/acknowledgement message — dispatch is
 fire-and-forget. `SocketAdapter` logs (but does not retry) a connection
@@ -77,56 +79,70 @@ change.
 
 ## Trust model & authentication
 
+**Status: no authentication on the wire right now.** Earlier versions of
+`keylex/v0` required a shared-secret `token` on every message; that's been
+deliberately dropped for now (see CLAUDE.md's "Known gaps") to keep the
+protocol and every adapter simple while the core dispatch pipeline is still
+being built out. This section describes both the resulting exposure and the
+mitigations that are still in place, so anyone running Keylex today knows
+exactly what it does and doesn't protect against.
+
 Both transports run entirely over loopback (`127.0.0.1`), but loopback
 alone isn't a trust boundary: any other local process can open a TCP
 connection to a loopback port, and — for the WebSocket transport
 specifically — a webpage open in the user's own browser can too (browsers
-don't block a page's JS from opening `ws://127.0.0.1:<port>`). Without
-anything more, either transport would let an unrelated local process or a
-malicious webpage impersonate Keylex (socket transport) or the paired
-extension (WebSocket transport), or — for the single-connection WebSocket
-server — silently hijack the connection away from the legitimate client.
+don't block a page's JS from opening `ws://127.0.0.1:<port>`). With no
+authentication at all, either transport currently lets *any* local process
+or webpage impersonate Keylex (socket transport) or the paired extension
+(WebSocket transport), and the WebSocket server's single connection slot is
+last-connect-wins — a second, unrelated client can silently displace the
+real one. This is the accepted trade-off **for a single-user machine with
+no other untrusted local processes** — see the "single-user local tool"
+framing in CLAUDE.md. It is not an acceptable posture for a shared machine,
+a machine also running untrusted software, or a browser routinely visiting
+untrusted pages, until authentication is back.
 
-**Shared-secret token.** On first run, the daemon generates 32 random bytes,
-hex-encodes them, and writes the result to `<config-dir>/secret.token`
-(`src/auth.rs`) with owner-only file permissions on Unix. This file is
-deliberately excluded from version control (see `.gitignore`) — it's a
-per-install secret, not configuration. Every `command` message on the
-socket transport must include a matching `token` field (checked on every
-message, so a token change takes effect on the very next dispatch with no
-stale connections to detect). The WebSocket transport instead requires the
-very first frame on a freshly accepted connection to be an auth frame,
-`{"token": "<hex>"}` — a connection is only promoted into the slot `send()`
-uses once that token matches; an unauthenticated connection is closed and
-never displaces whatever connection (if any) is already live. This is also
-what fixes the WebSocket transport's "last-connect-wins" hijack risk: only
-an *authenticated* connect wins now.
+**What's still enforced.**
 
-**Origin allowlisting (WebSocket only, defense-in-depth).** A target using
-the websocket adapter can set an `allowed_origin` field (e.g.
-`"chrome-extension://<the extension's actual id>"`) in `targets.toml`. When
-set, the daemon inspects the handshake's `Origin` header and rejects the
-handshake outright — before a `WebSocket` value even exists — if it doesn't
-match exactly. If unset, the Origin header isn't checked at all (logged
-once at startup so this isn't silently permissive); this keeps the field
-optional for any future non-browser WebSocket client that wouldn't send an
-`Origin` header in the first place.
+- Both adapters bind to `127.0.0.1` only (`SocketAdapter`'s target
+  addresses are configured that way in `targets.toml`;
+  `WebSocketAdapter::spawn` hardcodes `TcpListener::bind(("127.0.0.1",
+  port))`) — nothing here is reachable from another machine on the network.
+- **Origin allowlisting (WebSocket only, defense-in-depth).** A target
+  using the websocket adapter can still set an `allowed_origin` field
+  (e.g. `"chrome-extension://<the extension's actual id>"`) in
+  `targets.toml`. When set, the daemon inspects the handshake's `Origin`
+  header and rejects the handshake outright — before a `WebSocket` value
+  even exists — if it doesn't match exactly. If unset, the Origin header
+  isn't checked at all (logged once at startup so this isn't silently
+  permissive). This doesn't require any shared secret and is unaffected by
+  dropping the token, so it's still worth setting (see
+  `extensions/chrome-extension/README.md`).
 
-**What the token is (and isn't) for.** It's a shared secret proving "this
-connection/message came from something with local read access to the
-daemon's config directory" — the same trust level as, say, an SSH agent
-socket or a private key file. It stops an unrelated local process or a
-malicious webpage from driving a target's native commands. It does **not**
-defend against a fully compromised local user account with the same
-filesystem access as the Keylex process (that account can just read
-`secret.token` directly), nor against an already-compromised browser or
-extension. TLS/`wss://` is deliberately not used here: the threat is
-"another local process/webpage," not network eavesdropping, and a
-loopback-only certificate wouldn't stop either.
+**What's gone, and why it mattered.** The old shared-secret token proved
+"this connection/message came from something with local read access to the
+daemon's config directory," which stopped an unrelated local process or a
+malicious webpage from driving a target's native commands — it did **not**
+defend against a fully compromised local user account (which could just
+read the token file directly) or an already-compromised browser/extension,
+and TLS/`wss://` was deliberately never used, since the threat was "another
+local process/webpage," not network eavesdropping. All of that protection
+is currently absent.
+
+**Planned replacement: asymmetric keys, not a shared secret.** The next
+iteration is expected to give the daemon a public key per paired target
+(recorded in `targets.toml` or a dedicated paired-keys file) while each
+target/extension holds the matching private key — e.g. signing a
+challenge, or each message, rather than presenting a bearer secret that
+grants full impersonation the moment anything else obtains it. This also
+opens the door to per-target revocation (drop one public key without
+affecting the others) instead of one global secret shared by every
+adapter. Not implemented yet — treat this paragraph as direction, not a
+spec.
 
 **No per-command allowlist, by design.** An earlier version of
 `vscode-extension/extension.js` kept a second, independent allowlist
-(`ALLOWED_COMMANDS`) so that even a correctly-tokened message could only
+(`ALLOWED_COMMANDS`) so that even an authenticated message could only
 trigger a command the extension was specifically built to expect. That's
 gone now: the extension's command catalog is discovered live from every
 installed extension's own contributed commands (see "Native command
@@ -135,26 +151,26 @@ below) specifically so a newly installed extension shows up in spotlight
 search with no hand-maintained list to keep in sync — and a per-command
 allowlist can't coexist with that goal, since the whole point is not
 knowing the set of valid commands in advance. The trade-off this makes is
-real: **the token is now the only gate**, and anything holding it can
+real, and compounds with the current lack of authentication above: with no
+token *and* no allowlist, anything that can reach the socket at all can
 invoke *any* command currently registered in the target VS Code window,
 including ones contributed by other installed extensions (running a task,
 executing terminal text, editing/deleting files) that are considerably
-more dangerous than "close tab". The "What the token is (and isn't) for"
-paragraph above already describes the trust level this implies — treat
-`secret.token` with that level of care. A target that wants a narrower
-guarantee than "the token holder can do anything this app can do" is free
-to keep its own allowlist (as `extensions/linux-extension/listener.js`
-and `extensions/windows-extension/listener.js` still do, since neither has
-an analogous "installed extensions" universe to discover in the first
-place — see "Native command strings" below).
+more dangerous than "close tab". A target that wants a narrower guarantee
+than "anyone who can connect can do anything this app can do" is free to
+keep its own allowlist (as `extensions/linux-extension/listener.js` and
+`extensions/windows-extension/listener.js` still do, since neither has an
+analogous "installed extensions" universe to discover in the first place —
+see "Native command strings" below).
 
 ## What Keylex guarantees vs. what the target owns
 
 - Keylex guarantees the `command` string sent to a target came from that
   same target's own `list_actions` response (see "Action-catalog handshake"
-  below) — never from a static file Keylex maintains a second copy of —
-  and only alongside a `token` matching the per-install secret in
-  `<config-dir>/secret.token` (see "Trust model & authentication" above).
+  below) — never from a static file Keylex maintains a second copy of. It
+  does **not** currently guarantee the message came from the daemon itself
+  rather than an impersonating local process — see "Trust model &
+  authentication" above.
 - Keylex does **not** validate that `command` means anything — interpreting
   it is entirely the target adapter's contract to fulfil (e.g. the VS Code
   extension calling `vscode.commands.executeCommand(command)`).
@@ -221,7 +237,7 @@ naturally into the existing per-`send()` connection lifecycle):
 **Request** (daemon -> target, same line format as a `command` message):
 
 ```json
-{"type": "list_actions", "token": "9f2c...ab"}
+{"type": "list_actions"}
 ```
 
 **Response** (target -> daemon, one line, same connection, before it closes):
@@ -297,6 +313,10 @@ versions can be told apart during the `v0` → `v1` transition.
   rejected: they don't help the WebSocket transport at all, since browser
   JS can only open TCP/WS connections, never a Unix socket. One consistent
   auth mechanism across both transports beat a different one per transport.
+  Worth revisiting once authentication actually returns (see "Trust model &
+  authentication" above): a Unix domain socket for the TCP-socket transport
+  specifically would need no keypair/token distribution at all, at the cost
+  of the two transports no longer sharing one mechanism.
 
 ## Chorded triggers
 

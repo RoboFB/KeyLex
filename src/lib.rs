@@ -11,7 +11,6 @@
 //! together.
 
 pub mod adapters;
-pub mod auth;
 pub mod capture;
 pub mod cli;
 pub mod config;

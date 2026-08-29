@@ -3,9 +3,8 @@
   "name": "Keylex Chrome Adapter",
   "version": "0.1.0",
   "description": "Reference client for the keylex/v0 WebSocket transport (docs/protocol.md): executes commands dispatched by the Keylex daemon.",
-  "permissions": ["tabs", "sidePanel", "alarms", "storage"],
+  "permissions": ["tabs", "sidePanel", "alarms"],
   "background": {
     "service_worker": "background.js"
-  },
-  "options_page": "options.html"
+  }
 }

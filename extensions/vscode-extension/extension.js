@@ -3,28 +3,31 @@
 // object per line, over a local TCP socket. Address must match
 // src/keylex/config/targets.toml's vscode target ("127.0.0.1:7777").
 //
-// Every message must also carry the shared secret from config/secret.token
-// (../../docs/protocol.md#trust-model--authentication) -- without it, any
-// local process able to open a TCP connection to this port could otherwise
-// drive arbitrary VS Code commands.
+// SECURITY NOTE: there is currently NO authentication on this socket at all
+// (deliberately dropped for now -- see
+// ../../docs/protocol.md#trust-model--authentication and CLAUDE.md's "Known
+// gaps", a keypair-based scheme is planned to replace the old shared-secret
+// token). Any local process able to open a TCP connection to 127.0.0.1:7777
+// can drive commands here. Combined with the next paragraph, that means any
+// local process can currently run *any* command registered in this VS Code
+// window -- treat this the same as running an unauthenticated local server,
+// and don't use it on a shared or untrusted machine yet.
 //
-// SECURITY NOTE, deliberately no allowlist here (unlike an earlier version
-// of this file): the command catalog below is discovered live from every
-// installed extension's own contributed commands (see liveActionCatalog),
-// specifically so a newly installed extension shows up in spotlight search
-// automatically, with no hand-maintained list to keep in sync. The
-// trade-off is real and worth stating plainly: anything holding
-// config/secret.token can now invoke *any* command currently registered in
+// SECURITY NOTE, deliberately no allowlist here either (unlike an earlier
+// version of this file): the command catalog below is discovered live from
+// every installed extension's own contributed commands (see
+// liveActionCatalog), specifically so a newly installed extension shows up
+// in spotlight search automatically, with no hand-maintained list to keep
+// in sync. The trade-off is real and worth stating plainly: anything that
+// can reach this socket can invoke *any* command currently registered in
 // this VS Code window -- including ones contributed by other installed
 // extensions, some of which (running a task, executing terminal text,
 // editing/deleting files) are considerably more dangerous than "close tab".
-// The token itself is still the only gate (docs/protocol.md#trust-model--authentication):
-// treat it with the same care as an SSH private key. If that trade-off
-// isn't acceptable for your setup, reintroduce an explicit allowlist here
-// (git blame this comment for the previous version).
+// If that trade-off isn't acceptable for your setup, reintroduce an
+// explicit allowlist here (git blame this comment for the previous
+// version).
 const vscode = require("vscode");
 const net = require("net");
-const fs = require("fs");
 
 const HOST = "127.0.0.1";
 const PORT = 7777;
@@ -78,20 +81,7 @@ async function runSpotlight() {
   });
 }
 
-function loadToken() {
-  const tokenPath = vscode.workspace.getConfiguration("keylex").get("tokenPath");
-  if (!tokenPath) {
-    throw new Error(
-      "keylex.tokenPath is not set -- point it at the secret.token file the " +
-        "daemon generated in its config directory (see ../../docs/protocol.md#trust-model--authentication)"
-    );
-  }
-  return fs.readFileSync(tokenPath, "utf8").trim();
-}
-
 function activate(context) {
-  const token = loadToken();
-
   const server = net.createServer((socket) => {
     let buffer = "";
     socket.on("data", (chunk) => {
@@ -114,11 +104,6 @@ function activate(context) {
       console.error("keylex: could not parse message:", line, err);
       return;
     }
-    if (message.token !== token) {
-      console.error("keylex: rejected message with invalid/missing token:", message.command || message.type);
-      return;
-    }
-
     // The list_actions handshake (../../docs/protocol.md#action-catalog-handshake-list_actions):
     // respond once, on this same connection, with the live catalog, then
     // close -- it's a request/response exchange, not the fire-and-forget

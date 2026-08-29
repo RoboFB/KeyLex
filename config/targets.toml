@@ -3,11 +3,12 @@
 # a per-extension capabilities.toml) -- a target reports that live, via the
 # list_actions handshake (see docs/protocol.md#action-catalog-handshake-list_actions).
 #
-# Both local IPC adapters (socket, websocket) require every message to
-# carry the shared secret the daemon generates on first run at
-# <config-dir>/secret.token (git-ignored, never checked in -- see
-# docs/protocol.md#trust-model--authentication). Nothing here configures
-# the token itself; it's loaded automatically from that fixed path.
+# Both local IPC adapters (socket, websocket) are unauthenticated right now
+# -- the shared-secret token they used to require on every message has been
+# deliberately dropped for now (see docs/protocol.md#trust-model--authentication
+# and CLAUDE.md's "Known gaps"), in favor of a keypair-based scheme later.
+# They're bound to 127.0.0.1 only; the websocket adapter's `allowed_origin`
+# below is the one remaining check.
 
 [[target]]
 program = "vscode"

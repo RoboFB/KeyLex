@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use crate::adapters::{SocketAdapter, WebSocketAdapter};
 use crate::config::{AdapterKind, KeyCombo, Registry};
 use crate::dispatch::{Adapters, FallbackSender, Notifier, Router};
-use crate::{auth, capture, focus, spotlight};
+use crate::{capture, focus, spotlight};
 
 const USAGE: &str = "\
 keylex -- resolve keystrokes into actions and dispatch them natively
@@ -69,38 +69,28 @@ fn execute(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 
     let registry = Registry::load(&config_dir)
         .map_err(|e| format!("failed to load config from {}: {e}", config_dir.display()))?;
-    let token = auth::load_or_create_token(&config_dir).map_err(|e| {
-        format!(
-            "failed to read the auth token in {}: {e}",
-            config_dir.display()
-        )
-    })?;
 
     match command {
-        Command::Demo => demo(&router(&registry, &token)),
+        Command::Demo => demo(&router(&registry)),
         Command::Send(action_id, process_name) => {
-            let outcome = router(&registry, &token).dispatch(&action_id, Some(&process_name));
+            let outcome = router(&registry).dispatch(&action_id, Some(&process_name));
             println!("{action_id} -> {outcome}");
         }
         Command::Spotlight => {
-            let mut index = catalog(&registry, &config_dir, &token);
-            spotlight::run_interactive(&mut index, &router(&registry, &token))?;
+            let mut index = catalog(&registry, &config_dir);
+            spotlight::run_interactive(&mut index, &router(&registry))?;
         }
         Command::Query(query) => {
-            let index = catalog(&registry, &config_dir, &token);
+            let index = catalog(&registry, &config_dir);
             println!("{}", serde_json::to_string(&index.search(&query))?);
         }
         Command::Run(action_id) => {
-            let mut index = catalog(&registry, &config_dir, &token);
-            run_action(&mut index, &router(&registry, &token), &action_id);
+            let mut index = catalog(&registry, &config_dir);
+            run_action(&mut index, &router(&registry), &action_id);
         }
         Command::Capture => {
-            let websocket = websocket_adapter(&registry, &token);
-            capture::run(
-                &registry,
-                adapters(&token, websocket),
-                Box::new(LogNotifier),
-            )?;
+            let websocket = websocket_adapter(&registry);
+            capture::run(&registry, adapters(websocket), Box::new(LogNotifier))?;
         }
     }
     Ok(())
@@ -164,16 +154,13 @@ fn run_action(index: &mut spotlight::Index, router: &Router, action_id: &str) {
     println!("{action_id} -> {outcome}");
 }
 
-fn catalog<'a>(registry: &'a Registry, config_dir: &Path, token: &str) -> spotlight::Index<'a> {
-    spotlight::bootstrap(registry, config_dir, &SocketAdapter::new(token.to_string()))
+fn catalog<'a>(registry: &'a Registry, config_dir: &Path) -> spotlight::Index<'a> {
+    spotlight::bootstrap(registry, config_dir, &SocketAdapter::new())
 }
 
-fn adapters(token: &str, websocket: Option<WebSocketAdapter>) -> Adapters {
+fn adapters(websocket: Option<WebSocketAdapter>) -> Adapters {
     let mut adapters = Adapters::new();
-    adapters.insert(
-        AdapterKind::Socket,
-        Box::new(SocketAdapter::new(token.to_string())),
-    );
+    adapters.insert(AdapterKind::Socket, Box::new(SocketAdapter::new()));
     if let Some(websocket) = websocket {
         adapters.insert(AdapterKind::WebSocket, Box::new(websocket));
     }
@@ -182,10 +169,10 @@ fn adapters(token: &str, websocket: Option<WebSocketAdapter>) -> Adapters {
 
 /// The router the CLI modes share. Only the capture loop needs a
 /// websocket adapter, and it builds its own `Adapters` for that.
-fn router<'a>(registry: &'a Registry, token: &str) -> Router<'a> {
+fn router(registry: &Registry) -> Router<'_> {
     Router::new(
         registry,
-        adapters(token, None),
+        adapters(None),
         Box::new(LogNotifier),
         Box::new(LogFallbackSender),
     )
@@ -194,7 +181,7 @@ fn router<'a>(registry: &'a Registry, token: &str) -> Router<'a> {
 /// Starts the WebSocket server the daemon needs for any target that
 /// connects *in* rather than being connected to. Only the first such target
 /// is served; a second one would need its own port and server.
-fn websocket_adapter(registry: &Registry, token: &str) -> Option<WebSocketAdapter> {
+fn websocket_adapter(registry: &Registry) -> Option<WebSocketAdapter> {
     let target = registry
         .targets()
         .iter()
@@ -207,7 +194,7 @@ fn websocket_adapter(registry: &Registry, token: &str) -> Option<WebSocketAdapte
         return None;
     };
 
-    WebSocketAdapter::spawn(port, token.to_string(), target.allowed_origin.clone())
+    WebSocketAdapter::spawn(port, target.allowed_origin.clone())
         .map_err(|e| eprintln!("keylex: could not start the websocket adapter on port {port}: {e}"))
         .ok()
 }

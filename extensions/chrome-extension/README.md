@@ -9,14 +9,17 @@ Chrome Web Store — load it as an unpacked extension for now.
 1. Open `chrome://extensions/`.
 2. Enable **Developer mode** (top right).
 3. Click **Load unpacked** and select this `extensions/chrome-extension/`
-   folder.
-4. Open the extension's **Details → Extension options** (or click its icon
-   on `chrome://extensions/`), paste in the contents of the daemon's
-   `config/secret.token` (generated on first run -- see
-   [../../docs/protocol.md](../../docs/protocol.md#trust-model--authentication)),
-   and click **Save**. The daemon won't trust this connection at all until
-   this token matches.
-5. (Optional, recommended) Note the extension's ID from `chrome://extensions/`
+   folder. It connects to the daemon on load -- no pairing step needed.
+
+**SECURITY NOTE:** there is currently NO authentication on this connection
+(deliberately dropped for now -- see
+[../../docs/protocol.md](../../docs/protocol.md#trust-model--authentication)
+and [../../CLAUDE.md](../../CLAUDE.md)'s "Known gaps"; a keypair-based
+scheme is planned). Any local process, or any webpage's JS, can currently
+open `ws://127.0.0.1:7778` and take this extension's place unless you set
+`allowed_origin` per step 4 below.
+
+4. (Optional, recommended) Note the extension's ID from `chrome://extensions/`
    and set it as `allowed_origin = "chrome-extension://<id>"` under the
    `chrome` target in `config/targets.toml`, so the daemon also rejects any
    WebSocket connection whose `Origin` isn't this exact extension.
