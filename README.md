@@ -1,95 +1,96 @@
 # Keylex
 
-Keylex generalisiert Tasteneingaben in **abstrakte Aktionen**
-("close tab", "go_to definition", "save") und dispatcht diese Aktionen
-je nach fokussierter Anwendung über deren **native API** — anstatt
-einfach Keycodes zu simulieren. Nur wenn eine App keine eigene
-Schnittstelle bietet, greift ein Keycode-Fallback.
+Keylex generalizes keystrokes into **abstract actions** ("close tab",
+"go_to definition", "save") and dispatches those actions through the
+focused application's **native API** — instead of just simulating
+keycodes. A keycode is only sent as a fallback, when an app has no native
+interface of its own.
 
-Damit soll eine physische Taste auf jedem System und in jedem Programm
-dasselbe Sinnvolle tun, egal ob VS Code, Chrome, Neovim oder ein
-Terminal gerade fokussiert ist. Der Kern (Keyboard-Interception,
-Fokus-Erkennung, Dispatch) ist in Rust geschrieben, um so tief wie
-möglich in das OS eingreifen zu können; die App-seitigen Adapter (z. B.
-die VS-Code-Extension) leben jeweils in der Sprache, die für diese App
-am sinnvollsten ist — aktuell JavaScript.
+The goal is for a physical key to do the same sensible thing on every
+system and in every program, regardless of whether VS Code, Chrome,
+Neovim, or a terminal is currently focused. The core (keyboard
+interception, focus resolution, dispatch) is written in Rust, to be able
+to intervene as deep in the OS as possible; the app-side adapters (e.g.
+the VS Code extension) each live in whichever language makes the most
+sense for that app — currently JavaScript.
 
-## Architektur
+## Architecture
 
 ```
-Physische Tastatur                Rust-Daemon                    Ziele
-                          (config/actions.toml Mapping)      (config/targets.toml)
+Physical keyboard                 Rust daemon                     Targets
+                          (config/targets.toml wiring)        (config/targets.toml)
 ──────────────────      ──────────────────────────────      ──────────────
-Jeder Tastendruck  ─→  Capture (evdev/uinput | WH_KEYBOARD_LL)
+Every keystroke   ─→  Capture (evdev/uinput | WH_KEYBOARD_LL)
                               │
-                              ├─ kein Treffer → unverändert durchgereicht
+                              ├─ no match → passed through unchanged
                               │
-                              └─ Treffer → interne Aktion       ┌─→  VS-Code-Adapter (Extension/Socket)
-                                 z.B. "close.tab"          ─────┼─→  Chrome-Adapter (Native Messaging, geplant)
-                                                                 ├─→  Neovim (RPC, geplant)
-                                                                 ├─→  System-Aktion (fester OS-Keycode)
-                                                                 └─→  Keycode-Fallback (generisch)
+                              └─ match → internal action           ┌─→  VS Code adapter (extension/socket)
+                                 e.g. "close.tab"             ─────┼─→  Chrome adapter (WebSocket)
+                                                                    ├─→  Neovim (RPC, unimplemented)
+                                                                    ├─→  OS-wide system action (socket)
+                                                                    └─→  Keycode fallback (generic)
 ```
 
-Drei Config-Ebenen:
-1. **Wortliste** (`config/vocabulary.toml`) — die einzigen erlaubten
-   Bausteine einer Aktions-ID: Verben (`close`, `save`, …) und Objekte
-   (`tab`, `sidebar`, …).
-2. **Aktionen + Trigger** (`config/actions.toml`) — geräteunabhängige
-   Aktionen (`close.tab`, `save`, `go_to.definition`, …), jeweils mit
-   optionalem physischem Tastentrigger und Fallback-Verhalten.
-3. **Output** (`config/targets.toml`) — pro Zielprogramm, wie es
-   erreicht wird und wo seine Capability-Liste (`capabilities.toml` in
-   `extensions/<name>/`) steht.
+There is no static action vocabulary or per-target capability list any
+more — both were replaced by live discovery:
 
-Jeder Tastendruck, der zu einem konfigurierten Trigger passt, wird immer
-abgefangen (nie ans OS/die App durchgereicht) und dispatcht; alles
-andere bleibt unverändert nutzbar — das ist die konkrete Umsetzung von
-"jeden Keycode so tief wie möglich abfangen".
+1. **`config/targets.toml`** — transport wiring only: per target program,
+   which process identifies it, which adapter reaches it
+   (`socket`/`websocket`/`rpc`), and connection details. A target reports
+   what it supports live, via the `list_actions` handshake, instead of
+   Keylex holding a static copy.
+2. **`config/keymap.toml`** — the skeleton for the one thing live
+   discovery can't cover: which physical key/chord should trigger which
+   action. Not yet wired into the daemon's startup — see
+   [CLAUDE.md](CLAUDE.md) for the current status.
 
-## Aktionskategorien & Fallback-Verhalten
+A key combo that matches a bound action is always intercepted (never
+passed through to the OS/app directly) and dispatched; everything else
+stays usable exactly as before — that's the concrete meaning of
+"intercept every keycode as deep as possible."
 
-Jede Aktion trägt eine Fallback-Stufe:
+## Fallback behavior
 
-| Stufe            | Verhalten                                             | Beispiel                 |
+Every action carries a fallback tier:
+
+| Tier             | Behavior                                              | Example                  |
 |------------------|--------------------------------------------------------|---------------------------|
-| `silent`         | Keycode-Fallback ohne Hinweis                          | `save`                    |
-| `notify_attempt` | Keycode-Fallback + kurzer Hinweis, dass geraten wurde   | `duplicate.line`          |
-| `notify_only`    | Kein Fallback, nur "nicht unterstützt"-Meldung          | `go_to.definition`        |
+| `silent`         | Keycode fallback, no notice                            | `save`                    |
+| `notify_attempt` | Keycode fallback + a brief notice that it was guessed   | `duplicate.line`          |
+| `notify_only`    | No fallback, just an "unsupported" notice               | `go_to.definition`        |
 
-Aktionen, die zu gar keiner App gehören (`shutdown`, `move.left`, …),
-laufen stattdessen über den **OS-weiten Listener** — ein eigenes Target
-mit `os = "linux"`/`os = "windows"` in `config/targets.toml`, das der
-Router immer dann versucht, wenn die fokussierte App die Aktion nicht
-unterstützt, und bevor er zum Keycode-Fallback greift.
+Actions that don't belong to any particular app (`shutdown`, `move.left`,
+…) instead go through the **OS-wide system listener** — its own target,
+identified by `os = "linux"`/`os = "windows"` in `config/targets.toml`,
+which the router tries whenever the focused app doesn't support the
+action, before falling back to the keycode path.
 
-## Spotlight-Suche
+## Spotlight search
 
-`keylex --spotlight` öffnet eine fuzzy-durchsuchbare Liste aller
-konfigurierten Aktionen im Terminal (Enter dispatcht die gewählte Aktion
-genau wie ein echter Tastendruck) — plattformunabhängig, da sowohl das
-Fuzzy-Matching (`nucleo-matcher`) als auch die Terminal-UI (`crossterm`)
-reine Rust-Bibliotheken ohne OS-spezifischen Code sind. Die "gültigen
-Optionen" kommen dabei nie aus einer statischen Liste, sondern per
-Handshake live vom jeweiligen Ziel (z. B. der VS-Code-Extension, die dafür
-ihren eigenen `keylex.spotlight`-Befehl mitbringt) — siehe
+`keylex --spotlight` opens a fuzzy-searchable list of every known action
+in the terminal (Enter dispatches the selected action exactly like a real
+keystroke) — cross-platform, since both the fuzzy matching
+(`nucleo-matcher`) and the terminal UI (`crossterm`) are pure Rust
+libraries with no OS-specific code. The "valid options" never come from a
+static list — they're discovered live, via handshake, from each connected
+target (e.g. the VS Code extension, which brings its own
+`keylex.spotlight` command for this) — see
 [docs/protocol.md](docs/protocol.md#action-catalog-handshake-list_actions)
-und [CLAUDE.md](CLAUDE.md) für Details, inklusive optionalem
-Zoxide-artigem "zuletzt verwendet"-Tracking und der (in diesem
-Entwicklungsumfeld ungetesteten) GNOME-Shell-Suchanbieter-Integration unter
-`extensions/linux-extension/`.
+and [CLAUDE.md](CLAUDE.md) for details, including optional zoxide-style
+"last used" tracking and the (untested in this dev environment) GNOME
+Shell search-provider integration under `extensions/linux-extension/`.
 
 ## Status
 
-Früher Prototyp. Die Rust-Dispatch-Pipeline (Registry, Router, Capture)
-steht und ist auf Linux getestet. Das Windows-Capture-Backend
-(`src/capture/windows.rs`) ist ein sorgfältiger Port: es kompiliert
-(`cargo check --target x86_64-pc-windows-msvc`), ist aber außerhalb einer
-echten Windows-Maschine ungetestet. Erster Zielarchitektur-
-Baustein: VS-Code-Adapter (offizielle Extension-API, klar dokumentierte
-Commands). Details zur Architektur: [CLAUDE.md](CLAUDE.md), zum
-Adapter-Wire-Format: [docs/protocol.md](docs/protocol.md), zu
-Rust-Code-Konventionen: [docs/rust-coding-guidelines.md](docs/rust-coding-guidelines.md).
+Early prototype. The Rust dispatch pipeline (registry, router, capture)
+is in place and tested on Linux. The Windows capture backend
+(`src/capture/windows.rs`) is a careful port: it compiles
+(`cargo check --target x86_64-pc-windows-msvc`), but is untested outside
+a real Windows machine. First target-architecture building block: the VS
+Code adapter (the official extension API, clearly documented commands).
+Architecture details: [CLAUDE.md](CLAUDE.md); adapter wire format:
+[docs/protocol.md](docs/protocol.md); Rust coding conventions:
+[docs/rust-coding-guidelines.md](docs/rust-coding-guidelines.md).
 
 ## Privacy & Security
 
@@ -134,49 +135,50 @@ explicitly as a standing constraint on future changes).
 ```bash
 cargo build
 
-cargo run -- --demo   # Smoke-Test: zwei Beispiel-Dispatches, keine Hardware nötig
-cargo run              # echte, blockierende Keyboard-Interception
-cargo run -- --spotlight   # interaktive Fuzzy-Suche über alle Aktionen
+cargo run -- --demo   # smoke test: two example dispatches, no hardware needed
+cargo run              # real, blocking keyboard interception
+cargo run -- --spotlight   # interactive fuzzy search over all actions
 ```
 
-Für einen End-to-End-Test ohne die echte VS-Code-Extension:
+For an end-to-end test without the real VS Code extension:
 
 ```bash
-node scripts/fake-vscode-listener.js   # simuliert die Extension-Socket-Seite
-cargo run                               # in einem zweiten Terminal
+node scripts/fake-vscode-listener.js   # simulates the extension's socket side
+cargo run                               # in a second terminal
 ```
 
-## VS-Code-Adapter testen
+## Testing the VS Code adapter
 
-`./run <vscode-command-id>` (im Repo-Root) ist ein minimaler, von der
-Rust-Registry unabhängiger Test-Client: er schickt genau diesen einen
-Befehl über den `keylex/v0`-Socket an die Extension — z. B.
-`./run workbench.action.closeActiveEditor`. Siehe
-[docs/protocol.md](docs/protocol.md) für das Wire-Format.
+`./run <vscode-command-id>` (from the repo root) is a minimal test client,
+independent of the Rust registry: it sends exactly that one command over
+the `keylex/v0` socket to the extension — e.g.
+`./run workbench.action.closeActiveEditor`. See
+[docs/protocol.md](docs/protocol.md) for the wire format.
 
-Damit `./run` überhaupt etwas erreicht, muss
-`extensions/vscode-extension/extension.js` erst irgendwo laufen. Zwei
-Wege, in aufsteigender Dauerhaftigkeit:
+For `./run` to reach anything at all,
+`extensions/vscode-extension/extension.js` first needs to be running
+somewhere. Two ways, in increasing order of permanence:
 
-1. **Extension Development Host (zum Testen, Wegwerf-Fenster)** —
-   `extensions/vscode-extension/` als Ordner in VS Code öffnen, dann im
-   "Run and Debug"-Panel ("Run Keylex Extension") starten. Öffnet ein
-   zweites Fenster mit Titel `[Extension Development Host]`, in dem die
-   Extension aktiv ist — nur in diesem einen Fenster, nicht in den
-   normalen VS-Code-Fenstern.
-2. **Dauerhaft installiert (läuft in jedem normalen Fenster)** — die
-   Extension ist noch nicht als echtes `.vsix` gepackt; am schnellsten
-   für lokale Entwicklung ist ein Symlink nach
-   `~/.vscode/extensions/keylex-vscode-adapter` (Ziel:
-   `extensions/vscode-extension/` in diesem Repo), danach VS Code neu
-   starten. Damit läuft ab dann in **jedem** VS-Code-Fenster ein
-   Socket-Server auf Port 7777 im Hintergrund — nicht nur projektbezogen.
+1. **Extension Development Host (for testing, a throwaway window)** —
+   open `extensions/vscode-extension/` as a folder in VS Code, then launch
+   it from the "Run and Debug" panel ("Run Keylex Extension"). This opens
+   a second window titled `[Extension Development Host]` in which the
+   extension is active — only in that one window, not in your normal VS
+   Code windows.
+2. **Installed permanently (runs in every normal window)** — the
+   extension isn't packaged as a real `.vsix` yet; the fastest option for
+   local development is a symlink into
+   `~/.vscode/extensions/keylex-vscode-adapter` (pointing at
+   `extensions/vscode-extension/` in this repo), then restart VS Code.
+   From then on, **every** VS Code window runs a socket server on port
+   7777 in the background — not just per-project.
 
-`extension.js` hat aktuell **keine** Befehls-Allowlist (bewusst entfernt
-für lokales Testen) und der Socket ist derzeit **unauthentifiziert** (das
-frühere Shared-Secret-Token wurde bewusst entfernt, siehe
-[docs/protocol.md](docs/protocol.md#trust-model--authentication)) — jeder
-lokale Prozess, der die Verbindung erreicht, kann jeden registrierten
-Befehl ausführen, nicht nur die in `capabilities.toml` deklarierten. Vor
-jedem Einsatz außerhalb der eigenen Maschine sollte das wieder
-eingeschränkt werden (siehe Kommentar am Dateianfang).
+`extension.js` currently has **no** command allowlist (deliberately
+removed for local testing) and the socket is currently
+**unauthenticated** (the earlier shared-secret token was deliberately
+removed, see
+[docs/protocol.md](docs/protocol.md#trust-model--authentication)) — any
+local process that can reach the connection can run any registered
+command, not just ones declared anywhere. This should be locked back down
+before any use outside your own machine (see the comment at the top of
+the file).

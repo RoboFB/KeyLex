@@ -19,6 +19,12 @@ constraint as [../../src/focus/linux.rs](../../src/focus/linux.rs)) and
   true by default on most desktop Linux systems via polkit for the active
   session; if it isn't on yours, `shutdown` will just fail silently
   (its `keylex/v0` dispatch is fire-and-forget, per the protocol doc).
+- For the GNOME-native actions below (workspace switching, volume,
+  brightness, notifications, overview toggle): `wpctl` (part of
+  `wireplumber`), `gdbus` and `gsettings` (part of `glib2`/`libglib2.0-bin`),
+  and `pgrep` (part of `procps`) on `PATH`. All of these ship with any
+  real GNOME/PipeWire desktop by default, same trust tier as
+  `wmctrl`/`xdotool` above.
 
 ## Run
 
@@ -60,6 +66,38 @@ config uses dynamic workspaces** (one is created/destroyed automatically the
 moment you need it, no fixed count to grow) -- on stock GNOME this command
 is effectively a no-op; disable dynamic workspaces in GNOME Settings, or use
 a WM with a fixed workspace count, for it to do anything.
+
+## Live GNOME-native actions
+
+Beyond the ten static commands above, `listener.js` answers the
+`list_actions` handshake
+([../../docs/protocol.md](../../docs/protocol.md#action-catalog-handshake-list_actions))
+with five more categories that are re-checked against real system state on
+*every* handshake, rather than a fixed list baked into source -- mirroring
+how `vscode-extension/extension.js` queries VS Code's live command registry
+every time instead of shipping a static catalog. Each one fails closed
+(contributes nothing) if its underlying tool/service isn't available,
+rather than breaking the rest of the catalog.
+
+| Category | `command` (wire) | Live-checked at handshake time | Implementation |
+|---|---|---|---|
+| Workspace switching | `os.desktop.switch_to.<id>` (one per existing workspace other than the active one) | Real current workspace count/active index, via `wmctrl -d` | `wmctrl -s <id>` -- unlike `create.desktop`, switching *between* existing workspaces correctly drives EWMH `_NET_CURRENT_DESKTOP` under Mutter even in GNOME's dynamic-workspace mode |
+| Volume | `os.audio.volume_up` / `os.audio.volume_down` / `os.audio.mute_toggle` | Current volume %/mute state, via `wpctl get-volume` | `wpctl set-volume`/`set-mute` against `@DEFAULT_AUDIO_SINK@` (PipeWire/WirePlumber, GNOME's default audio stack -- no `pactl`-only fallback) |
+| Brightness | `os.display.brightness_up` / `os.display.brightness_down` | Current backlight %, via a D-Bus `Get` on `org.gnome.SettingsDaemon.Power.Screen`'s `Brightness` property | Read-then-write `gdbus call` pair, clamped 0-100; contributes nothing on hardware with no controllable backlight |
+| Do Not Disturb | `os.notifications.toggle_dnd` | Current `org.gnome.desktop.notifications show-banners` value, via `gsettings get` | Read-then-flip `gsettings set`; the reported title ("Enable"/"Disable Do Not Disturb") always names the action that will actually run next |
+| Activities overview toggle | `os.shell.toggle_overview` | Only that a GNOME session looks like it's running (`XDG_CURRENT_DESKTOP`, `pgrep gnome-shell`) | `xdotool key super` |
+
+**Overview-toggle caveat, best-effort/unverified:** the "proper" API,
+`org.gnome.Shell.Eval`, is gated behind GNOME Shell's Looking Glass "Unsafe
+Mode" (off by default) -- the same access-denied category [CLAUDE.md](../../CLAUDE.md)'s
+"Spotlight popup" section already documents for
+`org.gnome.Shell.GrabAccelerator` being refused to any external caller.
+`xdotool key super` synthesizes a real key event instead, which Mutter's own
+Super-tap overview detector should react to directly -- but this has never
+been run against a real GNOME Shell session (none exists in this project's
+dev/CI environment), so treat it with the same "plausible, not confirmed"
+caveat as `create.desktop`'s documented no-op above, until verified on a
+real machine.
 
 ## GNOME Shell search provider (`search-provider.js`)
 
