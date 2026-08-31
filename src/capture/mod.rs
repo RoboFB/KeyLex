@@ -15,6 +15,8 @@ pub use linux::run;
 mod windows;
 #[cfg(windows)]
 pub use windows::run;
+#[cfg(windows)]
+pub(crate) use windows::vk_for_token;
 
 /// macOS and everything else: compiles, but there is no backend to run.
 /// The planned approach is a `CGEventTap` behind an Accessibility grant.

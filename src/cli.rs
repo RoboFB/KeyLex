@@ -3,11 +3,13 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::mpsc;
+use std::thread;
 
 use crate::adapters::{SocketAdapter, WebSocketAdapter};
 use crate::config::{AdapterKind, KeyCombo, Registry};
 use crate::dispatch::{Adapters, FallbackSender, Notifier, Router};
-use crate::{capture, focus, spotlight};
+use crate::{capture, focus, hotkey, spotlight};
 
 const USAGE: &str = "\
 keylex -- resolve keystrokes into actions and dispatch them natively
@@ -27,6 +29,13 @@ on Linux). Options:
   --spotlight               interactive fuzzy action search
   --spotlight-query <text>  print ranked matches as JSON and exit
   --spotlight-run <id>      dispatch one action id and exit
+  --spotlight-daemon        background: press win+t for a small popup search
+                            window; needs a graphical session (X11/Wayland)
+  --spotlight-popup         show the popup search window once and exit when
+                            dismissed -- meant to be run *by* a desktop
+                            environment's own keybinding mechanism (a GNOME
+                            custom shortcut, a window manager keybind), not
+                            launched directly
   --config-dir <path>       load config from somewhere else
   -h, --help                show this message
 ";
@@ -39,6 +48,8 @@ enum Command {
     Spotlight,
     Query(String),
     Run(String),
+    SpotlightDaemon,
+    SpotlightPopup,
 }
 
 #[derive(Debug)]
@@ -88,6 +99,8 @@ fn execute(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             let mut index = catalog(&registry, &config_dir);
             run_action(&mut index, &router(&registry), &action_id);
         }
+        Command::SpotlightDaemon => spotlight_daemon(registry, config_dir)?,
+        Command::SpotlightPopup => spotlight_popup(registry, config_dir)?,
         Command::Capture => {
             let websocket = websocket_adapter(&registry);
             capture::run(&registry, adapters(websocket), Box::new(LogNotifier))?;
@@ -115,6 +128,8 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Option<Options>, Stri
             "--spotlight" => options.command = Command::Spotlight,
             "--spotlight-query" => options.command = Command::Query(value()?),
             "--spotlight-run" => options.command = Command::Run(value()?),
+            "--spotlight-daemon" => options.command = Command::SpotlightDaemon,
+            "--spotlight-popup" => options.command = Command::SpotlightPopup,
             "--config-dir" => options.config_dir = PathBuf::from(value()?),
             other => return Err(format!("unknown argument {other:?} (try --help)")),
         }
@@ -152,6 +167,47 @@ fn run_action(index: &mut spotlight::Index, router: &Router, action_id: &str) {
     };
     index.record_use(action_id);
     println!("{action_id} -> {outcome}");
+}
+
+/// Runs forever: leaks `registry` for a `'static` reference (`eframe`'s
+/// `App` trait requires one -- see `spotlight::gui` -- and the daemon needs
+/// it for as long as the process runs anyway, so there is no cleaner owner
+/// to hand it to instead), spawns the hotkey listener on its own thread,
+/// and blocks the current one running the popup window -- winit refuses to
+/// create its event loop anywhere but the main thread, so that side can't
+/// be the one spawned.
+fn spotlight_daemon(registry: Registry, config_dir: PathBuf) -> Result<(), Box<dyn Error>> {
+    let registry: &'static Registry = Box::leak(Box::new(registry));
+    let combo = KeyCombo::parse("win+t").expect("hardcoded combo is valid");
+    let (tx, rx) = mpsc::channel();
+
+    {
+        let combo = combo.clone();
+        thread::spawn(move || {
+            if let Err(e) = hotkey::listen(&combo, move || {
+                let _ = tx.send(());
+            }) {
+                eprintln!("keylex: hotkey listener stopped: {e}");
+            }
+        });
+    }
+
+    println!("keylex: spotlight daemon active -- press {combo} to search");
+    let index = catalog(registry, &config_dir);
+    spotlight::run_gui(index, router(registry), spotlight::Lifecycle::Daemon(rx))?;
+    Ok(())
+}
+
+/// A single popup, shown immediately and exiting the process once
+/// dismissed -- meant to be invoked *by* something else's own keybinding
+/// mechanism (see `--spotlight-popup` in `USAGE`) rather than run directly.
+/// No hotkey listener of its own, so no thread to spawn: everything runs on
+/// this one, same as `spotlight_daemon`'s popup thread did.
+fn spotlight_popup(registry: Registry, config_dir: PathBuf) -> Result<(), Box<dyn Error>> {
+    let registry: &'static Registry = Box::leak(Box::new(registry));
+    let index = catalog(registry, &config_dir);
+    spotlight::run_gui(index, router(registry), spotlight::Lifecycle::OneShot)?;
+    Ok(())
 }
 
 fn catalog<'a>(registry: &'a Registry, config_dir: &Path) -> spotlight::Index<'a> {

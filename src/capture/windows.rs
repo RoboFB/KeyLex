@@ -65,7 +65,10 @@ fn token(vk: u32) -> Option<String> {
     Some(name.to_string())
 }
 
-fn vk_for_token(token: &str) -> Option<VIRTUAL_KEY> {
+/// Shared with `hotkey::windows`, which needs the same token->VK mapping
+/// for `RegisterHotKey` that this hook uses for chord replay and fallback
+/// keycodes.
+pub(crate) fn vk_for_token(token: &str) -> Option<VIRTUAL_KEY> {
     match token {
         "ctrl" => Some(VK_CONTROL),
         "shift" => Some(VK_SHIFT),

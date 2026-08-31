@@ -12,9 +12,11 @@
 //!   Linux/macOS/Windows) plus an optional frecency bonus.
 
 mod frecency;
+mod gui;
 mod ui;
 
 pub use frecency::Frecency;
+pub use gui::{run as run_gui, Lifecycle};
 pub use ui::run_interactive;
 
 use std::path::Path;
@@ -277,7 +279,10 @@ mod tests {
     fn registry() -> Registry {
         Registry::with_actions_and_triggers(
             std::collections::HashMap::from([
-                ("close.tab".to_string(), crate::config::Fallback::Unsupported),
+                (
+                    "close.tab".to_string(),
+                    crate::config::Fallback::Unsupported,
+                ),
                 ("save".to_string(), crate::config::Fallback::Unsupported),
             ]),
             std::collections::HashMap::from([(

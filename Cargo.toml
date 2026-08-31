@@ -20,9 +20,21 @@ nucleo-matcher = "0.3"
 # Cross-platform terminal input/render for the interactive spotlight
 # launcher (`keylex --spotlight`) -- same crate, no cfg(target_os) needed.
 crossterm = "0.29"
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
+# The small popup window `keylex --spotlight-daemon` raises on its global
+# hotkey (src/spotlight/gui.rs) -- a real GUI window rather than a terminal
+# UI, since the daemon has no controlling terminal to draw into. `glow`
+# (OpenGL) avoids pulling in `wgpu`'s much larger dependency tree; `x11`
+# and `wayland` cover both Linux display servers, and Windows needs neither
+# feature flag (`winit` picks its Win32 backend automatically).
+eframe = { version = "0.36.1", default-features = false, features = ["default_fonts", "glow", "x11", "wayland"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 evdev = "0.12"
+# Already resolved transitively via eframe's `x11` feature (winit's X11
+# backend) -- promoted to a direct dependency for `hotkey::linux`'s
+# `XGrabKey` global hotkey, no new supply-chain surface added.
+x11rb = "0.13"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

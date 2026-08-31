@@ -51,6 +51,13 @@ cargo run -- --config-dir <path>  # load targets.toml/keymap.toml from elsewhere
 cargo run -- --spotlight                    # interactive fuzzy action search/dispatch (src/spotlight/)
 cargo run -- --spotlight-query "<text>"      # non-interactive: print ranked matches as JSON, no dispatch
 cargo run -- --spotlight-run "<action-id>"   # non-interactive: dispatch one action id, record frecency
+cargo run -- --spotlight-daemon              # background: one hardcoded combo (default win+t) raises the
+                                              # popup via X11's XGrabKey -- works on Linux WMs that don't
+                                              # reserve that combo themselves; see "Spotlight popup" below
+                                              # for why that excludes GNOME/Mutter
+cargo run -- --spotlight-popup                # shows the popup once and exits on dismissal -- meant to be
+                                              # run *by* a desktop environment's own keybinding mechanism
+                                              # (a GNOME custom shortcut, a WM keybind), not launched directly
 
 cargo test                # unit tests (src/config/, src/auth.rs, ...) + tests/dispatch.rs
 cargo test <name>          # single test by substring
@@ -90,6 +97,7 @@ cli.rs        argument parsing and the wiring each mode needs; main.rs is a 3-li
 config/       targets.toml -> Registry (key.rs, action.rs, target.rs, error.rs)
 capture/      keystrokes -> action ids (linux.rs, windows.rs, shared chord.rs)
 focus/        which app is focused (linux.rs, windows.rs)
+hotkey/       the one global hotkey behind --spotlight-daemon (linux.rs: X11 XGrabKey, windows.rs)
 dispatch.rs   Router: native adapter -> keycode fallback -> notify
 adapters/     one transport per file (socket.rs, websocket.rs)
 spotlight/    fuzzy action catalog (mod.rs), frecency.rs, terminal UI in ui.rs
@@ -259,6 +267,106 @@ reimplementing matching:
   reimplementation. See that folder's README.md for registration/setup and
   the exact untested caveat.
 
+### Spotlight popup (`src/hotkey/`, `src/spotlight/gui.rs`)
+
+Two commands share one `egui`/`eframe` popup window (`spotlight::gui`) --
+a real OS window, not a TUI, since neither has a controlling terminal to
+draw into -- with the same type-to-filter/arrow-key-move/Enter-to-dispatch
+behavior as `ui.rs`'s terminal launcher, over the same
+`spotlight::Index`/`Router` pair `--spotlight` uses:
+
+- `keylex --spotlight-daemon` blocks listening for one hardcoded global
+  hotkey (`win+t`, not yet configurable) via `src/hotkey::listen`, raising
+  the popup each time it fires (`spotlight::Lifecycle::Daemon`); the popup
+  stays alive, hidden, between presses.
+- `keylex --spotlight-popup` shows the popup once, immediately
+  (`spotlight::Lifecycle::OneShot`), and exits the process as soon as it's
+  dismissed -- **no hotkey listener of its own**. It's meant to be the
+  *target* of a desktop environment's own keybinding mechanism, not run
+  directly.
+
+**Why both exist, and why the split matters on GNOME specifically:**
+`src/hotkey/linux.rs` grabs a global hotkey via X11's `XGrabKey` -- the
+same permission-free mechanism most window managers use for their own
+keybindings, no `evdev` group membership needed (unlike `capture`'s raw
+device grab). It works, and is unit-tested for its own pure logic
+(keysym/modmask lookup, the CapsLock/NumLock permutations `XGrabKey`
+needs), but **GNOME's Mutter compositor reserves the Super/Win modifier for
+its own Activities-overview tap-detection** and blocks other clients'
+passive grabs on Super-combos outright, even ones nothing is bound to --
+confirmed on this dev machine: `ctrl+alt+j` grabs and fires correctly,
+`win+t` silently never does, under GNOME Shell 42. The X11-native fix a
+Shell extension would use, `org.gnome.Shell`'s `GrabAccelerator` D-Bus
+method, is itself **access-denied to any caller outside the Shell process**
+as of GNOME 42 (`AccessDenied: GrabAccelerator is not allowed` --
+confirmed directly via `gdbus call` on this machine, not merely "should
+work" from docs). So on GNOME, the fully-supported path -- the same one
+GNOME Settings' own Keyboard Shortcuts panel uses -- is a **custom
+keybinding via `gsettings`** (`org.gnome.settings-daemon.plugins.media-keys
+custom-keybindings`), which lets `gnome-settings-daemon` (a trusted part of
+the session) own the actual grab and run an arbitrary command when it
+fires. `--spotlight-popup` exists to be that command: point a new
+`custom-keybinding` entry's `binding` at `<Super>t` and its `command` at
+`keylex --spotlight-popup`, and GNOME's own settings daemon becomes the
+listener -- no raw grab racing Mutter needed at all. (This is not
+configured by the repo or any setup script; it's a `gsettings` change on
+whatever machine runs it, same category as changing a system's PATH.) The
+same mechanism is also how one would *replace* a GNOME default binding
+(Win+D, workspace switching, ...) with a Keylex-routed action: clear the
+existing key in `org.gnome.desktop.wm.keybindings`/
+`org.gnome.shell.keybindings`/`org.gnome.mutter.keybindings` (set it to
+`[]`) and add a custom-keybinding over the same combo instead --
+unexplored beyond this one binding so far.
+
+`--spotlight-daemon`'s `XGrabKey` path remains the right choice outside
+GNOME (i3, openbox, xfwm, ...), or for any combo GNOME hasn't reserved for
+itself.
+
+- `src/hotkey/linux.rs` promotes `x11rb` (already resolved transitively via
+  `eframe`'s `x11` feature) to a direct dependency, rather than
+  `capture::linux`'s `evdev` -- it asks the X server for the keycode a
+  keysym currently maps to (`GetKeyboardMapping`, since layouts vary) and
+  grabs every CapsLock/NumLock permutation of the requested modifiers on
+  every screen's root window (`XGrabKey` matches modifier state exactly,
+  so without this a hotkey silently never fires whenever either lock is
+  on -- a real, easy-to-hit gotcha, not a hypothetical one). No relation to
+  `capture::linux` at all beyond both targeting a keyboard.
+- `src/hotkey/windows.rs` uses `RegisterHotKey`/`WM_HOTKEY` -- Win32's own
+  API for a global hotkey, and notably not an extension of
+  `capture::windows`'s low-level hook, since claiming the combo outright is
+  also what pre-empts the shell's own reserved handling of it (Win+T,
+  unclaimed, cycles the taskbar). Reuses `capture::windows::vk_for_token`,
+  made `pub(crate)` for this. Same caveat as `capture::windows.rs`: a
+  careful port, but this dev environment has never been able to install the
+  `x86_64-pc-windows-msvc` target (`rustup target add` fails offline), so
+  unlike the rest of the Windows backend this file has never even been
+  `cargo check`ed, let alone run. No GNOME-style access restriction is
+  known to apply on Windows, but that's untested too.
+- `src/spotlight/gui.rs`'s `App` holds `Index<'static>`/`Router<'static>`
+  because `eframe::App` is a `'static` trait object; `cli.rs`'s
+  `spotlight_daemon`/`spotlight_popup` get there by `Box::leak`ing the
+  `Registry` both borrow from, which is fine since it needs to live for the
+  process's whole run either way. The window is created once and never
+  destroyed again for as long as the process runs: for the daemon,
+  "reopen the popup" toggles `ViewportCommand::Visible` on that one window
+  rather than recreating winit's event loop per hotkey press (not
+  something every platform reliably supports); for the one-shot popup,
+  dismissing it sends `ViewportCommand::Close` instead, which is what
+  actually ends the process (eframe's `run_native` returns once the root
+  viewport closes). The daemon's titlebar close button is intercepted
+  (`ViewportCommand::CancelClose`) and turned into a hide instead, since
+  letting it through would exit the whole daemon, not just hide the popup
+  -- the one-shot popup has nothing to stay alive for, so its close button
+  is left to behave normally. `NativeOptions::viewport.with_visible(false)`
+  turned out to only be a creation *hint* -- the daemon's window was
+  observably `IsViewable` for a moment at startup before an explicit
+  `ViewportCommand::Visible(false)` on the first `logic()` call fixed it,
+  so don't rely on the builder option alone if this code is touched again.
+  `winit` also refuses to create its event loop outside the main thread
+  (a hard panic, not a soft warning) -- `spotlight_daemon` runs the popup
+  on the thread `execute()` was already called on and spawns the hotkey
+  listener instead, not the other way around.
+
 ### Dispatch flow (`src/dispatch.rs`)
 
 `Router::dispatch(action_id, focused_process)` returns a `dispatch::Outcome`
@@ -414,6 +522,24 @@ started.
   later (`src/capture/` is already backend-pluggable), it's just out of
   scope until there's an actual HID implementation to add.
 - Wayland focused-window detection.
+- `--spotlight-daemon`/`--spotlight-popup`'s hotkey is hardcoded to `win+t`
+  -- no config option to change it yet, same "solve the problem in front of
+  you" stance as everything else still deferred here. `--spotlight-daemon`
+  itself never fires on Super/Win combos under GNOME specifically (Mutter
+  reserves that modifier for itself); see "Spotlight popup" above for why,
+  and for why `--spotlight-popup` plus a GNOME custom keybinding is the
+  workaround rather than a fix in `hotkey::linux` itself. No script or
+  config in this repo sets that keybinding up on a given machine -- it was
+  done by hand (`gsettings set org.gnome.settings-daemon.plugins.media-keys
+  ...`) on this dev machine only, to verify the popup end-to-end; a fresh
+  checkout has no GNOME shortcut wired until someone (or an installer not
+  yet written) adds one. `src/hotkey/windows.rs`
+  (`RegisterHotKey`/`WM_HOTKEY`) has never even been `cargo check`ed, let
+  alone run: this dev environment can't install the
+  `x86_64-pc-windows-msvc` target at all (offline `rustup target add`
+  failure), a step below the rest of the Windows backend's usual
+  "type-checks but unrun" bar. See "Spotlight popup" above for both
+  backends' fuller caveats.
 - The Windows capture backend (`src/capture/windows.rs`,
   `src/focus/windows.rs`) is a careful port of the previous Python/ctypes
   code (plus the newer chord/timer logic). It type-checks (`cargo check
