@@ -32,27 +32,36 @@ const net = require("net");
 const HOST = "127.0.0.1";
 const PORT = 7777;
 
-// The full live command catalog: every {command, title} an installed
-// extension actually contributes (vscode.extensions.all's own parsed
-// package.json is the same data VS Code's Command Palette itself is built
-// from -- ext.packageJSON.contributes.commands), filtered down to whatever
-// is *currently* registered (vscode.commands.getCommands()) so a disabled
-// extension or a not-yet-activated command silently drops out instead of
-// being offered. This is the only source of "valid options" for both the
+// The full live command catalog: every command actually runnable via
+// executeCommand right now (vscode.commands.getCommands(true)), each
+// labeled with the human title an installed extension declared for it
+// (vscode.extensions.all's own parsed package.json is the same data VS
+// Code's Command Palette itself is built from --
+// ext.packageJSON.contributes.commands) when one exists. Not every
+// registered command has a contributed title -- plenty of core
+// workbench/editor commands and commands extensions register at runtime
+// never declare one -- so those still get included, just falling back to
+// the raw command id as their own title, rather than being silently
+// dropped. This is the only source of "valid options" for both the
 // list_actions handshake
 // (../../docs/protocol.md#action-catalog-handshake-list_actions) and the
 // keylex.spotlight QuickPick below, and it needs zero maintenance when a
 // new extension gets installed -- it's picked up on the next call.
 async function liveActionCatalog() {
-  const registered = new Set(await vscode.commands.getCommands(true));
+  const registered = await vscode.commands.getCommands(true);
   const byCommand = new Map();
   for (const ext of vscode.extensions.all) {
     const contributed = ext.packageJSON && ext.packageJSON.contributes && ext.packageJSON.contributes.commands;
     if (!Array.isArray(contributed)) continue;
     for (const entry of contributed) {
-      if (!entry.command || !entry.title || !registered.has(entry.command)) continue;
+      if (!entry.command || !entry.title || !registered.includes(entry.command)) continue;
       const title = entry.category ? `${entry.category}: ${entry.title}` : entry.title;
       byCommand.set(entry.command, { command: entry.command, title });
+    }
+  }
+  for (const command of registered) {
+    if (!byCommand.has(command)) {
+      byCommand.set(command, { command, title: command });
     }
   }
   return Array.from(byCommand.values());
