@@ -18,12 +18,12 @@
 // Requires `wmctrl` and `xdotool` on PATH (X11 only, matching the rest of
 // this repo's Linux focus/window handling -- see src/focus/linux.rs).
 // The GNOME-native actions added below (workspace switching, volume,
-// brightness, notifications, overview toggle) additionally need `wpctl`,
-// `gdbus`, `gsettings`, and `pgrep` on PATH -- all of which ship with any
-// real GNOME/PipeWire desktop, same trust tier as wmctrl/xdotool. None of
-// these five have a GNOME Shell session to actually run against in this
-// dev environment -- see the probe functions below for the untested
-// caveat, same category as search-provider.js.
+// brightness, notifications, shell UI toggles, system actions)
+// additionally need `wpctl`, `gdbus`, and `gsettings` on PATH -- all of
+// which ship with any real GNOME/PipeWire desktop, same trust tier as
+// wmctrl/xdotool. None of these have a GNOME Shell session to actually run
+// against in this dev environment -- see the probe functions below for the
+// untested caveat, same category as search-provider.js.
 const net = require("net");
 const { execFile } = require("child_process");
 const util = require("util");
@@ -182,6 +182,161 @@ function toggleDoNotDisturb() {
     .catch((err) => console.error("keylex: could not read notification banner state:", err.message));
 }
 
+const SYSTEM_ACTIONS_DEST = "org.gnome.Shell";
+const SYSTEM_ACTIONS_PATH = "/org/gnome/Shell/SystemActions";
+
+// GNOME's own live action registry for session-level actions (lock,
+// suspend, restart, power-off, logout, switch-user, ...) -- the same
+// org.gtk.Actions (GActionGroup-over-D-Bus) object GNOME's system menu
+// itself calls into. See probeSystemActions below for why this is the
+// closest real analog to vscode.commands.getCommands() this file has.
+async function listSystemActions() {
+  const { stdout } = await execFileAsync("gdbus", [
+    "call",
+    "--session",
+    "--dest",
+    SYSTEM_ACTIONS_DEST,
+    "--object-path",
+    SYSTEM_ACTIONS_PATH,
+    "--method",
+    "org.gtk.Actions.List",
+  ]);
+  return [...stdout.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+}
+
+// Describe() replies look like "(true, '', @av [])" -- only the leading
+// enabled/disabled boolean matters here.
+async function systemActionEnabled(name) {
+  const { stdout } = await execFileAsync("gdbus", [
+    "call",
+    "--session",
+    "--dest",
+    SYSTEM_ACTIONS_DEST,
+    "--object-path",
+    SYSTEM_ACTIONS_PATH,
+    "--method",
+    "org.gtk.Actions.Describe",
+    name,
+  ]);
+  return /^\(\s*true\b/.test(stdout);
+}
+
+function activateSystemAction(name) {
+  run("gdbus", [
+    "call",
+    "--session",
+    "--dest",
+    SYSTEM_ACTIONS_DEST,
+    "--object-path",
+    SYSTEM_ACTIONS_PATH,
+    "--method",
+    "org.gtk.Actions.Activate",
+    name,
+    "[]",
+    "{}",
+  ]);
+}
+
+// A handful of well-known names get a nicer title; anything else still
+// gets a readable one auto-derived from its name, the same "don't drop
+// what you don't recognize" fallback extension.js uses for uncontributed
+// VS Code commands -- so a GNOME version that adds a new system action
+// still surfaces it here with no code change.
+const SYSTEM_ACTION_TITLES = {
+  "lock-screen": "Lock Screen",
+  suspend: "Suspend",
+  hibernate: "Hibernate",
+  restart: "Restart",
+  "power-off": "Power Off",
+  logout: "Log Out",
+  "switch-user": "Switch User",
+  "lock-orientation": "Lock Screen Orientation",
+};
+
+function titleForSystemAction(name) {
+  return SYSTEM_ACTION_TITLES[name] || name.split("-").map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
+}
+
+// GNOME accelerator syntax ("<Super>a", "<Super>", "<Control><Alt>t") ->
+// xdotool's "super+a" / "super" / "ctrl+alt+t". Returns null (rather than
+// guessing) for anything that isn't this simple modifiers-plus-one-plain-
+// key shape -- a named key like "Escape" or a multi-key chord is left
+// unadvertised instead of risking a wrong keypress.
+const ACCEL_MOD_NAMES = { Super: "super", Control: "ctrl", Primary: "ctrl", Alt: "alt", Shift: "shift" };
+
+function acceleratorToXdotoolKey(accel) {
+  const mods = [...accel.matchAll(/<(\w+)>/g)].map((match) => ACCEL_MOD_NAMES[match[1]]);
+  if (mods.some((mod) => !mod)) return null;
+  const key = accel.replace(/<\w+>/g, "");
+  if (key && !/^[a-zA-Z0-9]$/.test(key)) return null;
+  return [...mods, key.toLowerCase()].filter(Boolean).join("+");
+}
+
+// Reads the live accelerator array for one gsettings keybinding key (e.g.
+// "['<Super>a']" or "[]" if cleared), returning the first binding or null.
+// Fails closed (null) if the schema/key doesn't exist on this GNOME
+// version -- gsettings itself errors in that case.
+async function readAccelerator(schema, key) {
+  try {
+    const { stdout } = await execFileAsync("gsettings", ["get", schema, key]);
+    const match = stdout.match(/'([^']*)'/);
+    return match ? match[1] : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+// The GNOME Shell UI toggles worth surfacing beyond Activities overview --
+// each backed by a named, user-configurable org.gnome.shell.keybindings
+// key, so the actual key synthesized always matches this machine's real
+// current binding instead of an assumed default.
+const SHELL_KEYBINDING_TOGGLES = [
+  {
+    schema: "org.gnome.shell.keybindings",
+    key: "toggle-overview",
+    id: "toggle.overview",
+    command: "os.shell.toggle_overview",
+    title: "Toggle Activities Overview",
+  },
+  {
+    schema: "org.gnome.shell.keybindings",
+    key: "toggle-application-view",
+    id: "toggle.app_grid",
+    command: "os.shell.toggle_app_grid",
+    title: "Toggle App Grid",
+  },
+  {
+    schema: "org.gnome.shell.keybindings",
+    key: "toggle-message-tray",
+    id: "toggle.message_tray",
+    command: "os.shell.toggle_message_tray",
+    title: "Toggle Notification List",
+  },
+  {
+    schema: "org.gnome.shell.keybindings",
+    key: "toggle-quick-settings",
+    id: "toggle.quick_settings",
+    command: "os.shell.toggle_quick_settings",
+    title: "Toggle Quick Settings",
+  },
+];
+
+// Re-reads the live accelerator at dispatch time (not whatever the last
+// list_actions probe saw) before synthesizing it, same read-then-act
+// posture as stepBrightness/toggleDoNotDisturb above.
+function dispatchShellKeybindingToggle(schema, key) {
+  readAccelerator(schema, key)
+    .then((accel) => {
+      const xdotoolKey = accel && acceleratorToXdotoolKey(accel);
+      if (!xdotoolKey) {
+        console.error(`keylex: no usable live binding for ${schema} ${key}`);
+        return;
+      }
+      run("xdotool", ["key", xdotoolKey]);
+    })
+    .catch((err) => console.error(`keylex: could not read binding for ${schema} ${key}:`, err.message));
+}
+
 const COMMANDS = {
   "os.system.shutdown": () => run("systemctl", ["poweroff"]),
   "os.desktop.show": () => run("wmctrl", ["-k", "on"]),
@@ -199,9 +354,16 @@ const COMMANDS = {
   "os.display.brightness_up": () => stepBrightness(10),
   "os.display.brightness_down": () => stepBrightness(-10),
   "os.notifications.toggle_dnd": toggleDoNotDisturb,
-  // See probeOverviewToggle below for why this is xdotool, not
-  // org.gnome.Shell.Eval, and why it's still best-effort/unverified.
-  "os.shell.toggle_overview": () => run("xdotool", ["key", "super"]),
+  // See probeShellKeybindingToggles below for why these are live-read
+  // xdotool key synthesis, not org.gnome.Shell.Eval, and why they're still
+  // best-effort/unverified.
+  "os.shell.toggle_overview": () => dispatchShellKeybindingToggle("org.gnome.shell.keybindings", "toggle-overview"),
+  "os.shell.toggle_app_grid": () =>
+    dispatchShellKeybindingToggle("org.gnome.shell.keybindings", "toggle-application-view"),
+  "os.shell.toggle_message_tray": () =>
+    dispatchShellKeybindingToggle("org.gnome.shell.keybindings", "toggle-message-tray"),
+  "os.shell.toggle_quick_settings": () =>
+    dispatchShellKeybindingToggle("org.gnome.shell.keybindings", "toggle-quick-settings"),
 };
 
 // The static core: action id, wire command, and a human title for each,
@@ -213,7 +375,7 @@ const COMMANDS = {
 // enumerate for *these* ten -- this listener only ever does exactly these
 // ten things, so a flat hardcoded list is the whole story for them.
 //
-// The five probeXxx() functions below add a second, genuinely live layer
+// The seven probeXxx() functions below add a second, genuinely live layer
 // on top of this static core (see buildActionCatalog): GNOME-native
 // actions whose availability and title are re-checked against real system
 // state on every list_actions handshake, the same "ask now, don't cache"
@@ -324,30 +486,68 @@ async function probeNotifications() {
   }
 }
 
-// Activities overview toggle -- BEST-EFFORT, UNVERIFIED. The "proper" API,
-// org.gnome.Shell.Eval, is gated behind GNOME Shell's Looking Glass "Unsafe
-// Mode" (off by default) -- the same access-denied category CLAUDE.md's
-// "Spotlight popup" section documents for org.gnome.Shell.GrabAccelerator
-// being refused to any caller outside the Shell process itself. `xdotool
-// key super` is used instead: it synthesizes a real key event, which
-// Mutter's own Super-tap overview detector reacts to directly (unlike the
-// client passive-grab path GNOME blocks for global hotkeys like win+t) --
-// but this has never been run against a real GNOME Shell session (none
-// exists in this dev environment), so treat it the same as the documented
-// create.desktop no-op: plausible, not confirmed. The live part of this
-// probe is only confirming a GNOME session is actually running, so the
-// action doesn't falsely show up on non-GNOME systems.
-async function probeOverviewToggle() {
-  if (!/gnome/i.test(process.env.XDG_CURRENT_DESKTOP || "")) return [];
+// GNOME's own live action registry (see listSystemActions/
+// systemActionEnabled/activateSystemAction above) -- the closest real
+// analog to vscode.commands.getCommands() this file has: List() returns
+// whatever this exact session currently exposes (varies by policy and
+// hardware -- switch-user disappears with one account, hibernate
+// disappears if the kernel doesn't support it), and Describe()'s enabled
+// flag is checked live per action rather than assuming every listed name
+// is currently usable.
+async function probeSystemActions() {
   try {
-    await execFileAsync("pgrep", ["-x", "gnome-shell"]);
+    const names = await listSystemActions();
+    const checks = await Promise.allSettled(
+      names.map(async (name) => ({ name, enabled: await systemActionEnabled(name) })),
+    );
+    return checks
+      .filter((check) => check.status === "fulfilled" && check.value.enabled)
+      .map((check) => {
+        const { name } = check.value;
+        return {
+          id: `system_action.${name}`,
+          command: `os.shell.system_action.${name}`,
+          title: titleForSystemAction(name),
+        };
+      });
   } catch (err) {
     return [];
   }
-  return [{ id: "toggle.overview", command: "os.shell.toggle_overview", title: "Toggle Activities Overview" }];
 }
 
-// Runs the static catalog plus all five live probes fresh on every
+// GNOME Shell UI toggles (Activities overview, app grid, notification
+// list, quick settings) -- each only advertised when its
+// org.gnome.shell.keybindings key currently holds a binding this file
+// knows how to safely synthesize (see readAccelerator/
+// acceleratorToXdotoolKey above), so a cleared or unusually-remapped
+// binding just doesn't appear instead of advertising something that can't
+// actually be triggered.
+//
+// BEST-EFFORT, UNVERIFIED, same caveat category as create.desktop's
+// documented no-op: the "proper" API, org.gnome.Shell.Eval, is gated
+// behind GNOME Shell's Looking Glass "Unsafe Mode" (off by default) -- the
+// same access-denied category CLAUDE.md's "Spotlight popup" section
+// documents for org.gnome.Shell.GrabAccelerator being refused to any
+// caller outside the Shell process itself. Synthesizing the live-read key
+// via xdotool is used instead -- plausible (Mutter's own accelerator
+// handling reacts to synthesized key events the same as real ones), but
+// never run against a real GNOME Shell session, since none exists in this
+// project's dev/CI environment.
+async function probeShellKeybindingToggles() {
+  const checks = await Promise.allSettled(
+    SHELL_KEYBINDING_TOGGLES.map(async (toggle) => {
+      const accel = await readAccelerator(toggle.schema, toggle.key);
+      const xdotoolKey = accel && acceleratorToXdotoolKey(accel);
+      if (!xdotoolKey) return null;
+      return { id: toggle.id, command: toggle.command, title: toggle.title };
+    }),
+  );
+  return checks
+    .filter((check) => check.status === "fulfilled" && check.value)
+    .map((check) => check.value);
+}
+
+// Runs the static catalog plus all seven live probes fresh on every
 // list_actions handshake (never cached, never computed at startup) --
 // mirrors vscode-extension/extension.js's liveActionCatalog: ask what's
 // really there right now, don't ship a fixed list. Promise.allSettled so
@@ -360,7 +560,8 @@ async function buildActionCatalog() {
     probeVolume(),
     probeBrightness(),
     probeNotifications(),
-    probeOverviewToggle(),
+    probeSystemActions(),
+    probeShellKeybindingToggles(),
   ]);
   const live = results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
   return [...ACTION_CATALOG, ...live];
@@ -407,6 +608,18 @@ function handleLine(line, socket) {
     const desktopId = message.command.slice(SWITCH_TO_DESKTOP_PREFIX.length);
     console.log("keylex: executing command:", message.command);
     run("wmctrl", ["-s", desktopId]);
+    return;
+  }
+
+  // Dynamic per-system-action commands (see probeSystemActions) carry the
+  // org.gtk.Actions action name in the command string itself, same reason
+  // the switch-to-desktop prefix above can't live in the flat COMMANDS
+  // table.
+  const SYSTEM_ACTION_PREFIX = "os.shell.system_action.";
+  if (typeof message.command === "string" && message.command.startsWith(SYSTEM_ACTION_PREFIX)) {
+    const actionName = message.command.slice(SYSTEM_ACTION_PREFIX.length);
+    console.log("keylex: executing command:", message.command);
+    activateSystemAction(actionName);
     return;
   }
 
