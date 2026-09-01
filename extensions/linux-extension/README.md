@@ -20,11 +20,11 @@ constraint as [../../src/focus/linux.rs](../../src/focus/linux.rs)) and
   session; if it isn't on yours, `shutdown` will just fail silently
   (its `keylex/v0` dispatch is fire-and-forget, per the protocol doc).
 - For the GNOME-native actions below (workspace switching, volume,
-  brightness, notifications, overview toggle): `wpctl` (part of
-  `wireplumber`), `gdbus` and `gsettings` (part of `glib2`/`libglib2.0-bin`),
-  and `pgrep` (part of `procps`) on `PATH`. All of these ship with any
-  real GNOME/PipeWire desktop by default, same trust tier as
-  `wmctrl`/`xdotool` above.
+  brightness, notifications, shell UI toggles, system actions): `wpctl`
+  (part of `wireplumber`) and `gdbus`/`gsettings` (part of
+  `glib2`/`libglib2.0-bin`) on `PATH`. All of these ship with any real
+  GNOME/PipeWire desktop by default, same trust tier as `wmctrl`/`xdotool`
+  above.
 
 ## Run
 
@@ -72,7 +72,7 @@ a WM with a fixed workspace count, for it to do anything.
 Beyond the ten static commands above, `listener.js` answers the
 `list_actions` handshake
 ([../../docs/protocol.md](../../docs/protocol.md#action-catalog-handshake-list_actions))
-with five more categories that are re-checked against real system state on
+with seven more categories that are re-checked against real system state on
 *every* handshake, rather than a fixed list baked into source -- mirroring
 how `vscode-extension/extension.js` queries VS Code's live command registry
 every time instead of shipping a static catalog. Each one fails closed
@@ -85,19 +85,51 @@ rather than breaking the rest of the catalog.
 | Volume | `os.audio.volume_up` / `os.audio.volume_down` / `os.audio.mute_toggle` | Current volume %/mute state, via `wpctl get-volume` | `wpctl set-volume`/`set-mute` against `@DEFAULT_AUDIO_SINK@` (PipeWire/WirePlumber, GNOME's default audio stack -- no `pactl`-only fallback) |
 | Brightness | `os.display.brightness_up` / `os.display.brightness_down` | Current backlight %, via a D-Bus `Get` on `org.gnome.SettingsDaemon.Power.Screen`'s `Brightness` property | Read-then-write `gdbus call` pair, clamped 0-100; contributes nothing on hardware with no controllable backlight |
 | Do Not Disturb | `os.notifications.toggle_dnd` | Current `org.gnome.desktop.notifications show-banners` value, via `gsettings get` | Read-then-flip `gsettings set`; the reported title ("Enable"/"Disable Do Not Disturb") always names the action that will actually run next |
-| Activities overview toggle | `os.shell.toggle_overview` | Only that a GNOME session looks like it's running (`XDG_CURRENT_DESKTOP`, `pgrep gnome-shell`) | `xdotool key super` |
 
-**Overview-toggle caveat, best-effort/unverified:** the "proper" API,
-`org.gnome.Shell.Eval`, is gated behind GNOME Shell's Looking Glass "Unsafe
-Mode" (off by default) -- the same access-denied category [CLAUDE.md](../../CLAUDE.md)'s
-"Spotlight popup" section already documents for
-`org.gnome.Shell.GrabAccelerator` being refused to any external caller.
-`xdotool key super` synthesizes a real key event instead, which Mutter's own
-Super-tap overview detector should react to directly -- but this has never
-been run against a real GNOME Shell session (none exists in this project's
-dev/CI environment), so treat it with the same "plausible, not confirmed"
-caveat as `create.desktop`'s documented no-op above, until verified on a
-real machine.
+### System actions -- the closest thing GNOME has to `getCommands()`
+
+`os.shell.system_action.<name>` (one per currently-enabled action) is
+sourced from `org.gnome.Shell`'s `/org/gnome/Shell/SystemActions` object,
+which implements the standard `org.gtk.Actions` (GActionGroup-over-D-Bus)
+interface -- the same live, introspectable registry GNOME's own system
+menu/quick-settings reads from. `listener.js` calls `List()` to get every
+action name this exact session currently exposes (varies by policy and
+hardware -- `switch-user` disappears with a single account, `hibernate`
+disappears if the kernel doesn't support it), then `Describe(name)` per
+name to keep only the ones reporting `enabled`. Dispatch calls
+`Activate(name, [], {})` directly -- a real callable D-Bus method, not a
+synthesized keypress, so this category isn't subject to the
+overview-toggle-style caveat below. Typical names: `lock-screen`,
+`suspend`, `hibernate`, `restart`, `power-off`, `logout`, `switch-user`,
+`lock-orientation`. A handful get a nicer title (see
+`SYSTEM_ACTION_TITLES` in `listener.js`); anything else still gets a
+readable auto-title-cased fallback, so a future GNOME version's new system
+actions show up with no code change here.
+
+### Shell UI keybinding toggles
+
+`os.shell.toggle_overview` / `toggle_app_grid` / `toggle_message_tray` /
+`toggle_quick_settings` each read the *live, currently-configured*
+accelerator for one `org.gnome.shell.keybindings` key (`toggle-overview`,
+`toggle-application-view`, `toggle-message-tray`, `toggle-quick-settings`
+respectively) via `gsettings get`, convert it to `xdotool key` syntax, and
+only advertise/dispatch the action when that conversion succeeds --
+so a binding the user cleared, or remapped to something more complex than
+one modifier plus one plain key (a named key like `Escape`, a multi-key
+chord), simply doesn't show up rather than advertising something that
+can't actually be triggered. Dispatch re-reads the binding fresh each time
+rather than trusting whatever the last `list_actions` handshake saw.
+
+**Best-effort, unverified**, same caveat category as `create.desktop`'s
+documented no-op: the "proper" API, `org.gnome.Shell.Eval`, is gated behind
+GNOME Shell's Looking Glass "Unsafe Mode" (off by default) -- the same
+access-denied category [CLAUDE.md](../../CLAUDE.md)'s "Spotlight popup"
+section already documents for `org.gnome.Shell.GrabAccelerator` being
+refused to any external caller. Synthesizing the live-read key via
+`xdotool key` is used instead -- plausible (Mutter's own accelerator
+handling should react to a synthesized key event the same as a real one)
+but never run against a real GNOME Shell session, since none exists in
+this project's dev/CI environment.
 
 ## GNOME Shell search provider (`search-provider.js`)
 
